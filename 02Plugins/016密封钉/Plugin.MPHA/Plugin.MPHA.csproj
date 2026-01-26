@@ -75,10 +75,8 @@
       <HintPath>..\..\..\packages\ControlzEx.6.0.0\lib\net462\ControlzEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="EventMgrLib">
+      <HintPath>..\..\..\07Dll\EventMgrLib.dll</HintPath>
     </Reference>
     <Reference Include="halcondotnet">
       <HintPath>..\..\..\00Exe\Plugins\halcondotnet.dll</HintPath>
@@ -117,12 +115,9 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
-    <Reference Include="VM.Halcon">
-      <HintPath>..\..\..\07Dll\VM.Halcon.dll</HintPath>
-    </Reference>
     <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dll\VM.Halcon.dll</HintPath>
+      <HintPath>..\..\..\07Dll\VM.Halcon.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="WindowsBase" />
