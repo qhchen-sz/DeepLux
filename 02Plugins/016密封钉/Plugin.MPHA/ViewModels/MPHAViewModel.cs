@@ -93,7 +93,11 @@ namespace Plugin.MPHA.ViewModels
                 {
 
 
+<<<<<<< HEAD
 /*                    HObject Region1 = new HObject();
+=======
+                    HObject Region1 = new HObject();
+>>>>>>> cc6efee (init version)
                     HObject Region2 = new HObject();
                     if(SelectedROIType == RoiParaType.区域)
                     {
@@ -149,6 +153,7 @@ namespace Plugin.MPHA.ViewModels
                         HOperatorSet.Union2(Region1_4, Region1, out Region1);
                         HOperatorSet.GenRectangle1(out Region2, NailSurfaceY1, NailSurfaceX1, NailSurfaceY2, NailSurfaceX2);
                     }
+<<<<<<< HEAD
 */
                     //        HOperatorSet.Connection(Region1, out HObject hObject);
                     //        HOperatorSet.AreaCenter(hObject, out HTuple area, out HTuple Y, out HTuple X);
@@ -171,18 +176,43 @@ namespace Plugin.MPHA.ViewModels
                     MPHA.HalconToImgPara(DispImage, out MPHA.ImgPara img_para);
 
 
+=======
+
+                    HOperatorSet.Connection(Region1, out HObject hObject);
+                    HOperatorSet.AreaCenter(hObject, out HTuple area, out HTuple Y, out HTuple X);
+                    HOperatorSet.GetGrayval(DispImage.Decompose2(out HImage temp), Y, X, out HTuple Z);
+                    CornerPoints cornerPoints = new CornerPoints()
+                    {
+                        x = X.DArr,
+                        y = Y.DArr,
+                        z = Z.DArr
+                    };
+                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName+"顶盖区域", ModuleParam.Remarks, HRoiType.检测范围, "blue", Region1));
+                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName+"钉面区域", ModuleParam.Remarks, HRoiType.检测范围, "red", Region2));
+                    MPHA.Send3DPindiskPoints(DispImage, Region1, Region2,
+            out HTuple hv_PointXCen, out HTuple hv_PointYCen, out HTuple hv_PointZCen);
+                    if(hv_PointXCen .Length== 0)
+                    {
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+>>>>>>> cc6efee (init version)
                     MPHA.Vector3d transformationMatrix = new MPHA.Vector3d(1, 1, MPScale);
                     FuncPara funcPara = new FuncPara()
                     {
                         radius = MPSerachRadius,//搜索半径
                         normal_degree = MPNormal_Degree,//最小搜索角度
+<<<<<<< HEAD
                         curvature_threshold = Curvature_Threshold,//曲率阈值
                         use_curvature = Use_Curvature,//曲率开关
                         central_plane_size = Central_Plane_Size,//钉面区域
+=======
+>>>>>>> cc6efee (init version)
                         distance_threshold = MPDistance_Threshold,//噪声阈值
                         min_planar_points = MPMin_Planar_Points,//最小面需要多少点
                     };
                     MPHA.ResultParaPindisk result;
+<<<<<<< HEAD
                     //MPHA.TiffPara tiff_para;
                     //tiff_para.clos = 625;
                     //tiff_para.rows = 645;
@@ -193,6 +223,18 @@ namespace Plugin.MPHA.ViewModels
 
 
                     MPHeight = Math.Round(result.plane_height_gap / MPScale, 3);
+=======
+                    MPHA.TiffPara tiff_para;
+                    tiff_para.clos = 625;
+                    tiff_para.rows = 645;
+
+
+
+                    RunMPHA(ref cornerPoints, hv_PointXCen.DArr, hv_PointYCen.DArr, hv_PointZCen.DArr, ref funcPara, ref transformationMatrix, out result);
+
+
+                    MPHeight = Math.Round(result.plane_height_gap / 400, 3);
+>>>>>>> cc6efee (init version)
                     MPAngel = Math.Round(result.plane_angle, 3);
                     ShowHRoi();
 
@@ -487,6 +529,7 @@ namespace Plugin.MPHA.ViewModels
                 RaisePropertyChanged();
             }
         }
+<<<<<<< HEAD
 
         private float _Curvature_Threshold = 0.0f;
         public float Curvature_Threshold
@@ -522,6 +565,8 @@ namespace Plugin.MPHA.ViewModels
         }
 
 
+=======
+>>>>>>> cc6efee (init version)
         private float _MPDistance_Threshold = 0.0f;
         public float MPDistance_Threshold
         {
@@ -532,7 +577,11 @@ namespace Plugin.MPHA.ViewModels
                 RaisePropertyChanged();
             }
         }
+<<<<<<< HEAD
         private int _MPMin_Planar_Points = 100;
+=======
+        private int _MPMin_Planar_Points = 500;
+>>>>>>> cc6efee (init version)
         public int MPMin_Planar_Points
         {
             get { return _MPMin_Planar_Points; }

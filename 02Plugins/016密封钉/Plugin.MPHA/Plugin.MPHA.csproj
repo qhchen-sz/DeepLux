@@ -23,7 +23,10 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+<<<<<<< HEAD
     <PlatformTarget>x64</PlatformTarget>
+=======
+>>>>>>> cc6efee (init version)
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,7 +35,10 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+<<<<<<< HEAD
     <PlatformTarget>x64</PlatformTarget>
+=======
+>>>>>>> cc6efee (init version)
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -75,8 +81,15 @@
       <HintPath>..\..\..\packages\ControlzEx.6.0.0\lib\net462\ControlzEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
+<<<<<<< HEAD
     <Reference Include="EventMgrLib">
       <HintPath>..\..\..\07Dll\EventMgrLib.dll</HintPath>
+=======
+    <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
+      <Private>False</Private>
+>>>>>>> cc6efee (init version)
     </Reference>
     <Reference Include="halcondotnet">
       <HintPath>..\..\..\00Exe\Plugins\halcondotnet.dll</HintPath>
@@ -115,9 +128,18 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
+<<<<<<< HEAD
     <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\07Dll\VM.Halcon.dll</HintPath>
+=======
+    <Reference Include="VM.Halcon">
+      <HintPath>..\..\..\07Dll\VM.Halcon.dll</HintPath>
+    </Reference>
+    <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Dll\VM.Halcon.dll</HintPath>
+>>>>>>> cc6efee (init version)
       <Private>False</Private>
     </Reference>
     <Reference Include="WindowsBase" />

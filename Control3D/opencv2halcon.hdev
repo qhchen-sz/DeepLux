@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="20.11.1.0">
+<procedure name="main">
+<interface/>
+<body>
+<l>read_image (Image, 'C:/Users/Administrator/Desktop/3DControlFiles/1.tif')</l>
+<c>* 获取最小值和最大值</c>
+<l>min_max_gray (Image, Image, 0, Min, Max, Range)</l>
+<c>* 区间1：min+0.1 到 0</c>
+<l>threshold (Image, Range1, Min + 0.1, -1)</l>
+<c></c>
+<c>* 区间2：0 到 max</c>
+<l>threshold (Image, Range2, 1, Max)</l>
+<c></c>
+<c>* 合并两个区域</c>
+<l>union2 (Range1, Range2, BinaryRegion)</l>
+<c></c>
+<c>* 获取所有非零像素的行列坐标</c>
+<l>get_region_points (BinaryRegion, Rows, Cols)</l>
+<c></c>
+<c>* 获取非零点数量</c>
+<l>tuple_length (Rows, NumPoints)</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+</hdevelop>
