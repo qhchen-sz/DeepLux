@@ -227,13 +227,8 @@
                 <TabItem Header="其他参数">
                     <Grid>
                         <Grid.RowDefinitions>
-<<<<<<< HEAD
                             <RowDefinition Height="2*"/>
                             <RowDefinition Height="1*"/>
-=======
-                            <RowDefinition/>
-                            <RowDefinition/>
->>>>>>> cc6efee (init version)
                         </Grid.RowDefinitions>
                         <Border Grid.Row="0">
                             <GroupBox Header="参数设置">
@@ -242,16 +237,11 @@
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="缩放系数:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-<<<<<<< HEAD
                                          Text="{Binding MPScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"/>
-=======
-                                         Text="{Binding MPScale}"/>
->>>>>>> cc6efee (init version)
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="搜索半径:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-<<<<<<< HEAD
                                          Text="{Binding MPSerachRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
@@ -263,41 +253,26 @@
                                         <TextBlock Text="钉面区域:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                          Text="{Binding Central_Plane_Size, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-=======
-                                         Text="{Binding MPSerachRadius}"/>
->>>>>>> cc6efee (init version)
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="最小角度:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-<<<<<<< HEAD
                                           Text="{Binding MPNormal_Degree, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-=======
-                                          Text="{Binding MPNormal_Degree}"/>
->>>>>>> cc6efee (init version)
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="噪声阈值:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-<<<<<<< HEAD
                                           Text="{Binding MPDistance_Threshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-=======
-                                          Text="{Binding MPDistance_Threshold}"/>
->>>>>>> cc6efee (init version)
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="拟合平面个数:" VerticalAlignment="Center" Width="80"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-<<<<<<< HEAD
                                           Text="{Binding MPMin_Planar_Points, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="启动曲率:" VerticalAlignment="Center" Width="60"/>
                                         <ToggleButton Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                 IsChecked="{Binding Use_Curvature, Mode=TwoWay}" Content="启用" />
-=======
-                                          Text="{Binding MPMin_Planar_Points}"/>
->>>>>>> cc6efee (init version)
                                     </StackPanel>
 
                                 </StackPanel>

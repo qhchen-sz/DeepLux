@@ -69,7 +69,6 @@ namespace Plugin.MPHA.ViewModels
             }
         }
 
-<<<<<<< HEAD
         public static void HalconToImgPara(HObject hoImage, out ImgPara para)
         {
             para = new ImgPara();
@@ -171,17 +170,6 @@ namespace Plugin.MPHA.ViewModels
         //    measure_pindisk_height_dllv2(ref cp, ref central_pa, ref func_para, ref transformationMatrix, out result, debug_mode);
         //    FreePontArray(central_pa);
         //}
-=======
-        public static void RunMPHA(ref CornerPoints cp,
-            double [] CenX, double[] CenY, double[] CenZ,
-            ref FuncPara func_para, ref Vector3d transformationMatrix,
-            out ResultParaPindisk result, bool debug_mode = false)
-        {
-            PointArray central_pa = PreProcessArray(CenX, CenY, CenZ);
-            measure_pindisk_height_dllv2(ref cp, ref central_pa, ref func_para, ref transformationMatrix, out result, debug_mode);
-            FreePontArray(central_pa);
-        }
->>>>>>> cc6efee (init version)
         //  public static void RunMPHA(List<double> X,
         // List<double> Y, List<double> Z, ref Vector3d transformationMatrix,
         //out ResultParaPindisk result, ref TiffPara tiff_para,
@@ -605,7 +593,6 @@ namespace Plugin.MPHA.ViewModels
 
 
         #region dll method
-<<<<<<< HEAD
         [StructLayout(LayoutKind.Sequential)]
         public struct ImgPara
         {
@@ -616,8 +603,6 @@ namespace Plugin.MPHA.ViewModels
             public int step;
             public int channels;
         }
-=======
->>>>>>> cc6efee (init version)
 
         [StructLayout(LayoutKind.Sequential)]
         public struct Vector3d
@@ -668,7 +653,6 @@ namespace Plugin.MPHA.ViewModels
         {
             public float radius;
             public float normal_degree;
-<<<<<<< HEAD
             public float curvature_threshold;
             public bool use_curvature;
             public float central_plane_size;
@@ -684,12 +668,6 @@ namespace Plugin.MPHA.ViewModels
         bool debug_mode);
 
 /*        //preprocessing array to pointcloud
-=======
-            public float distance_threshold;
-            public int min_planar_points;
-        }
-        //preprocessing array to pointcloud
->>>>>>> cc6efee (init version)
         [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void measure_pindisk_height_dll3(ref PointArray pa,
             ref Vector3d transformationMatrix,
@@ -720,11 +698,7 @@ namespace Plugin.MPHA.ViewModels
     out ResultParaPindisk result,
     ref TiffPara tiff_para,
     float central_plane_size,
-<<<<<<< HEAD
     bool debug_mode);*/
-=======
-    bool debug_mode);
->>>>>>> cc6efee (init version)
         #endregion
     }
 }
