@@ -1,0 +1,185 @@
+﻿<vb:ModuleViewBase x:Class="Plugin.SaveImage.Views.SaveImageView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                   xmlns:local="clr-namespace:Plugin.SaveImage.Views"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+                   xmlns:vm="clr-namespace:Plugin.SaveImage.ViewModels"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   xmlns:system="clr-namespace:System;assembly=mscorlib"
+                   Height="780" Width="500" Icon="/Plugin.SaveImage;component/Assets/Images/Tool/SaveImage.png" >
+    <vb:ModuleViewBase.Resources>
+        <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+        <local:PathModeToVisibilityConverter x:Key="PathModeToVisibilityConverter"/>
+        <local:VariableModeToVisibilityConverter x:Key="VariableModeToVisibilityConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <cvt:EnumConverter x:Key="EnumConverter"/>
+
+        <ObjectDataProvider x:Key="TimePrefixOptions" 
+                            MethodName="GetValues" 
+                            ObjectType="{x:Type system:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="vm:TimePrefixOption"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </vb:ModuleViewBase.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="70"/>
+            <RowDefinition Height="100"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+
+        <!-- 图像链接区域 -->
+        <Border>
+            <GroupBox Header="图像链接">
+                <StackPanel HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="5 0">
+                        <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                 Style="{StaticResource LinkTextBox}"
+                                 Text="{Binding InputImageLinkText}"
+                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"/>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+        </Border>
+
+        <!-- 存储类型区域 -->
+        <Border Grid.Row="1">
+            <GroupBox Header="存储类型">
+                <StackPanel Orientation="Horizontal" Margin="5 0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <RadioButton Content="原图" Margin="55 0" 
+                                 IsChecked="{Binding SelectedSaveType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:eSaveShape.原图}}"/>
+                    <RadioButton Content="截图" Margin="55 0" 
+                                 IsChecked="{Binding SelectedSaveType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:eSaveShape.截图}}"/>
+                    <RadioButton Content="离线图片" Margin="55 0" 
+                                 IsChecked="{Binding SelectedSaveType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:eSaveShape.离线图片}}"/>
+                </StackPanel>
+            </GroupBox>
+        </Border>
+
+        <!-- 文件设置区域 -->
+        <Border Grid.Row="2">
+            <GroupBox Header="文件设置">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Orientation="Vertical" Margin="5" VerticalAlignment="Top" HorizontalAlignment="Center">
+                        <!-- 路径设置 -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            <Label Content="保存路径:" Margin="5,0,0,0"/>
+                            <StackPanel>
+                                <TextBox Style="{DynamicResource MahApps.Styles.TextBox.Search}" Width="200" Height="25" Text="{Binding FilePath}"
+                                         IsReadOnly="True"
+                                         Visibility="{Binding SelectedMode, Converter={StaticResource PathModeToVisibilityConverter}}"
+                                         mah:TextBoxHelper.ButtonCommand="{Binding FilePathCommand, Mode=OneWay}"/>
+                                <Border BorderBrush="White" BorderThickness="1,1,1,0">
+                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                             Style="{StaticResource LinkTextBox}"
+                                             Visibility="{Binding SelectedMode, Converter={StaticResource VariableModeToVisibilityConverter}}"
+                                             Text="{Binding SaveImageLinkText}"
+                                             mah:TextBoxHelper.Value="{Binding SaveImageLinkTextValue}"
+                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.SaveImagePath}"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="10,0,0,0">
+                                <RadioButton Content="链接路径" Margin="10,0,0,0"
+                                             IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static vm:LinkMode.Path}}"/>
+                                <RadioButton Content="链接变量" Margin="10,0,0,0"
+                                             IsChecked="{Binding SelectedMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static vm:LinkMode.Variable}}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- 图像格式 -->
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <TextBlock Text="图像格式:" HorizontalAlignment="Center" VerticalAlignment="Center" Width="60"/>
+                            <ComboBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                      SelectedIndex="{Binding SelectedIndex}" ItemsSource="{Binding ImageStytleList}"/>
+                        </StackPanel>
+
+                        <!-- 自动删除设置 -->
+                        <StackPanel Orientation="Horizontal" Margin="10,0">
+                            <TextBlock Text="保存天数:" VerticalAlignment="Center" Width="60"/>
+                            <mah:NumericUpDown Width="200" Margin="5 0" BorderThickness="0 0 0 1" Value="{Binding SaveDay}" Minimum="0" Maximum="365"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="10,0">
+                            <TextBlock Text="自动删除:" VerticalAlignment="Center" Width="60"/>
+                            <CheckBox IsChecked="{Binding AutoDelete}" Content="启用自动删除" VerticalAlignment="Center" Margin="5 0"/>
+                        </StackPanel>
+
+                        <!-- 时间前缀选择 -->
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <TextBlock Text="时间前缀:" VerticalAlignment="Center" Width="60"/>
+                            <ComboBox HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                      Width="200" Margin="5 0"
+                                      SelectedValue="{Binding SelectedTimePrefix}"
+                                      ItemsSource="{Binding Source={StaticResource TimePrefixOptions}}"/>
+                        </StackPanel>
+
+                        
+
+                        <!-- 图片名称 -->
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <TextBlock Text="图片名称:" VerticalAlignment="Center" Width="60"/>
+                            <TextBox Text="{Binding PicName.Text}"
+                                     mah:TextBoxHelper.Value="{Binding PicName.Value}"
+                                     Style="{StaticResource LinkTextBox}"
+                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.PictureName}"
+                                     mah:TextBoxHelper.Watermark="string"
+                                     VerticalAlignment="Center" HorizontalAlignment="Center" Width="200"  Margin="5 0"/>
+                        </StackPanel>
+
+                        <!-- 图像根目录 -->
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <TextBlock Text="图像根目录:" VerticalAlignment="Center" Width="80"/>
+                            <TextBox Text="{Binding TempFilePath.Text}"
+                                     mah:TextBoxHelper.Value="{Binding TempFilePath.Value}"
+                                     Style="{StaticResource LinkTextBox}"
+                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.ImageFilePath}"
+                                     mah:TextBoxHelper.Watermark="图像根目录"
+                                     VerticalAlignment="Center" HorizontalAlignment="Center" Width="200"  Margin="5 0"
+                                     ToolTip="将在保存路径下创建以此变量名命名的文件夹"/>
+                        </StackPanel>
+
+                        <!-- 以当前时间命名 -->
+                        <!--<CheckBox Content="以当前时间命名" HorizontalAlignment="Left" VerticalAlignment="Top" 
+                                  Margin="10 10 0 0" IsChecked="{Binding ImageNameTime}"/>-->
+                    </StackPanel>
+                </ScrollViewer>
+            </GroupBox>
+        </Border>
+
+        <!-- 底部按钮区域 -->
+        <Border Grid.Row="3" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="手动删除" Command="{Binding ManualDeleteCommand}" Margin="5 0" ToolTip="手动删除超过保存天数的图片"/>
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="5 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="5 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="5 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>

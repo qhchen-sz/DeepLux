@@ -1,0 +1,268 @@
+﻿<vb:ModuleViewBase x:Class="Plugin.JigsawPuzzle.Views.JigsawPuzzleView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"      
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+                   xmlns:helper="clr-namespace:HV.Common.Helper;assembly=HV"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   xmlns:hw="clr-namespace:VM.Halcon;assembly=VM.Halcon"
+                   xmlns:vm="clr-namespace:Plugin.JigsawPuzzle.ViewModels"
+                   xmlns:local="clr-namespace:Plugin.JigsawPuzzle.Views"
+                   Icon="/Plugin.JigsawPuzzle;component/Assets/Images/Tool/JigsawPuzzle.png"
+                   Height="680" Width="980"
+                   >
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <cvt:EnumConverter x:Key="EnumConverter"/>
+                    <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+                    <cvt:StatusConverter x:Key="StatusConverter"/>
+                    <cvt:InvertBool2VisibilityConverter x:Key="InvertBool2VisibilityConverter"/>
+                </ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl Style="{StaticResource VerTabControl}">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                <TabItem Header="基本参数">
+                    <Grid x:Name="gd">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="110"/>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border >
+                            <GroupBox Header="图像链接">
+                                <StackPanel Orientation="Vertical">
+                                      <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="5 0">
+                                                                        <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                                                         Style="{StaticResource LinkTextBox}"
+                                                                         Text="{Binding InputImageLinkText}"
+                                                                         mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                                         mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"/>
+                                                                        
+                                                                    </StackPanel>
+                                                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                                                        <CheckBox IsChecked="{Binding CheckList.IsOutRoiImageChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Margin="10 "  Name="OutROIImage" Content="输出ROI裁剪图像"></CheckBox>
+                                                                    </StackPanel>
+                                </StackPanel>
+                              
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="1">
+                            <GroupBox >
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="50"/>
+                                    </Grid.RowDefinitions>
+                                    <Border VerticalAlignment="Center" HorizontalAlignment="Center"  Margin="10 0">
+                                        <StackPanel Orientation="Horizontal" Margin="5 10" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                                            <RadioButton Content="手动输入" Margin="5 0" 
+                                                 IsChecked="{Binding SearchRegionSource,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eROIMatrix.手动输入}}"/>
+                                            <RadioButton Content="链接数组" Margin="5 0" 
+                                                 IsChecked="{Binding SearchRegionSource,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eROIMatrix.链接数组}}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="2" >
+                            <GroupBox Header="ROI信息">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                  
+                                    <Grid  Grid.Row="0" Visibility="{Binding SearchRegionSource,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static enum:eROIMatrix.手动输入}}">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="40"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="100"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" 
+                                            Height="40"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Button  Command="{Binding AddDataCommand}" Margin="5" >添加</Button>
+                                            <Button Command="{Binding DelDataCommand}" Margin="5">删除</Button>
+                                        
+                                        </StackPanel>
+                                            <DataGrid
+                                                Grid.Row="1"
+                                                Margin="5"
+                                                x:Name="dg"
+                                                AutoGenerateColumns="False"
+                                                CanUserAddRows="False"
+                                                EnableColumnVirtualization="True"
+                                                EnableRowVirtualization="True"
+                                                FontSize="12"
+                                                GridLinesVisibility="All"
+                                                HeadersVisibility="Column"
+                                                ItemsSource="{Binding DataList}"
+                                                SelectedItem="{Binding JigsawPuzzleData}"
+                                                RowHeaderWidth="20"
+                                                SelectionUnit="FullRow"
+                                                VirtualizingPanel.IsVirtualizing="True"
+                                                VerticalScrollBarVisibility="Auto"
+                                            >
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn
+                                                        Width="60"
+                                                        Binding="{Binding NO}"
+                                                        CanUserSort="True"
+                                                        Header="NO."
+                                                        IsReadOnly="True" />
+                                                    <DataGridTextColumn
+                                                        Width="*"
+                                                        Binding="{Binding X,Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                        CanUserSort="False"
+                                                        Header="X"
+                                                        IsReadOnly="False" />
+                                                    <DataGridTextColumn
+                                                        Width="*"
+                                                        Binding="{Binding Y,Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                        CanUserSort="False"
+                                                        Header="Y"
+                                                        IsReadOnly="False" />
+                                                    <DataGridTextColumn
+                                                        Width="*"
+                                                        Binding="{Binding L1,Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                        CanUserSort="False"
+                                                        Header="L1"
+                                                        IsReadOnly="False" />
+                                                    <DataGridTextColumn
+                                                        Width="*"
+                                                        Binding="{Binding L2,Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                        CanUserSort="False"
+                                                        Header="L2"
+                                                        IsReadOnly="False" />
+                                                    <DataGridTextColumn
+                                                        Width="*"
+                                                        Binding="{Binding Deg,Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                        CanUserSort="False"
+                                                        Header="角度"
+                                                        IsReadOnly="False" />
+
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        <StackPanel Grid.Row="2"  HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <CheckBox  IsChecked="{Binding CheckList.IsWorldChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Margin="5" Content="世界mm坐标"></CheckBox>
+                                            <CheckBox  IsChecked="{Binding CheckList.IsOmChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Margin="5" Content="整体移动"></CheckBox>
+                                        </StackPanel>
+                                    </Grid>
+                                     <StackPanel  Visibility="{Binding SearchRegionSource,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static enum:eROIMatrix.链接数组}}">
+                                           
+                                        <StackPanel Orientation="Horizontal" Margin="30 10">
+                                            <TextBlock Text="中心X:" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Text="{Binding Rectangle1SearchRegion.Col1}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="30 10">
+                                            <TextBlock Text="中心Y:" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Text="{Binding Rectangle1SearchRegion.Row1}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="30 10">
+                                            <TextBlock Text="长度1:" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Text="{Binding Rectangle1SearchRegion.Col2}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="30 10">
+                                            <TextBlock Text="长度2:" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Text="{Binding Rectangle1SearchRegion.Row2}"/>
+                                        </StackPanel>
+                                         <StackPanel Orientation="Horizontal" Margin="30 10">
+                                            <TextBlock Text="角度(°):" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Text="{Binding Rectangle1SearchRegion.Row2}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                
+                                    
+                                </Grid>
+                            </GroupBox>
+                        </Border>
+
+                    </Grid>
+
+                </TabItem>
+                <TabItem Header="显示设置">
+                    <Grid x:Name="gd2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="200"/>
+                        </Grid.RowDefinitions>
+                        <Border DockPanel.Dock="Top" Width="{Binding ElementName=gd2,Path=ActualWidth}">
+                            <GroupBox Header="显示设置" >
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Vertical" Margin="5 0">
+                                        <CheckBox  IsChecked="{Binding CheckList.IsOutResult,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Content="显示结果区域" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" />
+                                        <CheckBox  IsChecked="{Binding CheckList.IsDianChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Content="输出点云XYZ数组" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                        <CheckBox  IsChecked="{Binding CheckList.IsOutWorldChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Content="输出世界坐标" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </GroupBox>
+                        </Border>
+                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}" Grid.Row="2">
+                            <GroupBox Header="定制功能" Height="{Binding ElementName=gd2,Path=ActualHeight}" Grid.Row="1" VerticalAlignment="Top" 
+                                      Width="{Binding ElementName=gd2,Path=ActualWidth}">
+                                <StackPanel>
+                                    <CheckBox  IsChecked="{Binding CheckList.IsCreateZlChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Content="创建阵列以坐标系坐标为基准" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" />
+                                    <CheckBox  IsChecked="{Binding CheckList.IsScreenshotChecked,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged }"  Content="截图的图像保留图形" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" />
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+
+                    </Grid>
+
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
+            </WinFormHost:WindowsFormsHost>
+
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+    </Grid>
+</vb:ModuleViewBase>

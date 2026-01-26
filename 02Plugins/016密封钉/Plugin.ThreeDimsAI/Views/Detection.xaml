@@ -1,0 +1,50 @@
+﻿<UserControl x:Class="Plugin.ThreeDimsAI.Views.Detection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Plugin.ThreeDimsAI.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d" 
+             >
+    <UserControl.Resources>
+        <local:AiClassToVisibilityConverter x:Key="AiClassToVisibilityConverter"/>
+    </UserControl.Resources>
+    <Expander Header="后处理参数" IsExpanded="True">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock Text="得分:" VerticalAlignment="Center" Width="60" />
+                <mah:NumericUpDown  Width="150" Margin="5 0" BorderThickness="0 0 0 1" 
+                                    Value="{Binding Score, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay, StringFormat=F2}" 
+                                    IsEnabled="{Binding UseScore, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                    Minimum="0" Maximum="1" Interval="0.1"/>
+                <CheckBox Content="{Binding UseScore, Converter={StaticResource AiClassToVisibilityConverter}}" Margin="20,0,0,0" IsChecked="{Binding UseScore, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock  Text="ID:" VerticalAlignment="Center" Width="60" />
+                <mah:NumericUpDown  Width="150" Margin="5 0" BorderThickness="0 0 0 1" 
+                                    Value="{Binding ID, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay, StringFormat=F2}" 
+                                    IsEnabled="{Binding UseID, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                    Minimum="0" Maximum="255" Interval="1"/>
+                <CheckBox Content="{Binding UseID, Converter={StaticResource AiClassToVisibilityConverter}}" Margin="20,0,0,0" IsChecked="{Binding UseID, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock  Text="宽度:" VerticalAlignment="Center" Width="60" />
+                <mah:NumericUpDown   Width="150" Margin="5 0" BorderThickness="0 0 0 1"
+                                     Value="{Binding LimtHeight, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay, StringFormat=F2}"
+                                     IsEnabled="{Binding UseLimtHeight, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                     Minimum="0" Maximum="999999999" Interval="1"/>
+                <CheckBox Content="{Binding UseLimtHeight, Converter={StaticResource AiClassToVisibilityConverter}}" Margin="20,0,0,0" IsChecked="{Binding UseLimtHeight, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock  Text="长度:" VerticalAlignment="Center" Width="60" />
+                <mah:NumericUpDown  Width="150" Margin="5 0" BorderThickness="0 0 0 1" 
+                                    Value="{Binding LimtWidth, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay, StringFormat=F2}" 
+                                    IsEnabled="{Binding UseLimtWidth, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                    Minimum="0" Maximum="999999999" Interval="1"/>
+                <CheckBox Content="{Binding UseLimtWidth, Converter={StaticResource AiClassToVisibilityConverter}}" Margin="20,0,0,0" IsChecked="{Binding UseLimtWidth, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+            </StackPanel>
+        </StackPanel>
+        
+    </Expander>
+</UserControl>
