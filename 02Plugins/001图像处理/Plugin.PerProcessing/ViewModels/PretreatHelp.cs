@@ -157,7 +157,41 @@ namespace Plugin.PerProcessing.ViewModels
         public void MedianImage(HImage inImage, out HImage outImage, int radius, int margin)
         {
             //HOperatorSet.MedianImage(inImage, out HObject imageMedian, "square", radius, margin);
-            outImage = inImage.MedianImage("square",radius,margin);
+            //source code
+            /*            outImage = inImage.MedianImage("square", radius, margin);*/
+            HTuple width, height;
+            HOperatorSet.GetImageSize(inImage, out width, out height);
+
+            // 防护：图像太小（避免半径导致非法）
+            if (width.D <= 2 * radius + 1 || height.D <= 2 * radius + 1)
+            {
+                outImage = inImage.CopyImage();
+                return;
+            }
+
+            // 只处理“安全区域”（避开边缘 radius 像素）
+            using (HRegion safe = new HRegion())
+            {
+                safe.GenRectangle1(
+                    (double)radius,
+                    (double)radius,
+                    height.D - radius - 1,
+                    width.D - radius - 1
+                );
+
+                // reduce_domain 后，后续算子只在 domain 内起作用
+                HImage reduced = inImage.ReduceDomain(safe);
+
+                // median_image 支持多通道；margin 你可以按需求传入（你之前写 0）
+                HImage filtered = reduced.MedianImage("square", radius, 0);
+
+                // 把 filtered（仅 safe domain）“贴回”原图：只拷贝 filtered 的 domain 区域
+                outImage = filtered.PaintGray(inImage);
+
+                // 如果你担心资源释放，可以按项目习惯 Dispose reduced/filtered
+                reduced.Dispose();
+                filtered.Dispose();
+            }
         }
         public void MedianImage(HImage inImage, HRegion region, out HImage outImage, int radius, int margin)
         {

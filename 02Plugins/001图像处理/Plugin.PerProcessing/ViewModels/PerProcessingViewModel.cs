@@ -415,7 +415,7 @@ namespace Plugin.PerProcessing.ViewModels
                         if (m_outImage != null && m_outImage.IsInitialized())
                         {
                             view.mWindowH.HobjectToHimage(m_outImage);
-                            if(SelectedROIType == eRoiType.ROI链接 && InputRoiLinkText != "")
+                            if (SelectedROIType == eRoiType.ROI链接 && InputRoiLinkText != "")
                                 ShowHRoi();
                             m_outImage = null;
                         }

@@ -21,7 +21,6 @@
 03ThirdPartyDll/Vm.Halcon/obj/
 07Dll/
 packages/
-Control3D/.git/*
 Control3D/Dll/*
 Control3D/ImageControl/.vs/
 Control3D/ImageControl/bin/
