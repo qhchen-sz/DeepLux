@@ -60,9 +60,9 @@ namespace Plugin.SealingPinHanHou.ViewModels
             ho_Region2.Dispose();
             HOperatorSet.Threshold(ho_Image, out ho_Region2, 2, 255);
             ho_Region3.Dispose();
-            HOperatorSet.Threshold(ho_Image, out ho_Region3, 3, 255);
+            HOperatorSet.Threshold(ho_Image, out ho_Region3, 4, 255);
             ho_Region4.Dispose();
-            HOperatorSet.Threshold(ho_Image, out ho_Region4, 4, 4);
+            HOperatorSet.Threshold(ho_Image, out ho_Region4, 5, 255);
 
 
             ho_RegionFillUp1.Dispose();

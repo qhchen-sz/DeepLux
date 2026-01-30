@@ -52,22 +52,23 @@ namespace Plugin.NPointCal.ViewModels
         InputImageY,
         InputRealX,
         InputRealY,
-            InputStr
+
     }
     public enum eInputType
     {
-        小数,
-        字符
+        小数
     }
-
-
     #endregion
+
     [Category("坐标标定")]
     [DisplayName("九点标定")]
     [ModuleImageName("NPointCal")]
     [Serializable]
     public class NPointCal : ModuleBase
     {
+        // 添加一个计数器来跟踪自动执行的次数
+        private int _autoExecuteCounter = 0;
+
         public override void SetDefaultLink()
         {
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
@@ -79,134 +80,288 @@ namespace Plugin.NPointCal.ViewModels
             if (InputImageLinkText == null)
                 InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
         }
+
         public override bool ExeModule()
         {
             Stopwatch.Restart();
-            #region 新
-            if (IsOpenWindows)
+
+            try
             {
-                try
+                int requiredPoints = 0;
+                switch (MPointType)
                 {
-                    int CalLenght = 0;
-                    switch (MPointType)
+                    case PointType.Three:
+                        requiredPoints = 3;
+                        break;
+                    case PointType.Nine:
+                        requiredPoints = 9;
+                        break;
+                    case PointType.Fourteen:
+                        requiredPoints = 14;
+                        break;
+                }
+
+                if (NPointCalParams == null)
+                {
+                    // 在UI线程上初始化集合
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        case PointType.Three:
-                            {
-                                CalLenght = 3;
-                                break;
-                            }
-                        case PointType.Nine:
-                            {
-                                CalLenght = 9;
-                                break;
-                            }
-                        case PointType.Fourteen:
-                            {
-                                CalLenght = 14;
-                                break;
-                            }
+                        NPointCalParams = new ObservableCollection<NPointCalParam>();
+                    });
+                }
+
+                // 检查是否已达到所需点数
+                int currentCount = NPointCalParams.Count;
+                if (currentCount >= requiredPoints)
+                {
+                    // 如果已经达到所需点数，只计算标定矩阵
+                    CalculateCalibrationMatrix();
+                    AddOutputParams();
+                    ChangeModuleRunStatus(eRunStatus.OK);
+                    return true;
+                }
+
+                // 获取步长（从输入中解析）
+                double step = 3.0; // 默认步长
+                if (!string.IsNullOrWhiteSpace(InputRealXLinkText))
+                {
+                    double parsedStep = GetDoubleFromLinkText(InputRealXLinkText);
+                    if (parsedStep != 0)
+                    {
+                        step = Math.Abs(parsedStep);
                     }
-                    //大于  计算放射变换矩阵  小于则继续收集点为
-                    if (NPointCalParams == null)
+                }
+
+                // 获取当前输入的点（图像坐标）
+                double imageX = GetDoubleFromLinkText(InputPixelXLinkText);
+                double imageY = GetDoubleFromLinkText(InputPixelYLinkText);
+
+                // 根据自动执行次数决定机械坐标
+                double realX = 0;
+                double realY = 0;
+
+                // 根据当前执行次数计算对应的机械坐标
+                int currentPointIndex = _autoExecuteCounter % 9; // 0-8循环
+
+                switch (currentPointIndex)
+                {
+                    case 0: // 第一个点：(0, 0)
+                        realX = 0;
+                        realY = 0;
+                        break;
+                    case 1: // 第二个点：(step, 0)
+                        realX = step;
+                        realY = 0;
+                        break;
+                    case 2: // 第三个点：(step, step)
+                        realX = step;
+                        realY = step;
+                        break;
+                    case 3: // 第四个点：(0, step)
+                        realX = 0;
+                        realY = step;
+                        break;
+                    case 4: // 第五个点：(-step, step)
+                        realX = -step;
+                        realY = step;
+                        break;
+                    case 5: // 第六个点：(-step, 0)
+                        realX = -step;
+                        realY = 0;
+                        break;
+                    case 6: // 第七个点：(-step, -step)
+                        realX = -step;
+                        realY = -step;
+                        break;
+                    case 7: // 第八个点：(0, -step)
+                        realX = 0;
+                        realY = -step;
+                        break;
+                    case 8: // 第九个点：(step, -step)
+                        realX = step;
+                        realY = -step;
+                        break;
+                }
+
+                // 在UI线程上执行集合修改
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // 检查是否已经存在相同坐标的点（防止重复添加）
+                    bool pointExists = NPointCalParams.Any(p =>
+                        Math.Abs(p.ImageX - imageX) < 0.001 &&
+                        Math.Abs(p.ImageY - imageY) < 0.001 &&
+                        Math.Abs(p.RealX - realX) < 0.001 &&
+                        Math.Abs(p.RealY - realY) < 0.001);
+
+                    if (!pointExists)
                     {
-                        NPointCalParams = new AsyncObservableCollection<NPointCalParam>();
-                    }
-                    if (NPointCalParams.Count < 3)
-                    {
-                        //List<double> LImageX = new List<double>();
-                        //List<double> LImageY = new List<double>();
-                        //List<double> LRealX = new List<double>();
-                        //List<double> LRealY = new List<double>();
-                        //for (int i = 0; i < NPointCalParams.Count; i++)
-                        //{
-                        //    LImageX.Add(NPointCalParams[i].ImageX);
-                        //    LImageY.Add(NPointCalParams[i].ImageY);
-                        //    LRealX.Add(NPointCalParams[i].RealX);
-                        //    LRealY.Add(NPointCalParams[i].RealY);
-                        //}
-                        //HOperatorSet.VectorToHomMat2d(new HTuple(LImageX.ToArray()), new HTuple(LImageY.ToArray()), new HTuple(LRealX.ToArray()), new HTuple(LRealY.ToArray()), out mHomMat2DTransl);//平移矩阵
-                        ChangeModuleRunStatus(eRunStatus.NG);
-                        return false;
+                        // 计算新ID
+                        int newId = NPointCalParams.Count + 1;
+
+                        // 添加当前点
+                        NPointCalParams.Add(new NPointCalParam()
+                        {
+                            ID = newId,
+                            ImageX = imageX,
+                            ImageY = imageY,
+                            RealX = realX,
+                            RealY = realY
+                        });
+
+                        Logger.AddLog($"已自动添加第{newId}个点，机械坐标: ({realX:F3}, {realY:F3})", eMsgType.Info);
+                        _autoExecuteCounter++;
                     }
                     else
                     {
-                        List<double> LImageX = new List<double>();
-                        List<double> LImageY = new List<double>();
-                        List<double> LRealX = new List<double>();
-                        List<double> LRealY = new List<double>();
+                        Logger.AddLog("当前点已存在，跳过添加", eMsgType.Info);
+                        // 即使点已存在，也增加计数器，以便下次获取下一个点
+                        _autoExecuteCounter++;
+                    }
+                });
+
+                // 检查是否达到所需点数（需要重新获取计数，因为集合可能在UI线程中更新）
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (NPointCalParams.Count >= requiredPoints)
+                    {
+                        // 计算标定矩阵
+                        CalculateCalibrationMatrix();
+
+                        // 测试验证（可选）
+                        if (testImagex != 0 || testImagey != 0)
+                        {
+                            if (MHomMat2DTransl.Length > 0)
+                            {
+                                HTuple X = new HTuple();
+                                HTuple Y = new HTuple();
+                                HOperatorSet.AffineTransPoint2d(MHomMat2DTransl, testImagex, testImagey, out X, out Y);
+                                testrealx = X.D;
+                                testrealy = Y.D;
+                            }
+                        }
+
+                        AddOutputParams();
+                        ChangeModuleRunStatus(eRunStatus.OK);
+
+                        // 如果是九点模式且达到9个点，显示完成信息
+                        if (MPointType == PointType.Nine && NPointCalParams.Count >= 9)
+                        {
+                            Logger.AddLog($"九点标定已完成，共{NPointCalParams.Count}个点", eMsgType.Success);
+                        }
+                    }
+                    else
+                    {
+                        Logger.AddLog($"当前点数：{NPointCalParams.Count}，需要{requiredPoints}个点才能计算标定", eMsgType.Info);
+                        ChangeModuleRunStatus(eRunStatus.OK);
+                    }
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ChangeModuleRunStatus(eRunStatus.NG);
+                Logger.AddLog($"执行错误: {ex.Message}", eMsgType.Error);
+                return false;
+            }
+        }
+
+        private void CalculateCalibrationMatrix()
+        {
+            try
+            {
+                List<double> LImageX = new List<double>();
+                List<double> LImageY = new List<double>();
+                List<double> LRealX = new List<double>();
+                List<double> LRealY = new List<double>();
+
+                int pointsToUse = 0;
+                switch (MPointType)
+                {
+                    case PointType.Three:
+                        pointsToUse = 3;
+                        break;
+                    case PointType.Nine:
+                        pointsToUse = 9;
+                        break;
+                    case PointType.Fourteen:
+                        pointsToUse = 9; // 14点标定使用前9个点计算变换矩阵
+                        break;
+                }
+
+                // 收集用于计算变换矩阵的点
+                for (int i = 0; i < Math.Min(pointsToUse, NPointCalParams.Count); i++)
+                {
+                    LImageX.Add(NPointCalParams[i].ImageX);
+                    LImageY.Add(NPointCalParams[i].ImageY);
+                    LRealX.Add(NPointCalParams[i].RealX);
+                    LRealY.Add(NPointCalParams[i].RealY);
+                }
+
+                if (LImageX.Count >= 3)
+                {
+                    // 计算仿射变换矩阵
+                    HOperatorSet.VectorToHomMat2d(
+                        new HTuple(LImageX.ToArray()),
+                        new HTuple(LImageY.ToArray()),
+                        new HTuple(LRealX.ToArray()),
+                        new HTuple(LRealY.ToArray()),
+                        out mHomMat2DTransl);
+
+                    // 如果是14点标定，计算旋转中心
+                    if (MPointType == PointType.Fourteen && NPointCalParams.Count >= 14)
+                    {
                         List<double> XfitCir = new List<double>();
                         List<double> YfitCir = new List<double>();
-                        for (int i = 0; i < NPointCalParams.Count; i++)
+
+                        // 使用最后5个点拟合圆（计算旋转中心）
+                        for (int i = 9; i < 14; i++)
                         {
-                            if (i <= 8)
-                            {
-                                LImageX.Add(NPointCalParams[i].ImageX);
-                                LImageY.Add(NPointCalParams[i].ImageY);
-                                LRealX.Add(NPointCalParams[i].RealX);
-                                LRealY.Add(NPointCalParams[i].RealY);
-                            }
-                            else
+                            if (i < NPointCalParams.Count)
                             {
                                 XfitCir.Add(NPointCalParams[i].ImageX);
                                 YfitCir.Add(NPointCalParams[i].ImageY);
                             }
                         }
-                        HOperatorSet.VectorToHomMat2d(new HTuple(LImageX.ToArray()), new HTuple(LImageY.ToArray()), new HTuple(LRealX.ToArray()), new HTuple(LRealY.ToArray()), out mHomMat2DTransl);
-                        Fit.FitCircle(YfitCir.ToArray(), XfitCir.ToArray(), out Circle_Info 拟合圆);
-                        mRotateCenterX = 拟合圆.CenterX;
-                        mRotateCenterY = 拟合圆.CenterY;
 
+                        if (XfitCir.Count >= 3)
+                        {
+                            Fit.FitCircle(YfitCir.ToArray(), XfitCir.ToArray(), out Circle_Info 拟合圆);
+                            mRotateCenterX = 拟合圆.CenterX;
+                            mRotateCenterY = 拟合圆.CenterY;
+                        }
                     }
-                    //if (NPointCalParams.Count < CalLenght)
-                    //{
-                    //    if (InputType == eInputType.字符)
-                    //    {
-                    //        string s = base.GetString(InputStrXYLinkText);
-                    //        string[] StrArray = s.Split(',');
-                    //        double RealX = Convert.ToDouble(StrArray[0]);
-                    //        double RealY = Convert.ToDouble(StrArray[1]);
-                    //        double PxielX = base.GetDouble(InputPixelXLinkText);
-                    //        double PxielY = base.GetDouble(InputPixelYLinkText);
-                    //        NPointCalParams.Add(new NPointCalParam() { ID = NPointCalParams.Count + 1, ImageX = PxielX, ImageY = PxielY, RealX = RealX, RealY = RealY });
-                    //        Logger.AddLog("Imagex:" + PxielX.ToString() + "ImageY:" + PxielY + "RealX:" + RealX.ToString() + "RealY:" + RealY.ToString(), eMsgType.Info);
-                    //    }
-                    //    else
-                    //    {
-                    //        NPointCalParams.Add(new NPointCalParam() { ID = NPointCalParams.Count + 1, ImageX = base.GetDouble(InputPixelXLinkText), ImageY = base.GetDouble(InputPixelYLinkText), RealX = base.GetDouble(InputRealXLinkText), RealY = base.GetDouble(InputRealYLintText) });
-                    //    }
-                    //}
-                    //else
-                    //{
 
-                    //}
-                    //ChangeModuleRunStatus(eRunStatus.OK);
-                    AddOutputParams();
-                    return true;
+                    Logger.AddLog("标定矩阵计算完成", eMsgType.Success);
                 }
-                catch (Exception ex)
+                else
                 {
-                    ChangeModuleRunStatus(eRunStatus.OK);
-                    return false;
+                    Logger.AddLog("点数不足，无法计算标定矩阵", eMsgType.Info);
                 }
-
             }
-            ChangeModuleRunStatus(eRunStatus.OK);
-            return true;
-            #endregion
+            catch (Exception ex)
+            {
+                Logger.AddLog($"计算标定矩阵错误: {ex.Message}", eMsgType.Error);
+            }
         }
+
         public override void InitModule()
         {
             IsOpenWindows = true;
-            ExeModule();
+            // 初始化时，重置计数器
+            _autoExecuteCounter = 0;
+            // 初始化时，如果表格为空，可以不做任何操作
+            // ExeModule();  // 注释掉这一行，因为初始化时不应该执行标定
             IsOpenWindows = false;
         }
+
         #region 抄过来
         /// <summary>点类型：3/9/14</summary>
         private PointType mPointType = PointType.Nine;
         /// <summary>点类型：3/9/14</summary>
         public PointType MPointType { get => mPointType; set => mPointType = value; }
         /// <summary>标定:手动/自动 </summary>
-      
+
         /// <summary>相机:固定/变化 </summary>
         private bool mCamerFix = false;
         /// <summary>相机:固定/变化 </summary>
@@ -216,34 +371,34 @@ namespace Plugin.NPointCal.ViewModels
         /// <summary>输入X</summary>
         public string InputPixelXLinkText
         {
-            get{ return _InputPixelXLinkText; }
-            set { _InputPixelXLinkText = value; RaisePropertyChanged() ; }
+            get { return _InputPixelXLinkText; }
+            set { _InputPixelXLinkText = value; RaisePropertyChanged(); }
         }
         /// <summary>输入Y</summary>
         private string _InputPixelYLinkText = "数据链接";
         /// <summary>输入Y</summary>
-        public string InputPixelYLinkText 
-        { 
+        public string InputPixelYLinkText
+        {
             get { return _InputPixelYLinkText; }
             set { _InputPixelYLinkText = value; RaisePropertyChanged(); }
         }
         /// <summary>输入X</summary>
         private string _InputRealXLinkText = "数据链接";
         /// <summary>输入X</summary>
-        public string InputRealXLinkText 
+        public string InputRealXLinkText
         {
             get { return _InputRealXLinkText; }
             set { _InputRealXLinkText = value; RaisePropertyChanged(); }
         }
         /// <summary>输入Y</summary>
-        private string _InputRealYLintText = "数据链接";
+        private string _InputRealYLinkText = "数据链接";
         /// <summary>输入Y</summary>
-        public string InputRealYLintText
+        public string InputRealYLinkText
         {
-            get { return _InputRealYLintText; }
-            set { _InputRealYLintText = value; RaisePropertyChanged(); }
+            get { return _InputRealYLinkText; }
+            set { _InputRealYLinkText = value; RaisePropertyChanged(); }
         }
-  
+
         /// <summary>基准角度</summary>
         private double mBaseAngle = 0.0;
         /// <summary>基准角度</summary>
@@ -272,8 +427,10 @@ namespace Plugin.NPointCal.ViewModels
         ///<summary>标定RMS</summary>
         private double mCalibRms = 0.0;
         /// <summary>平移矩阵</summary>
+        [NonSerialized]
         private HTuple mHomMat2DTransl = new HTuple();
         /// <summary>旋转矩阵</summary>
+        [NonSerialized]
         private HHomMat2D mHomMat2DRotate = new HHomMat2D();
         //坐标集合-序列话也无所谓*****************************************
         /// <summary>像素坐标X</summary>
@@ -289,6 +446,7 @@ namespace Plugin.NPointCal.ViewModels
         /// <summary>标定自动清零</summary>
         public bool mAutoClear = false;
         /// <summary>标定点信息</summary>
+        [NonSerialized]
         public List<NPoint> mNPoint = new List<NPoint>();
         private int _CurrentRow;
         public int CurrentRow
@@ -307,7 +465,7 @@ namespace Plugin.NPointCal.ViewModels
         public double testImagey
         {
             get { return _testImagey; }
-            set { _testImagey = value;  RaisePropertyChanged(); }
+            set { _testImagey = value; RaisePropertyChanged(); }
         }
         private double _testrealx;
         public double testrealx
@@ -322,23 +480,7 @@ namespace Plugin.NPointCal.ViewModels
             set { _testrealy = value; RaisePropertyChanged(); }
         }
 
-        private eInputType _InputType = eInputType.字符;
-        /// <summary>
-        /// 搜索区域源
-        /// </summary>
-        public eInputType InputType
-        {
-            get { return _InputType; }
-            set
-            { _InputType=value; RaisePropertyChanged(); }
-        }
-        private string _InputStrXYLinkText = "数据连接";
-        public string InputStrXYLinkText
-        {
-            get { return _InputStrXYLinkText; }
-            set
-            { _InputStrXYLinkText = value; RaisePropertyChanged(); }
-        }
+
         #endregion
         #region Prop
         private string _InputImageLinkText;
@@ -374,6 +516,7 @@ namespace Plugin.NPointCal.ViewModels
             // 写入文件（覆盖模式）
             File.WriteAllText(filePath, sb.ToString());
         }
+
         public ObservableCollection<NPointCalParam> LoadNPointCalParamsFromFile(string filePath)
         {
             var result = new ObservableCollection<NPointCalParam>();
@@ -432,15 +575,10 @@ namespace Plugin.NPointCal.ViewModels
             var view = ModuleView as NPointCalView;
             if (view != null)
             {
-              
                 SetDefaultLink();
-                //GetDispImage(InputImageLinkText);
-                //if (DispImage != null && DispImage.IsInitialized())
-                //{
-                //    // view.mWindowH.Image = DispImage;
-                //}
             }
         }
+
         [NonSerialized]
         private CommandBase _ExecuteCommand;
         public CommandBase ExecuteCommand
@@ -451,12 +589,14 @@ namespace Plugin.NPointCal.ViewModels
                 {
                     _ExecuteCommand = new CommandBase((obj) =>
                     {
+                        // 执行模块，会自动添加点
                         ExeModule();
                     });
                 }
                 return _ExecuteCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _ConfirmCommand;
         public CommandBase ConfirmCommand
@@ -477,6 +617,106 @@ namespace Plugin.NPointCal.ViewModels
                 return _ConfirmCommand;
             }
         }
+
+        [NonSerialized]
+        private CommandBase _AddCurrentPointCommand;
+        public CommandBase AddCurrentPointCommand
+        {
+            get
+            {
+                if (_AddCurrentPointCommand == null)
+                {
+                    _AddCurrentPointCommand = new CommandBase((obj) =>
+                    {
+                        try
+                        {
+                            // 获取当前输入的点
+                            double imageX = GetDoubleFromLinkText(InputPixelXLinkText);
+                            double imageY = GetDoubleFromLinkText(InputPixelYLinkText);
+                            double realX = GetDoubleFromLinkText(InputRealXLinkText);
+                            double realY = GetDoubleFromLinkText(InputRealYLinkText);
+
+                            // 检查是否已经存在相同坐标的点
+                            bool pointExists = NPointCalParams.Any(p =>
+                                Math.Abs(p.ImageX - imageX) < 0.001 &&
+                                Math.Abs(p.ImageY - imageY) < 0.001 &&
+                                Math.Abs(p.RealX - realX) < 0.001 &&
+                                Math.Abs(p.RealY - realY) < 0.001);
+
+                            if (!pointExists)
+                            {
+                                // 重新计算所有行的ID，确保连续
+                                int newId = NPointCalParams.Count + 1;
+
+                                NPointCalParams.Add(new NPointCalParam()
+                                {
+                                    ID = newId,
+                                    ImageX = imageX,
+                                    ImageY = imageY,
+                                    RealX = realX,
+                                    RealY = realY
+                                });
+
+                                Logger.AddLog($"已手动添加第{newId}个点", eMsgType.Info);
+                            }
+                            else
+                            {
+                                Logger.AddLog("当前点已存在，跳过添加", eMsgType.Info);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.AddLog($"添加点失败: {ex.Message}", eMsgType.Error);
+                        }
+                    });
+                }
+                return _AddCurrentPointCommand;
+            }
+        }
+
+        // 辅助方法：从链接文本中获取double值
+        private double GetDoubleFromLinkText(string linkText)
+        {
+            if (string.IsNullOrWhiteSpace(linkText))
+                return 0;
+
+            if (linkText.StartsWith("&"))
+            {
+                try
+                {
+                    return base.GetDouble(linkText);
+                }
+                catch
+                {
+                    if (double.TryParse(linkText.Replace("&", ""), out double result))
+                        return result;
+                    return 0;
+                }
+            }
+            else
+            {
+                if (double.TryParse(linkText, out double result))
+                    return result;
+                return 0;
+            }
+        }
+
+        [NonSerialized]
+        private CommandBase _GenerateNinePointsCommand;
+        public CommandBase GenerateNinePointsCommand
+        {
+            get
+            {
+                if (_GenerateNinePointsCommand == null)
+                {
+                    _GenerateNinePointsCommand = new CommandBase((obj) =>
+                    {
+
+                    });
+                }
+                return _GenerateNinePointsCommand;
+            }
+        }
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             switch (obj.SendName.Split(',')[1])
@@ -494,15 +734,13 @@ namespace Plugin.NPointCal.ViewModels
                     InputRealXLinkText = obj.LinkName;
                     break;
                 case "RealY":
-                    InputRealYLintText = obj.LinkName;
-                    break;
-                case "StrRealXY":
-                    InputStrXYLinkText = obj.LinkName;
+                    InputRealYLinkText = obj.LinkName;
                     break;
                 default:
                     break;
             }
         }
+
         [NonSerialized]
         private CommandBase _LinkCommand;
         public CommandBase LinkCommand
@@ -540,25 +778,21 @@ namespace Plugin.NPointCal.ViewModels
                                 break;
                             case eLinkCommand.InputRealX:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},MInputRealX");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},RealX");
                                 break;
                             case eLinkCommand.InputRealY:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},RealX");
-                                break;
-                            case eLinkCommand.InputStr:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "string");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},StrRealXY");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},RealY");
                                 break;
                             default:
                                 break;
                         }
-
                     });
                 }
                 return _LinkCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _DataOperateCommand;
         public CommandBase DataOperateCommand
@@ -572,52 +806,68 @@ namespace Plugin.NPointCal.ViewModels
                         switch (obj)
                         {
                             case "AddRow":
-                               NPointCalParams.Add(new NPointCalParam() { ID= NPointCalParams.Count+1});
+                                // 查找当前最大ID
+                                int newId = NPointCalParams.Count + 1;
+
+                                NPointCalParams.Add(new NPointCalParam() { ID = newId });
                                 break;
+
                             case "DeleteRow":
-                                if ((CurrentRow < 0)||(NPointCalParams.Count<=0) )return;
+                                if ((CurrentRow < 0) || (NPointCalParams.Count <= 0)) return;
 
                                 NPointCalParams.RemoveAt(CurrentRow);
+                                // 重新计算ID，确保连续
+                                RecalculateIds();
                                 break;
+
                             case "WriteToFile":
                                 {
                                     System.Windows.Forms.SaveFileDialog sa = new System.Windows.Forms.SaveFileDialog();
-                                    if (sa.ShowDialog() == DialogResult.OK)
+                                    sa.Filter = "文本文件|*.txt|所有文件|*.*";
+                                    sa.Title = "保存标定点数据";
+                                    if (sa.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                                     {
-                                        SaveNPointCalParamsToFile(NPointCalParams, sa.FileName+".txt");
-                                        //SerializeHelp.BinSerializeAndSaveFile(NPointCalParams, sa.FileName + ".cal");
+                                        SaveNPointCalParamsToFile(NPointCalParams, sa.FileName);
                                     }
-                                } 
+                                }
                                 break;
+
                             case "LoadFromFile":
-                                { 
-                                System.Windows.Forms.OpenFileDialog op=new System.Windows.Forms.OpenFileDialog();
-                                    if (op.ShowDialog()==DialogResult.OK)
-                                    {
-                                        NPointCalParams = new ObservableCollection<NPointCalParam>(LoadNPointCalParamsFromFile(op.FileName));
-                                        //NPointCalParams = SerializeHelp.BinDeserialize<AsyncObservableCollection<NPointCalParam>>(op.FileName);
-                                    }
-                                }
-                                break;
-                            case "WriteReaultToFile":
                                 {
-                                    System.Windows.Forms.SaveFileDialog sa = new System.Windows.Forms.SaveFileDialog();
-                                    if (sa.ShowDialog() == DialogResult.OK)
+                                    System.Windows.Forms.OpenFileDialog op = new System.Windows.Forms.OpenFileDialog();
+                                    op.Filter = "文本文件|*.txt|所有文件|*.*";
+                                    op.Title = "加载标定点数据";
+                                    if (op.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                                     {
-                                        HTuple hTuple = new HTuple();
-                                        HOperatorSet.TupleConcat(hTuple, MHomMat2DTransl,out hTuple);
-                                        HOperatorSet.TupleConcat(hTuple, mRotateCenterX, out hTuple);
-                                        HOperatorSet.TupleConcat(hTuple, mRotateCenterY, out hTuple);
-                                        HOperatorSet.WriteTuple(hTuple,sa.FileName);
+                                        NPointCalParams = LoadNPointCalParamsFromFile(op.FileName);
                                     }
                                 }
                                 break;
+
+
                             case "Test":
-                                HTuple X=new HTuple();HTuple Y=new HTuple();
-                                HOperatorSet.AffineTransPoint2d(MHomMat2DTransl,testImagex,testImagey,out X,out Y);
-                                testrealx = X.D;
-                                testrealy= Y.D; 
+                                if (MHomMat2DTransl.Length > 0)
+                                {
+                                    HTuple X = new HTuple();
+                                    HTuple Y = new HTuple();
+                                    HOperatorSet.AffineTransPoint2d(MHomMat2DTransl, testImagex, testImagey, out X, out Y);
+                                    testrealx = X.D;
+                                    testrealy = Y.D;
+                                }
+                                else
+                                {
+                                    System.Windows.Forms.MessageBox.Show("请先执行标定，获取标定矩阵", "提示",
+                                        System.Windows.Forms.MessageBoxButtons.OK,
+                                        System.Windows.Forms.MessageBoxIcon.Warning);
+                                }
                                 break;
+
+                            case "ClearTable":
+                                NPointCalParams.Clear();
+                                _autoExecuteCounter = 0;
+                                Logger.AddLog("表格已清空", eMsgType.Info);
+                                break;
+
                             default:
                                 break;
                         }
@@ -626,29 +876,76 @@ namespace Plugin.NPointCal.ViewModels
                 return _DataOperateCommand;
             }
         }
+
+        // 重新计算所有行的ID，确保连续
+        private void RecalculateIds()
+        {
+            for (int i = 0; i < NPointCalParams.Count; i++)
+            {
+                NPointCalParams[i].ID = i + 1;
+            }
+            // 触发集合更改通知
+            RaisePropertyChanged(nameof(NPointCalParams));
+        }
+
         public override void AddOutputParams()
         {
-            if (IsOpenWindows)
-            {
-                base.AddOutputParams();
-                AddOutputParam("MHomMat2DTransl", "Htuple", MHomMat2DTransl);
-                AddOutputParam("mRotateCenterX", "double", mRotateCenterX);
-                AddOutputParam("mRotateCenterY", "double", mRotateCenterY);
-            }
-
+            // 移除IsOpenWindows条件，确保自动执行时也能输出参数
+            base.AddOutputParams();
+            AddOutputParam("MHomMat2DTransl", "Htuple", MHomMat2DTransl);
+            AddOutputParam("mRotateCenterX", "double", mRotateCenterX);
+            AddOutputParam("mRotateCenterY", "double", mRotateCenterY);
         }
+
         /// <summary>平移矩阵</summary>
         public HTuple MHomMat2DTransl { get => mHomMat2DTransl; set => mHomMat2DTransl = value; }
         #endregion
     }
 
     [Serializable]
-    public class NPointCalParam
+    public class NPointCalParam : INotifyPropertyChanged
     {
-        public int ID { get; set; }
-        public double ImageX { get; set; }
-        public double ImageY { get; set; }
-        public double RealX { get; set; }
-        public double RealY { get; set; }
+        private int _id;
+        private double _imageX;
+        private double _imageY;
+        private double _realX;
+        private double _realY;
+
+        public int ID
+        {
+            get { return _id; }
+            set { _id = value; OnPropertyChanged(nameof(ID)); }
+        }
+
+        public double ImageX
+        {
+            get { return _imageX; }
+            set { _imageX = value; OnPropertyChanged(nameof(ImageX)); }
+        }
+
+        public double ImageY
+        {
+            get { return _imageY; }
+            set { _imageY = value; OnPropertyChanged(nameof(ImageY)); }
+        }
+
+        public double RealX
+        {
+            get { return _realX; }
+            set { _realX = value; OnPropertyChanged(nameof(RealX)); }
+        }
+
+        public double RealY
+        {
+            get { return _realY; }
+            set { _realY = value; OnPropertyChanged(nameof(RealY)); }
+        }
+        [field: NonSerialized]
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }
