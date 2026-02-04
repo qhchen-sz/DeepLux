@@ -96,6 +96,8 @@ namespace VM.Halcon.Model
         private ArrayList HObjImageList;
         /// <summary>用于描述图形上下文的实例， HALCON窗口。根据图形设置</summary>
         private GraphicsContext mGC;
+        //多线程锁
+        public static readonly object _displayLock = new object();
         #region 涂抹部分
         /// <summary>灰度值，坐标位置</summary>
         string message;
@@ -685,9 +687,27 @@ namespace VM.Halcon.Model
         /// <summary>
         /// Triggers a Repaint of the HALCON window
         /// </summary>
-        public void Repaint()
+        public void RepaintBack()
         {
             Repaint(ViewPort.HalconWindow);
+        }
+        public void Repaint()
+        {
+            if (ViewPort.InvokeRequired)
+            {
+                ViewPort.BeginInvoke(new Action(() =>
+                {
+                    lock (_displayLock) {
+                        Repaint(ViewPort.HalconWindow);
+                    }
+                }));
+            }
+            else
+            {
+                lock (_displayLock) {
+                    Repaint(ViewPort.HalconWindow);
+                }
+            }
         }
         public void ClearROI()
         {
@@ -764,14 +784,15 @@ namespace VM.Halcon.Model
         /// it is defined for the HDevelop graphics stack.
         /// </summary>
         /// <param name="obj">Iconic object</param>
-        public void AddIconicVar(HObject img)
+        //source code
+        public void AddIconicVarBack(HObject img)
         {
             //先把HObjImageList给全部释放了,源代码 会出现内存泄漏问题
             for (int i = 0; i < HObjImageList.Count; i++)
             {
                 ((HObjectEntry)HObjImageList[i]).clear();
             }
-            if (img == null|| !img.IsInitialized()) return;
+            if (img == null || !img.IsInitialized()) return;
             HOperatorSet.GetObjClass(img, out HTuple classValue);
             if (classValue.Length == 0) return;
             if (!classValue.S.Equals("image"))
@@ -802,6 +823,57 @@ namespace VM.Halcon.Model
                 //需要自己手动释放
                 ((HObjectEntry)HObjImageList[0]).clear();
                 HObjImageList.RemoveAt(1);
+            }
+        }
+        public void AddIconicVar(HObject img)
+        {
+
+            if (img == null || !img.IsInitialized()) return;
+            // ① 先在 lock 外 Clone，避免长时间占锁
+            HImage safeImg;
+            try
+            {
+                safeImg = ((HImage)img).Clone();
+            }
+            catch
+            {
+                return; // img 已被别的线程 clear
+            }
+
+            lock (_displayLock) {
+                HOperatorSet.GetObjClass(safeImg, out HTuple classValue);
+                if (classValue.Length == 0) return;
+                if (!classValue.S.Equals("image"))
+                { return; }
+                if ((HImage)safeImg is HImage)
+                {
+                    int area = ((HImage)safeImg).GetDomain().AreaCenter(out double r, out double c);
+                    ((HImage)safeImg).GetImagePointer1(out string s, out int w, out int h);
+
+                    if (area == (w * h))
+                    {
+                        ClearList();
+                        if (w != ImageWidth || h != ImageHeight)
+                        {
+                            ImageWidth = w;
+                            ImageHeight = h;
+                            ZoomWndFactor = (double)ImageWidth / ViewPort.Width;
+                            SetImagePart(0, 0, h, w);
+                        }
+                    }//if
+                }//if
+                //每当传入背景图的时候 都清空HObjectList
+                ClearHObjectList();
+                HObjectEntry entry = new HObjectEntry((HImage)safeImg, mGC.copyContextList());
+                HObjImageList.Add(entry);
+                if (HObjImageList.Count > MAXNUMOBJLIST)
+                {
+                    //需要自己手动释放
+                    ((HObjectEntry)HObjImageList[0]).clear();
+                    //source code
+                    /*                HObjImageList.RemoveAt(1);*/
+                    HObjImageList.RemoveAt(0);
+                }
             }
         }
 
@@ -976,7 +1048,9 @@ namespace VM.Halcon.Model
         /// <param name="color">颜色</param>
         public void DispObj(HObject hObj, string color,bool isFillDisp)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (_displayLock)
             {
                 try
                 {
@@ -1013,7 +1087,9 @@ namespace VM.Halcon.Model
         /// <param name="color">颜色</param>
         public void DispObj(HText roiText)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (_displayLock)
             {
                 roiTextList.Add(roiText);
                 ShowTool.SetFont(ViewPort.HalconWindow, roiText.size, "false", "false");
@@ -1026,13 +1102,13 @@ namespace VM.Halcon.Model
         /// </summary>
         public void ClearHObjectList()
         {
-
             foreach (HObjectWithColor hObjectWithColor in hObjectList)
             {
                 hObjectWithColor.HObject.Dispose();
             }
             hObjectList.Clear();
             roiTextList.Clear();
+
         }
 
         /// <summary>

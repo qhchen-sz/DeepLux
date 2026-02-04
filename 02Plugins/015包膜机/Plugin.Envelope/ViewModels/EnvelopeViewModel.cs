@@ -141,22 +141,29 @@ namespace Plugin.Envelope.ViewModels
                     {
                         HRegion region1 = new HRegion();
                         HRegion region2 = new HRegion();
-                        HRegion region3_1 = new HRegion();
+                        HRegion region3 = new HRegion();
                         HRegion region4 = new HRegion();
-                        region3_1 = Result.Threshold(3.0, 3.0);
+                        region3 = Result.Threshold(3.0, 3.0);
                         region1 = Result.Threshold(1.0, 1.0);
                         region2 = Result.Threshold(2.0, 2.0);
                         region4 = Result.Threshold(4.0, 4.0);
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)2).ToString(), new HObject(region1), true));
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai2", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)3).ToString(), new HObject(region2), true));
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3_1), true));
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3), true));
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai4", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)5).ToString(), new HObject(region4), true));
-                        region3_1.Dispose();
+                        region3.Dispose();
                         region1.Dispose();
                         region2.Dispose();
                         region4.Dispose();
                     }
-
+                    //新增判断显示
+                    if (IsBlueMembrane)
+                    {
+                        HRegion region3_1 = new HRegion();
+                        region3_1 = Result.Threshold(3.0, 3.0);
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3_1), false));
+                        region3_1.Dispose();
+                    }
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "进入传统寻边算法：", eMsgType.Warn);
                     Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject Line, out HObject Arrow, out HObject Cross, SelectLocation.ToString(), out HTuple Distance1, out HTuple Distance2);
                     //HOperatorSet.WriteImage(Result.ScaleImage(60.0, 0), "bmp", 0, @"C:\Users\Administrator\Desktop\ai\rongdian\1.bmp");
@@ -189,13 +196,6 @@ namespace Plugin.Envelope.ViewModels
                     //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 3, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Line3)));
                     //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 4, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(DispLine)));
 
-                    //新增判断显示
-                    //if (IsHeatFusionJoint)
-                    //{
-                    //    HRegion region1 = new HRegion();
-                    //    region1 = Result.Threshold(1.0, 1.0);
-                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)2).ToString(), new HObject(region1), false));
-                    //}
                     //if (IsTopCover)
                     //{
                     //    HRegion region2 = new HRegion();
@@ -203,10 +203,10 @@ namespace Plugin.Envelope.ViewModels
                     //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai2", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)3).ToString(), new HObject(region2), false));
                     //}
 
-                    HRegion region3 = new HRegion();
-                    region3 = Result.Threshold(3.0, 3.0);
-                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3), false));
-                    region3.Dispose();
+                    /*                    HRegion region3 = new HRegion();
+                                        region3 = Result.Threshold(3.0, 3.0);
+                                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3), false));
+                                        region3.Dispose();*/
                     //if (IsDiaphragm)
                     //{
                     //    HRegion region4 = new HRegion();

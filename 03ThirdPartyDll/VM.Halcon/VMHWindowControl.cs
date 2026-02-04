@@ -644,6 +644,7 @@ namespace VM.Halcon
             }
         }
 
+        //source code
         public void ClearWindow()
         {
             try
@@ -651,11 +652,11 @@ namespace VM.Halcon
                 this.Invoke(
                     new Action(() =>
                     {
-                        //this.hv_image = null;
+                                //this.hv_image = null;
                         m_CtrlHStatusLabelCtrl.Visible = false;
                         barVisible_strip.Enabled = false;
-                        //fitWindow_strip.Enabled = false;
-                        //histogram_strip.Enabled = false;
+                                //fitWindow_strip.Enabled = false;
+                                //histogram_strip.Enabled = false;
                         saveImg_strip.Enabled = false;
                         saveWindow_strip.Enabled = false;
                         mCtrl_HWindow.HalconWindow.ClearWindow();
@@ -670,6 +671,35 @@ namespace VM.Halcon
             }
         }
 
+        //chat gpt version
+        /*        public void ClearWindow()
+                {
+                    try
+                    {
+                        this.BeginInvoke(
+                            new Action(() =>
+                            {
+                                lock (HWndCtrl._displayLock) {
+                                    //this.hv_image = null;
+                                    m_CtrlHStatusLabelCtrl.Visible = false;
+                                    barVisible_strip.Enabled = false;
+                                    //fitWindow_strip.Enabled = false;
+                                    //histogram_strip.Enabled = false;
+                                    saveImg_strip.Enabled = false;
+                                    saveWindow_strip.Enabled = false;
+                                    mCtrl_HWindow.HalconWindow.ClearWindow();
+                                    WindowH.ClearWindow();
+                                    PaintCross();
+                                }
+
+                            })
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                    }
+                }*/
         public void HobjectToHimage(HObject hobject)
         {
             /*            if (hobject == Image)
@@ -715,7 +745,9 @@ namespace VM.Halcon
         /// <param name="hObj">传入的region.xld,image</param>
         public void DispObj(HObject hObj, bool isFillDis)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (HWndCtrl._displayLock)
             {
                 WindowH.DispHobject(hObj, null, isFillDis);
             }
@@ -723,7 +755,9 @@ namespace VM.Halcon
 
         public void DispObj(HObject hObj)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (HWndCtrl._displayLock)
             {
                 WindowH.DispHobject(hObj, null, false);
             }
@@ -736,7 +770,9 @@ namespace VM.Halcon
         /// <param name="color">颜色</param>
         public void DispObj(HObject hObj, string color, bool isFillDis)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (HWndCtrl._displayLock)
             {
                 WindowH.DispHobject(hObj, color, isFillDis);
             }
@@ -744,7 +780,9 @@ namespace VM.Halcon
 
         public void DispObj(HObject hObj, string color)
         {
-            lock (this)
+            //source code
+            //lock (this)
+            lock (HWndCtrl._displayLock)
             {
                 WindowH.DispHobject(hObj, color, false);
             }
@@ -782,7 +820,9 @@ namespace VM.Halcon
                 {
                     if (roi != null)
                     {
-                        lock (this)
+                        //source code
+                        //lock (this)
+                        lock (HWndCtrl._displayLock)
                         {
                             WindowH.DispHobject(roi.hobject, roi.drawColor, false);
                         }
@@ -799,7 +839,9 @@ namespace VM.Halcon
                 {
                     if (roi != null && roi.roiType == HRoiType.文字显示)
                     {
-                        lock (this)
+                        //source code
+                        //lock (this)
+                        lock (HWndCtrl._displayLock)
                         {
                             WindowH.DispText(roi);
                         }

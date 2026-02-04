@@ -325,7 +325,8 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="59*"/>
-            <ColumnDefinition Width="156*"/>
+            <ColumnDefinition Width="52*"/>
+            <ColumnDefinition Width="104*"/>
             <ColumnDefinition Width="1585*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -333,7 +334,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Background="{StaticResource MahApps.Brushes.Accent}" Grid.ColumnSpan="3">
+        <Grid Grid.Row="0" Background="{StaticResource MahApps.Brushes.Accent}" Grid.ColumnSpan="4">
             <ToolBar x:Name="toolBar">
                 <Button
                     Command="{Binding NavOperateCommand}"
@@ -506,10 +507,10 @@
                 </StackPanel>
             </ToolBar>
         </Grid>
-        <Border Grid.Row="1" Grid.ColumnSpan="3" Margin="0,0,0,21" Grid.RowSpan="2">
+        <Border Grid.Row="1" Grid.ColumnSpan="4" Margin="0,0,0,21" Grid.RowSpan="2">
             <ContentControl Content="{x:Static dock:DockView.Ins}" />
         </Border>
-        <StatusBar Grid.Row="2" Grid.ColumnSpan="3">
+        <StatusBar Grid.Row="2" Grid.ColumnSpan="4">
             <StatusBarItem>Application</StatusBarItem>
             <Separator Style="{StaticResource MahApps.Styles.Separator.StatusBar}" />
             <StatusBarItem Content="{lex:Loc Key=CurrentUser}" />

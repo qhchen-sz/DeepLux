@@ -352,7 +352,8 @@ namespace Plugin.ShowImage.ViewModels
         }
         #endregion
         #region Method
-        public override void ShowHRoi()
+        //source code
+/*        public override void ShowHRoi()
         {
             int windowsW = 594;
             int windowsH = 583;
@@ -378,7 +379,7 @@ namespace Plugin.ShowImage.ViewModels
                 double scaleX = width.D / windowsW;
                 double scaleY = height.D / windowsH;
                 //scale = Math.Min(scaleX, scaleY);
-                scale = scaleX ;
+                scale = scaleX;
             }
 
 
@@ -391,75 +392,159 @@ namespace Plugin.ShowImage.ViewModels
                 //mWindowH.DispText.Clear();
                 mWindowH.Image = new RImage(DispImage);
                 //mWindowH.HobjectToHimage(DispImage);
-                    //if (DispImage.Type == "3D")
-                    //{
-                    //    int count = DispImage.CountChannels();
-                    //    if (IsOpenWindows)
-                    //    {
-                            
-                    //        if (count == 1)
-                    //        {
-                    //            Create3DRGB(DispImage, DispImage, out HObject multimage, "精细");
-                    //            mWindowH.DispObj(multimage);
-                                
-                    //        }
-                    //        else if (count == 2)
-                    //        {
+                //if (DispImage.Type == "3D")
+                //{
+                //    int count = DispImage.CountChannels();
+                //    if (IsOpenWindows)
+                //    {
 
-                    //            HImage Heightimage = DispImage.Decompose2(out HImage Grayimage);
-                    //            Create3DRGB(Heightimage, Grayimage, out HObject multimage, "精细");
-                    //            mWindowH.DispObj(multimage);
+                //        if (count == 1)
+                //        {
+                //            Create3DRGB(DispImage, DispImage, out HObject multimage, "精细");
+                //            mWindowH.DispObj(multimage);
 
-                    //        }
-                    //    }
-                    //    else
-                    //    {
-                    //        if (count == 1)
-                    //        {
-                    //            Create3DRGB(DispImage, DispImage, out HObject multimage, "精细");
-                    //            mWindowH.DispObj(multimage);
+                //        }
+                //        else if (count == 2)
+                //        {
 
-                    //        }
-                    //        else if (count == 2)
-                    //        {
+                //            HImage Heightimage = DispImage.Decompose2(out HImage Grayimage);
+                //            Create3DRGB(Heightimage, Grayimage, out HObject multimage, "精细");
+                //            mWindowH.DispObj(multimage);
 
-                    //            HImage Heightimage = DispImage.Decompose2(out HImage Grayimage);
-                    //            Create3DRGB(Heightimage, Grayimage, out HObject multimage, "精细");
-                    //            mWindowH.DispObj(multimage);
+                //        }
+                //    }
+                //    else
+                //    {
+                //        if (count == 1)
+                //        {
+                //            Create3DRGB(DispImage, DispImage, out HObject multimage, "精细");
+                //            mWindowH.DispObj(multimage);
 
-                    //        }
-                    //    }
+                //        }
+                //        else if (count == 2)
+                //        {
 
+                //            HImage Heightimage = DispImage.Decompose2(out HImage Grayimage);
+                //            Create3DRGB(Heightimage, Grayimage, out HObject multimage, "精细");
+                //            mWindowH.DispObj(multimage);
 
-                    //}
+                //        }
+                //    }
 
 
-                    foreach (HRoi roi in DispImage.mHRoi)
+                //}
+
+
+                foreach (HRoi roi in DispImage.mHRoi)
+                {
+                    if (roi.roiType == HRoiType.文字显示)
                     {
-                        if (roi.roiType == HRoiType.文字显示)
-                        {
-                            HText roiText = (HText)roi;
-                            ShowTool.SetFont(
-                                mWindowH.hControl.HalconWindow,
-                                roiText.size,
-                                "false",
-                                "false"
-                            );
+                        HText roiText = (HText)roi;
+                        ShowTool.SetFont(
+                            mWindowH.hControl.HalconWindow,
+                            roiText.size,
+                            "false",
+                            "false"
+                        );
                         //roiText.size = 1;
                         var size = Math.Ceiling(roiText.size / scale);
                         HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);
-                            mWindowH.WindowH.DispText(hText);
-                        }
-                        else
-                        {
-                            mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
-                        }
+                        mWindowH.WindowH.DispText(hText);
+                    }
+                    else
+                    {
+                        mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
                     }
                 }
             }
-        
+        }*/
+
+        public override void ShowHRoi()
+        {
+            // 图像快照（引用级）
+            var imageSnapshot = DispImage;
+            if (imageSnapshot == null || !imageSnapshot.IsInitialized())
+                return;
+            // ROI 快照（列表级，避免被并发修改）
+            var roiSnapshot = imageSnapshot.mHRoi?.ToList();
+            //打开后图像无法正常显示
+/*            if (roiSnapshot == null || roiSnapshot.Count == 0)
+                return;*/
+
+            // 窗口快照
+            var view = ModuleView as ShowImageView;
+            VMHWindowControl mWindowH =
+                (view == null || view.IsClosed)
+                ? ViewDic.GetView(DispViewID)
+                : view.mWindowH;
+
+            if (mWindowH == null || mWindowH.IsDisposed)
+                return;
+
+            mWindowH.BeginInvoke(new Action(() =>
+            {
+                lock (HWndCtrl._displayLock)
+                {
+                    int windowsW = 594;
+                    int windowsH = 583;
+                    HTuple width = new HTuple(), height = new HTuple();
+                    double scale = 1;
+
+                    if (DispImage != null)
+                    {
+                        HOperatorSet.GetImageSize(DispImage, out width, out height);
+                        windowsW = mWindowH.hControl.Width;
+                        windowsH = mWindowH.hControl.Height;
+                        double scaleX = width.D / windowsW;
+                        double scaleY = height.D / windowsH;
+                        //scale = Math.Min(scaleX, scaleY);
+                        scale = scaleX;
+                    }
+
+
+
+
+                    if (mWindowH != null)
+                    {
+                        mWindowH.ClearWindow();
+                        //mWindowH.ClearROI();
+                        //mWindowH.DispText.Clear();
+                        mWindowH.Image = new RImage(DispImage);
+
+
+                        foreach (HRoi roi in DispImage.mHRoi)
+                        {
+                            if (roi.roiType == HRoiType.文字显示)
+                            {
+                                HText roiText = (HText)roi;
+                                ShowTool.SetFont(
+                                    mWindowH.hControl.HalconWindow,
+                                    roiText.size,
+                                    "false",
+                                    "false"
+                                );
+                                //roiText.size = 1;
+                                var size = Math.Ceiling(roiText.size / scale);
+                                HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);
+                                mWindowH.WindowH.DispText(hText);
+                            }
+                            else
+                            {
+                                mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
+                            }
+                        }
+                    }
+                }
+
+            }));
+
+
+        }
+
+
+
         #endregion
-        public  void Create3DRGB(HObject ho_HeightImage, HObject ho_GrayImage, out HObject ho_MultiChannelImage,
+        public void Create3DRGB(HObject ho_HeightImage, HObject ho_GrayImage, out HObject ho_MultiChannelImage,
 HTuple hv_DispGrade)
         {
 
