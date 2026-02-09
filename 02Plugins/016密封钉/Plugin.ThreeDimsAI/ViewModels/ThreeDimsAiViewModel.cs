@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows;
 using Application = System.Windows.Application;
+using System.Runtime.InteropServices;
 
 namespace Plugin.ThreeDimsAI.ViewModels
 {
@@ -148,6 +149,9 @@ namespace Plugin.ThreeDimsAI.ViewModels
                             ChangeModuleRunStatus(eRunStatus.NG);
                             return false;
                         }
+                        //手动释放内存
+                        Marshal.FreeHGlobal(img_para.data);
+                        img_para.data = IntPtr.Zero;
                         // 预分配容量，避免多次扩容
                         List<double> CX = new List<double>(defects.size);
                         List<double> CY = new List<double>(defects.size);

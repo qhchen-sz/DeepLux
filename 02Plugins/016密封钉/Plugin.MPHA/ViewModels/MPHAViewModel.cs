@@ -28,6 +28,7 @@ using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
 using static Plugin.MPHA.ViewModels.MPHA;
+using System.Runtime.InteropServices;
 
 namespace Plugin.MPHA.ViewModels
 {
@@ -188,8 +189,10 @@ namespace Plugin.MPHA.ViewModels
                     //tiff_para.rows = 645;
                     bool run_flag = MPHA.RunMPHA(ref img_para, ref funcPara, ref transformationMatrix, out result);
 
-
-/*                    RunMPHA(ref cornerPoints, hv_PointXCen.DArr, hv_PointYCen.DArr, hv_PointZCen.DArr, ref funcPara, ref transformationMatrix, out result);*/
+                    //手动释放内存
+                    Marshal.FreeHGlobal(img_para.data);
+                    img_para.data = IntPtr.Zero;
+                    /*                    RunMPHA(ref cornerPoints, hv_PointXCen.DArr, hv_PointYCen.DArr, hv_PointZCen.DArr, ref funcPara, ref transformationMatrix, out result);*/
 
 
                     MPHeight = Math.Round(result.plane_height_gap / MPScale, 3);

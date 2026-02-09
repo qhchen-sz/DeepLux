@@ -1,0 +1,199 @@
+﻿<vb:ModuleViewBase x:Class="Plugin.JiErHanDefectsDet.Views.JiErHanDefectsDetView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:vm="clr-namespace:Plugin.JiErHanDefectsDet.ViewModels"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                   xmlns:local="clr-namespace:Plugin.JiErHanDefectsDet.Views"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+                   xmlns:helper="clr-namespace:HV.Common.Helper;assembly=HV"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   xmlns:hw="clr-namespace:VM.Halcon;assembly=VM.Halcon"
+                   Icon="/Plugin.JiErHanDefectsDet;component/Assets/Images/Tool/JiErHanDefectsDet.png"
+                   Height="680" Width="980"
+                   Loaded="ModuleViewBase_Loaded">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <cvt:EnumConverter x:Key="EnumConverter"/>
+                    <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+                    <cvt:StatusConverter x:Key="StatusConverter"/>
+                </ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Styles/TextBoxStyle.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Styles/TabControlStyle.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Styles/Converter.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid >
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl Style="{StaticResource VerTabControl}">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                <TabItem Header="基本参数">
+                    <Grid x:Name="gd">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="400"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border>
+                            <GroupBox Header="图像链接">
+                                <StackPanel Orientation="Horizontal" Margin="5 0">
+                                    <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                     Style="{StaticResource LinkTextBox}"
+                                     Text="{Binding InputImageLinkText}"
+                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="1">
+                            <GroupBox Header="参数设置">
+                                <StackPanel Orientation="Vertical" Margin="5 0">
+
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="缩放系数:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding MPScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="搜索半径:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding Radius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="曲率阈值:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding CurvatureThreshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="最小点数:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding MinDefectsSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="最小高度:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                          Text="{Binding ZThreshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="法向量角度:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                          Text="{Binding NormalDegree, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+
+                </TabItem>
+                <TabItem Header="数据结果">
+                    <Grid x:Name="gd2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="6*"/>
+                            <ColumnDefinition Width="7*"/>
+                            <ColumnDefinition Width="144*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="200"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}" Grid.ColumnSpan="3">
+                            <!--<GroupBox Header="结果面积" Width="{Binding ElementName=gd2,Path=ActualWidth}">
+                                <StackPanel Orientation="Vertical" Margin="5 0">
+
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="缺陷面积:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 IsReadOnly="True" Text="{Binding DefectAreaValue}"/>
+                                    </StackPanel>
+
+                                </StackPanel>
+                            </GroupBox>-->
+                            <GroupBox Header="数据结果">
+                                <DataGrid ItemsSource="{Binding UIDefects, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                          SelectedItem="{Binding SelectedDefect, Mode=TwoWay}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          IsReadOnly="True"
+                                          Margin="5"
+                                          AlternationCount="1000000">
+
+                                    <DataGrid.Columns>
+                                        <!--<DataGridTextColumn Header="序号"
+                                            IsReadOnly="True"
+                                            Width="60"
+                                            Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow},
+                                                                Path=(ItemsControl.AlternationIndex)}"/>-->
+                                        <DataGridTextColumn Header="序号"
+                                                        Binding="{Binding Id}" Width="*" />
+                                        <DataGridTextColumn Header="面积"
+                                                        Binding="{Binding Area, StringFormat={}{0:F2}}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </GroupBox>
+                        </Border>
+                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}" Grid.Row="1" Grid.ColumnSpan="3">
+                            <GroupBox Header="显示设置" Height="{Binding ElementName=gd,Path=ActualHeight}" Grid.Row="1" VerticalAlignment="Top" Width="{Binding ElementName=dp,Path=ActualWidth}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <CheckBox Content="显示缺陷轮廓" IsChecked="{Binding ShowDefectsContour, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <CheckBox Content="显示缺陷区域" IsChecked="{Binding ShowDefectsArea, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
+            </WinFormHost:WindowsFormsHost>
+
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+    </Grid>
+</vb:ModuleViewBase>
