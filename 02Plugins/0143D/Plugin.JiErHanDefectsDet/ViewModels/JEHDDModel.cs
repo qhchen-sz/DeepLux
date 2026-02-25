@@ -141,11 +141,19 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
         }
 
         //UI友好型结果显示
+        [Serializable]
         public class DefectResult
         {
             public int Id { get; set; }          // ← 缺陷唯一ID
             public double Area { get; set; }
-            public HRegion Region { get; set; }  // ← 缺陷区域（核心）
+            [NonSerialized]
+            public HRegion _region;
+            public HRegion Region
+            {
+                get => _region;
+                set => _region = value;
+            }
+            //public HRegion Region { get; set; }  // ← 缺陷区域（核心）
         }
         public static void HalconToImgPara(HObject hoImage, out ImgPara para)
         {

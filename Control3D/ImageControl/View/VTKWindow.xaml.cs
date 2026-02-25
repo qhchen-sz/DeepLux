@@ -42,7 +42,8 @@ namespace ImageControl
 
         public void ShowPointCloudHalcon(HObject img)
         {
-            vtkControl.CreatePointCloudFromTiffFastHalcon_Fast(img);
+            //vtkControl.CreatePointCloudFromTiffFastHalcon_Fast(img);
+            vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScale(img);
             vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
         }
 

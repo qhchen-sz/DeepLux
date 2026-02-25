@@ -62,7 +62,7 @@
     </Reference>
     <Reference Include="ImageControl, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\07Dll\ImageControl.dll</HintPath>
+      <HintPath>..\..\Control3D\ImageControl\bin\x64\Debug\ImageControl.dll</HintPath>
     </Reference>
     <Reference Include="OpenCvSharp">
       <HintPath>..\ImageControl\packages\OpenCvSharp4.4.9.0.20240103\lib\net48\OpenCvSharp.dll</HintPath>

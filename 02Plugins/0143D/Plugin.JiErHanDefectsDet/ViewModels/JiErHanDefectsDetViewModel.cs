@@ -315,7 +315,6 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
                 RaisePropertyChanged();
             }
         }
-        [NonSerialized]
         private bool _ShowDefectsContour = true;
         /// <summary>显示缺陷轮廓 </summary>
         public bool ShowDefectsContour
@@ -323,7 +322,6 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
             get { return _ShowDefectsContour; }
             set { Set(ref _ShowDefectsContour, value); }
         }
-        [NonSerialized]
         private bool _ShowDefectsArea = false;
         /// <summary>显示缺陷区域 </summary>
         public bool ShowDefectsArea

@@ -20,6 +20,29 @@ namespace ImageControl
 
     public class MyRenderWindowControl : Kitware.VTK.RenderWindowControl
     {
+        private readonly double[] _zoomAxis = new double[3] { 0, 0, 1 }; // 记忆缩放轴
+        private bool _zoomAxisValid = false;
+
+        private double _signedDist = 0.0;   // 有符号距离：>0 在焦点这一侧，<0 穿透到另一侧
+
+        //// ====== 新增：交互时临时把焦点“挪到点云中心”，交互结束再恢复为“飞行焦点”所需字段 ======
+        //private bool _pivotMode = false;          // 是否已进入“交互pivot模式”
+        //private double _flyDist = 0.0;            // 飞行模式下 pos->fp 的距离（用于恢复飞行焦点）
+        private readonly double[] _pivotDelta = new double[3]; // 切换到pivot时的平移量（保证画面不跳）
+        //显示左键旋转中心
+        private vtkActor _pivotActor;
+        private vtkSphereSource _pivotSphere;
+
+        // ——新增：记录上次中心点——
+        private bool _hasLastPivot = false;
+        private readonly double[] _lastPivot = new double[3];
+
+        // ——新增：阈值系数（越大越容易沿用上次中心点）——
+        // 建议 0.01~0.05 之间，按场景调；这里给 0.02（包围盒对角线的 2%）
+        private const double PivotReuseThresholdFactor = 0.05;
+
+        private MouseDragPivotMessageFilter dragPivotFilter;
+
 
         private MouseWheelMessageFilter mouseWheelFilter;
         private MouseRightButtonMessageFilter rightButtonFilter;
@@ -48,6 +71,325 @@ namespace ImageControl
                         Application.AddMessageFilter(rightButtonFilter);
                     }
                 }*/
+
+        // =========================================================
+        // 方案A：交互开始/结束时，临时把焦点切到点云中心（pivot）
+        // =========================================================
+        private bool TryGetVisiblePointCloudCenterByFrustum(
+        vtkRenderer renderer,
+        vtkCamera camera,
+        out double[] pivot,
+        out double[] mergedBounds)
+        {
+            pivot = null;
+            mergedBounds = null;
+
+            if (renderer == null || camera == null) return false;
+
+            // 计算 aspect（用于获取相机视锥平面）
+            int[] size = renderer.GetSize(); // [w,h]
+            double w = (size != null && size.Length > 0) ? size[0] : 1.0;
+            double h = (size != null && size.Length > 1) ? size[1] : 1.0;
+            if (h < 1.0) h = 1.0;
+            double aspect = w / h;
+
+            // 相机视锥平面（6个平面，共24个系数）
+            double[] frustum = new double[24];
+            var planes = vtkPlanes.New();
+            //camera.GetFrustumPlanes(aspect, frustum);
+            IntPtr pFrustum = System.Runtime.InteropServices.Marshal.AllocHGlobal(sizeof(double) * 24);
+            try
+            {
+                camera.GetFrustumPlanes(aspect, pFrustum);
+                planes.SetFrustumPlanes(pFrustum);
+                System.Runtime.InteropServices.Marshal.Copy(pFrustum, frustum, 0, 24);
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.FreeHGlobal(pFrustum);
+            }
+
+            //var planes = vtkPlanes.New();
+            //planes.SetFrustumPlanes(frustum);
+
+            // 合并所有“视锥内点云”的 bounds
+            bool hasValid = false;
+            double xmin = double.PositiveInfinity, ymin = double.PositiveInfinity, zmin = double.PositiveInfinity;
+            double xmax = double.NegativeInfinity, ymax = double.NegativeInfinity, zmax = double.NegativeInfinity;
+
+            var actors = renderer.GetActors();
+            actors.InitTraversal();
+
+            vtkActor actor;
+            while ((actor = actors.GetNextActor()) != null)
+            {
+                if (actor == null || actor.GetVisibility() == 0) continue;
+
+                // 排除 pivot 小球，避免它干扰中心计算
+                if (_pivotActor != null && actor == _pivotActor) continue;
+
+                // 只处理点云 actor（最小改动做法：通过 mapper 输入是否为 polydata 来近似判断）
+                // 如果你有自己的点云actor列表，建议在这里改成 IsPointCloudActor(actor)
+                var mapper = actor.GetMapper();
+                if (mapper == null) continue;
+
+                vtkPolyData inputPd = null;
+                try
+                {
+                    var pdMapper = mapper as vtkPolyDataMapper;
+                    if (pdMapper != null)
+                    {
+                        pdMapper.Update();
+                        inputPd = pdMapper.GetInput();
+                    }
+                }
+                catch { }
+
+                if (inputPd == null) continue;
+                if (inputPd.GetNumberOfPoints() <= 0) continue;
+
+                double[] actorVisibleBounds;
+                if (!TryGetActorVisibleBoundsInFrustum(actor, inputPd, planes, out actorVisibleBounds))
+                    continue;
+
+                if (actorVisibleBounds == null || actorVisibleBounds.Length != 6) continue;
+                if (actorVisibleBounds[1] < actorVisibleBounds[0] ||
+                    actorVisibleBounds[3] < actorVisibleBounds[2] ||
+                    actorVisibleBounds[5] < actorVisibleBounds[4])
+                    continue;
+
+                xmin = Math.Min(xmin, actorVisibleBounds[0]);
+                xmax = Math.Max(xmax, actorVisibleBounds[1]);
+                ymin = Math.Min(ymin, actorVisibleBounds[2]);
+                ymax = Math.Max(ymax, actorVisibleBounds[3]);
+                zmin = Math.Min(zmin, actorVisibleBounds[4]);
+                zmax = Math.Max(zmax, actorVisibleBounds[5]);
+                hasValid = true;
+            }
+
+            if (!hasValid) return false;
+
+            mergedBounds = new double[] { xmin, xmax, ymin, ymax, zmin, zmax };
+            pivot = new double[]
+            {
+                0.5 * (xmin + xmax),
+                0.5 * (ymin + ymax),
+                0.5 * (zmin + zmax)
+            };
+
+            return true;
+        }
+        private bool TryGetActorVisibleBoundsInFrustum(
+        vtkActor actor,
+        vtkPolyData inputPd,
+        vtkPlanes frustumPlanes,
+        out double[] visibleWorldBounds)
+        {
+            visibleWorldBounds = null;
+
+            if (actor == null || inputPd == null || frustumPlanes == null) return false;
+            if (inputPd.GetNumberOfPoints() <= 0) return false;
+
+            // 1) 先把点云从 actor 局部坐标变换到世界坐标
+            var transform = vtkTransform.New();
+            transform.SetMatrix(actor.GetMatrix());
+
+            var tf = vtkTransformPolyDataFilter.New();
+            tf.SetTransform(transform);
+            tf.SetInput(inputPd);
+            tf.Update();
+
+            var worldPd = tf.GetOutput();
+            if (worldPd == null || worldPd.GetNumberOfPoints() <= 0) return false;
+
+            // 2) 用相机视锥（vtkPlanes）过滤几何体
+            var extract = vtkExtractGeometry.New();
+            extract.SetImplicitFunction(frustumPlanes);
+            extract.SetInput(worldPd);
+            extract.ExtractInsideOn();
+            extract.ExtractBoundaryCellsOn();
+            extract.Update();
+
+            var ug = extract.GetOutput(); // vtkUnstructuredGrid
+            if (ug == null) return false;
+
+            long nPts = 0;
+            try { nPts = ug.GetNumberOfPoints(); } catch { }
+            if (nPts <= 0) return false;
+
+            double[] b = ug.GetBounds();
+            if (b == null || b.Length != 6) return false;
+            if (b[1] < b[0] || b[3] < b[2] || b[5] < b[4]) return false;
+
+            visibleWorldBounds = new double[] { b[0], b[1], b[2], b[3], b[4], b[5] };
+            return true;
+        }
+
+        private static double ScreenDistance(vtkRenderer renderer, double[] a, double[] b)
+        {
+            renderer.SetWorldPoint(a[0], a[1], a[2], 1.0);
+            renderer.WorldToDisplay();
+            double[] da = renderer.GetDisplayPoint();
+
+            renderer.SetWorldPoint(b[0], b[1], b[2], 1.0);
+            renderer.WorldToDisplay();
+            double[] db = renderer.GetDisplayPoint();
+
+            double dx = da[0] - db[0];
+            double dy = da[1] - db[1];
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+        // 给 MessageFilter 调用（public）
+        public void BeginPivotForInteraction()
+        {
+            //if (_pivotMode) return;
+            if (OwnerVTKControl == null) return;
+
+            var rw = this.RenderWindow;
+            var renderer = rw.GetRenderers().GetFirstRenderer();
+            var camera = renderer.GetActiveCamera();
+
+            double[] pos = camera.GetPosition();
+            double[] fp = camera.GetFocalPoint();
+
+            //// 记录飞行距离（pos->fp）
+            //double dx = fp[0] - pos[0];
+            //double dy = fp[1] - pos[1];
+            //double dz = fp[2] - pos[2];
+            //_flyDist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            //if (_flyDist < 1e-9) _flyDist = 1e-6;
+            //// pivot：点云中心（用 actor bounds 中心）
+            //// ====== 修正点：ComputeVisiblePropBounds 返回的是 bounds，不是中心点 ======
+            //double[] b = renderer.ComputeVisiblePropBounds(); // [xmin,xmax,ymin,ymax,zmin,zmax]
+
+            //// bounds 无效保护（VTK 常用无效值：xmax < xmin 或为空场景）
+            //if (b == null || b.Length != 6 || b[1] < b[0] || b[3] < b[2] || b[5] < b[4])
+            //    return;
+
+            //double[] pivot = new double[]
+            //{
+            //    0.5 * (b[0] + b[1]),
+            //    0.5 * (b[2] + b[3]),
+            //    0.5 * (b[4] + b[5])
+            //};
+            //double[] pivot = camera.GetPosition();
+            //double[] pivot = camera.GetFocalPoint();
+            double[] b;
+            double[] pivot;
+            if (!TryGetVisiblePointCloudCenterByFrustum(renderer, camera, out pivot, out b))
+            {
+                if (_pivotActor != null) _pivotActor.VisibilityOff(); // 可选：隐藏
+                return;
+            }
+            // 半径自适应：用包围盒对角线的 1%
+            double ddx = b[1] - b[0], ddy = b[3] - b[2], ddz = b[5] - b[4];
+            double diag = Math.Sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+            if (diag < 1e-9) diag = 1.0;
+            //// ====== 新增：若本次 pivot 与上次 pivot 距离很近，则沿用上次 pivot ======
+            //// 阈值：包围盒对角线 * 系数（尺度自适应）
+            //double reuseEps = Math.Max(1e-6, diag * PivotReuseThresholdFactor);
+            //阈值：屏幕距离
+            double reuseEps = 5; // ⭐ 推荐 2~5 像素
+
+            if (_hasLastPivot)
+            {
+                //double pdx = pivot[0] - _lastPivot[0];
+                //double pdy = pivot[1] - _lastPivot[1];
+                //double pdz = pivot[2] - _lastPivot[2];
+                //double dist = Math.Sqrt(pdx * pdx + pdy * pdy + pdz * pdz);
+                double dist = ScreenDistance(renderer, pivot, _lastPivot);
+                if (dist <= reuseEps)
+                {
+                    // 沿用上次中心点
+                    pivot[0] = _lastPivot[0];
+                    pivot[1] = _lastPivot[1];
+                    pivot[2] = _lastPivot[2];
+                }
+                else
+                {
+                    // 更新上次中心点为本次
+                    _lastPivot[0] = pivot[0];
+                    _lastPivot[1] = pivot[1];
+                    _lastPivot[2] = pivot[2];
+                }
+            }
+            else
+            {
+                // 第一次：记录
+                _lastPivot[0] = pivot[0];
+                _lastPivot[1] = pivot[1];
+                _lastPivot[2] = pivot[2];
+                _hasLastPivot = true;
+            }
+            // === 显示 pivot 小球（最小改动）===
+            if (_pivotActor == null)
+            {
+                _pivotSphere = vtkSphereSource.New();
+                _pivotSphere.SetThetaResolution(16);
+                _pivotSphere.SetPhiResolution(16);
+
+                var mapper = vtkPolyDataMapper.New();
+                mapper.SetInputConnection(_pivotSphere.GetOutputPort());
+
+                _pivotActor = vtkActor.New();
+                _pivotActor.SetMapper(mapper);
+                _pivotActor.GetProperty().SetColor(1, 0, 0); // 红色
+                _pivotActor.GetProperty().SetOpacity(0.8);
+                renderer.AddActor(_pivotActor);
+            }
+
+            _pivotSphere.SetRadius(diag * 0.01);
+            _pivotSphere.SetCenter(pivot[0], pivot[1], pivot[2]);
+            _pivotSphere.Update();
+            _pivotActor.VisibilityOn();
+
+            //double[] pivot = renderer.ComputeVisiblePropBounds();
+
+/*            // 为了切换不跳画面：pos 也跟着平移同样的 delta，保持 (fp - pos) 不变,伪功能
+            _pivotDelta[0] = pivot[0] - fp[0];
+            _pivotDelta[1] = pivot[1] - fp[1];
+            _pivotDelta[2] = pivot[2] - fp[2];
+
+            camera.SetPosition(pos[0] + _pivotDelta[0], pos[1] + _pivotDelta[1], pos[2] + _pivotDelta[2]);*/
+            camera.SetFocalPoint(pivot[0], pivot[1], pivot[2]);
+            //camera.OrthogonalizeViewUp();
+            //renderer.ResetCameraClippingRange();
+            //_pivotMode = true;
+            renderer.GetRenderWindow().Render();
+        }
+
+        // 给 MessageFilter 调用（public）
+        //public void EndPivotForInteraction()
+        //{
+        //    if (!_pivotMode) return;
+
+        //    var rw = this.RenderWindow;
+        //    var renderer = rw.GetRenderers().GetFirstRenderer();
+        //    var camera = renderer.GetActiveCamera();
+
+        //    double[] pos = camera.GetPosition();
+        //    double[] fpPivot = camera.GetFocalPoint(); // 交互时的 pivot
+
+        //    // 用当前视线方向（pos->pivot）恢复“飞行焦点”
+        //    double vx = fpPivot[0] - pos[0];
+        //    double vy = fpPivot[1] - pos[1];
+        //    double vz = fpPivot[2] - pos[2];
+        //    double len = Math.Sqrt(vx * vx + vy * vy + vz * vz);
+        //    if (len < 1e-9) len = 1e-6;
+
+        //    vx /= len; vy /= len; vz /= len;
+
+        //    double fpFlyX = pos[0] + vx * _flyDist;
+        //    double fpFlyY = pos[1] + vy * _flyDist;
+        //    double fpFlyZ = pos[2] + vz * _flyDist;
+
+        //    camera.SetFocalPoint(fpFlyX, fpFlyY, fpFlyZ);
+        //    camera.OrthogonalizeViewUp();
+
+        //    _pivotMode = false;
+        //    renderer.GetRenderWindow().Render();
+        //}
+
         public void InitMessageFilters()
         {
             if (mouseWheelFilter == null)
@@ -60,6 +402,13 @@ namespace ImageControl
                 rightButtonFilter = new MouseRightButtonMessageFilter(this.Handle, this, OwnerVTKControl);
                 System.Windows.Forms.Application.AddMessageFilter(rightButtonFilter);
             }
+
+            if (dragPivotFilter == null)
+            {
+                dragPivotFilter = new MouseDragPivotMessageFilter(this.Handle, this);
+                System.Windows.Forms.Application.AddMessageFilter(dragPivotFilter);
+            }
+
         }
         //first version
         public  void OnCustomMouseWheel2(MouseEventArgs e)
@@ -218,7 +567,163 @@ namespace ImageControl
             renderer.GetRenderWindow().Render();
         }
 
+        public void OnCustomMouseWheel5(MouseEventArgs e)
+        {
+            vtkRenderWindow rw = this.RenderWindow;
+            vtkRenderer renderer = rw.GetRenderers().GetFirstRenderer();
+            vtkCamera camera = renderer.GetActiveCamera();
+
+            double[] pos = camera.GetPosition();
+            double[] fp = camera.GetFocalPoint();
+
+            // 当前相机->焦点向量
+            double dx = fp[0] - pos[0];
+            double dy = fp[1] - pos[1];
+            double dz = fp[2] - pos[2];
+            double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+            // ---- 1) 更新/初始化缩放轴（只要距离足够，就用当前方向刷新轴）----
+            // 这样：你旋转相机后，再滚轮缩放，轴会跟着更新；但靠近焦点时不会抖
+            const double epsDir = 1e-12;
+            if (dist > epsDir)
+            {
+                _zoomAxis[0] = dx / dist;
+                _zoomAxis[1] = dy / dist;
+                _zoomAxis[2] = dz / dist;
+                _zoomAxisValid = true;
+
+                // 如果第一次滚轮，初始化 signedDist 为当前距离（正）
+                if (_signedDist == 0.0) _signedDist = dist;
+                else
+                {
+                    // 正常情况下保持 signedDist 的“符号”，但用当前绝对距离纠正一下幅度
+                    _signedDist = Math.Sign(_signedDist) * dist;
+                }
+            }
+            else
+            {
+                // dist 极小还没轴：退化为默认轴
+                if (!_zoomAxisValid)
+                {
+                    _zoomAxis[0] = 0; _zoomAxis[1] = 0; _zoomAxis[2] = 1;
+                    _zoomAxisValid = true;
+                }
+
+                // dist 太小：用 signedDist 的符号维持状态（避免突然跳轴）
+                if (Math.Abs(_signedDist) < 1e-9)
+                    _signedDist = 1e-6; // 给一点初始值
+            }
+
+            // ---- 2) 计算“加法步进”而不是比例步进：避免越近越卡 ----
+            // 步长跟当前距离相关，同时设置一个最小步长
+            // 你也可以把 minStep 做成和数据包围盒相关（下面有更高级做法）
+            double absD = Math.Abs(_signedDist);
+            double factor = 0.05;      // 每格滚轮走 5% 距离（可调 0.02~0.15）
+/*            double[] b = new double[6];*/
+/*            renderer.ComputeVisiblePropBounds(b);*/
+            double[] b = renderer.ComputeVisiblePropBounds();
+            double sx = b[1] - b[0];
+            double sy = b[3] - b[2];
+            double sz = b[5] - b[4];
+            double diag = Math.Sqrt(sx * sx + sy * sy + sz * sz);
+
+            // minStep 设为对角线的千分之一或万分之一（按手感调）
+            double minStep = Math.Max(diag * 0.001, 1e-6);
+            /*            double minStep = 0.05;     // 最小步长（按你的坐标尺度调：0.01~5 都可能）*/
+
+            double step = Math.Max(absD * factor, minStep);
+
+            // 鼠标上滚：放大（往里走） => signedDist 减小
+            // 鼠标下滚：缩小（往外走） => signedDist 增加
+            if (e.Delta > 0) _signedDist -= step;
+            else _signedDist += step;
+
+            // ---- 3) 允许穿透：当跨过 0 时，别卡在 0 上（避免 dist=0 引发数值问题）----
+            double crossEps = 1e-6;
+            if (Math.Abs(_signedDist) < crossEps)
+                _signedDist = (e.Delta > 0) ? -crossEps : crossEps;
+
+            // ---- 4) 用“有符号距离 + 固定轴”更新相机位置（焦点不变）----
+            pos[0] = fp[0] - _zoomAxis[0] * _signedDist;
+            pos[1] = fp[1] - _zoomAxis[1] * _signedDist;
+            pos[2] = fp[2] - _zoomAxis[2] * _signedDist;
+
+            camera.SetPosition(pos[0], pos[1], pos[2]);
+            // camera.SetFocalPoint(fp[0], fp[1], fp[2]); // 你想写也可以，确保不被别处改了
+
+            // ---- 5) 动态裁剪面：让 near/far 随距离走，避免深度精度崩 ----
+            double d = Math.Max(Math.Abs(_signedDist), 1e-6);
+            double near = Math.Max(d * 0.001, 1e-6);
+            double far = Math.Max(d * 2000.0, near * 10.0);
+            camera.SetClippingRange(near, far);
+
+            renderer.GetRenderWindow().Render();
+        }
+
     }
+    public class MouseDragPivotMessageFilter : IMessageFilter
+    {
+        private const int WM_LBUTTONDOWN = 0x0201;
+        private const int WM_LBUTTONUP = 0x0202;
+ /*       private const int WM_MBUTTONDOWN = 0x0207;
+        private const int WM_MBUTTONUP = 0x0208;*/
+
+        private readonly IntPtr targetHwnd;
+        private readonly MyRenderWindowControl targetControl;
+
+        public MouseDragPivotMessageFilter(IntPtr hwnd, MyRenderWindowControl control)
+        {
+            targetHwnd = hwnd;
+            targetControl = control;
+        }
+
+        public bool PreFilterMessage(ref Message m)
+        {
+            if (targetControl == null) return false;
+            if (!targetControl.Is3DVisibleChild || !targetControl.IsHandleCreated || !targetControl.Visible)
+                return false;
+
+            if (!IsHandleChildOf(m.HWnd, targetHwnd))
+                return false;
+
+            // 左键/中键按下：进入 pivot 模式
+            //if (m.Msg == WM_LBUTTONDOWN || m.Msg == WM_MBUTTONDOWN)
+            if (m.Msg == WM_LBUTTONDOWN)
+            {
+                // 用 BeginInvoke 避免在消息线程里直接改相机导致偶发冲突
+                targetControl.Invoke((Action)(() =>
+                {
+                    targetControl.BeginPivotForInteraction();
+                }));
+            }
+
+/*            // 左键/中键抬起：退出 pivot 模式
+            if (m.Msg == WM_LBUTTONUP)
+            //if (m.Msg == WM_LBUTTONUP || m.Msg == WM_MBUTTONUP)
+            {
+                targetControl.Invoke((Action)(() =>
+                {
+                    targetControl.EndPivotForInteraction();
+                }));
+            }*/
+
+            return false; // 不拦截，让 VTK 正常交互
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr GetParent(IntPtr hWnd);
+
+        private bool IsHandleChildOf(IntPtr child, IntPtr parent)
+        {
+            while (child != IntPtr.Zero)
+            {
+                if (child == parent) return true;
+                child = GetParent(child);
+            }
+            return false;
+        }
+    }
+
 
     public class MouseWheelMessageFilter : IMessageFilter
     {
@@ -1127,8 +1632,7 @@ namespace ImageControl
             vtkRenderWindow2.RenderWindow.Render();
             // floatArray 和 colors 就可以直接传给 vtkPolyData 使用
         }
-
-    public void CreatePointCloudFromTiffFastHalcon_Fast(HObject ho_Image)
+        public void CreatePointCloudFromTiffFastHalcon_Fast(HObject ho_Image)
     {
         if (ho_Image == null || !ho_Image.IsInitialized())
             return;
@@ -1136,32 +1640,33 @@ namespace ImageControl
         // 获取图像信息
         HTuple type;
         HOperatorSet.GetImageType(ho_Image, out type);
-            //if (type.S != "int2") // 必须是16位有符号整型
-            //    return;
-            scaleZ = 10;
-            // 获取图像的最小最大值
-            HTuple min, max;
-            HObject ho_Range1;
-            HOperatorSet.MinMaxGray(ho_Image, ho_Image, 0, out min, out max, out _);
-            if (min < -100)
-            {
+        //if (type.S != "int2") // 必须是16位有符号整型
+        //    return;
+        scaleZ = 10;
+        // 获取图像的最小最大值
+        HTuple min, max;
+        HObject ho_Range1;
+        HOperatorSet.MinMaxGray(ho_Image, ho_Image, 0, out min, out max, out _);
+        if (min < -100)
+        {
                 HOperatorSet.Threshold(ho_Image, out ho_Range1, min + 1, max);
+
             }
-            else
-            {
-                HOperatorSet.Threshold(ho_Image, out ho_Range1, min + 0.01, max);
-                //ho_Range1 = ((HImage)ho_Image).GetDomain();
-            }
-            HOperatorSet.ScaleImage(ho_Image, out HObject ImageScale, 1000, 0);
-            HOperatorSet.ConvertImageType(ImageScale, out ImageScale, "int2");
-            /*        HOperatorSet.Threshold(ho_Image, out ho_Range1, min + 0.1, -1);*/
+        else
+        {
+            HOperatorSet.Threshold(ho_Image, out ho_Range1, min + 0.01, max);
+            //ho_Range1 = ((HImage)ho_Image).GetDomain();
+        }
+        HOperatorSet.ScaleImage(ho_Image, out HObject ImageScale, 1000, 0);
+        HOperatorSet.ConvertImageType(ImageScale, out ImageScale, "int2");
+        /*        HOperatorSet.Threshold(ho_Image, out ho_Range1, min + 0.1, -1);*/
 
-            // 区间2: 1 到 max
+        // 区间2: 1 到 max
 
-            /*        HOperatorSet.Threshold(ho_Image, out ho_Range2, 1, max);*/
+        /*        HOperatorSet.Threshold(ho_Image, out ho_Range2, 1, max);*/
 
-            // 获取所有有效点的(row, col)
-            HTuple rows, cols;
+        // 获取所有有效点的(row, col)
+        HTuple rows, cols;
         HOperatorSet.GetRegionPoints(ho_Range1, out rows, out cols);
         int numPoints = rows.Length;
         if (numPoints == 0)
@@ -1170,11 +1675,11 @@ namespace ImageControl
         // 一次性获取这些点的灰度值
         HTuple grayVals;
         HOperatorSet.GetGrayval(ImageScale, rows, cols, out grayVals);
-            HOperatorSet.TupleMin(grayVals, out min);
-            HOperatorSet.TupleMax(grayVals, out max);
-            // ==== 准备LUT（颜色映射表） ====
-            //scaleZ = 10;
-            short minVal = (short)((min.D) / scaleZ);
+        HOperatorSet.TupleMin(grayVals, out min);
+        HOperatorSet.TupleMax(grayVals, out max);
+        // ==== 准备LUT（颜色映射表） ====
+        //scaleZ = 10;
+        short minVal = (short)((min.D) / scaleZ);
         short maxVal = (short)(max.D / scaleZ);
 
         // 65536 对应 short 的所有可能值（-32768 ~ 32767）
@@ -1320,8 +1825,8 @@ namespace ImageControl
         camparams.angle = camera.GetViewAngle();
         camparams.clip = camera.GetClippingRange();
 
-            // ==== 坐标轴 ====
-            axesActor = vtkAxesActor.New();
+        // ==== 坐标轴 ====
+        axesActor = vtkAxesActor.New();
         axesWidget = vtkOrientationMarkerWidget.New();
         axesWidget.SetOutlineColor(0.93, 0.57, 0.13);
         axesWidget.SetOrientationMarker(axesActor);
@@ -1332,8 +1837,317 @@ namespace ImageControl
 
         vtkRenderWindow2.RenderWindow.Render();
     }
+        // HSV 转 RGB（0..255）
+        public (byte r, byte g, byte b) HsvToRgbByte(double h, double s, double v)
+        {
+            h = (h % 360 + 360) % 360;
+            double c = v * s;
+            double x = c * (1 - Math.Abs((h / 60.0) % 2 - 1));
+            double m = v - c;
 
-        public void CreatePointCloudFromTiffFast(Mat mat)
+            double r1, g1, b1;
+            if (h < 60) { r1 = c; g1 = x; b1 = 0; }
+            else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
+            else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
+            else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
+            else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
+            else { r1 = c; g1 = 0; b1 = x; }
+
+            byte r = (byte)Math.Round((r1 + m) * 255);
+            byte g = (byte)Math.Round((g1 + m) * 255);
+            byte b = (byte)Math.Round((b1 + m) * 255);
+            return (r, g, b);
+        }
+        public void CreatePointCloudFromTiffFastHalcon_AutoScale(HObject ho_Image)
+        {
+            if (ho_Image == null || !ho_Image.IsInitialized())
+                return;
+
+            // -----------------------------
+            // 1) 统一转成 real（double），避免依赖 int2 / ScaleImage(1000) / scaleZ(10)
+            // -----------------------------
+            HOperatorSet.ConvertImageType(ho_Image, out HObject imgReal, "real");
+
+            // 取 min/max（用于阈值域和统计）
+            HTuple min, max;
+            HOperatorSet.MinMaxGray(imgReal, imgReal, 0, out min, out max, out _);
+
+            // -----------------------------
+            // 2) 有效区域：把“背景/无效值”排掉
+            //    这里沿用你原思路：min 过小（例如有 -32768）时稍微抬高阈值下限
+            //    注意：eps 用于避免 min==max 或浮点边界
+            // -----------------------------
+            double eps = 1e-9;
+            HObject ho_Range1;
+
+            if (min.D < -500.0)
+                HOperatorSet.Threshold(imgReal, out ho_Range1, min.D + 1.0, max.D);
+            else
+                HOperatorSet.Threshold(imgReal, out ho_Range1, min.D + eps, max.D);
+
+            // 获取有效点坐标
+            HTuple rows, cols;
+            HOperatorSet.GetRegionPoints(ho_Range1, out rows, out cols);
+
+            int numPoints = rows.Length;
+            if (numPoints <= 0)
+                return;
+
+            // 一次性取灰度（double）
+            HTuple grayVals;
+            HOperatorSet.GetGrayval(imgReal, rows, cols, out grayVals);
+
+            // -----------------------------
+            // 3) 用百分位裁剪（1%~99%）获取稳定的显示范围（避免极端值压扁整体）
+            // -----------------------------
+            HOperatorSet.TupleSort(grayVals, out HTuple sorted);
+            int n = sorted.Length;
+            if (n <= 1)
+                return;
+
+            int idxLow = (int)Math.Floor(n * 0.01);
+            int idxHigh = (int)Math.Floor(n * 0.99);
+            if (idxHigh <= idxLow) idxHigh = Math.Min(n - 1, idxLow + 1);
+
+            double zLow = sorted[idxLow].D;
+            double zHigh = sorted[idxHigh].D;
+
+            if (Math.Abs(zHigh - zLow) < 1e-12)
+                zHigh = zLow + 1.0; // 防止除0
+
+            // -----------------------------
+            // 4) 先统计 XY 包围盒（用于自动确定 Z 的显示范围）
+            // -----------------------------
+            float minXCam = float.MaxValue, maxXCam = float.MinValue;
+            float minYCam = float.MaxValue, maxYCam = float.MinValue;
+
+            for (int i = 0; i < numPoints; i++)
+            {
+                float x = (float)cols[i].D;
+                float y = (float)rows[i].D;
+
+                if (x < minXCam) minXCam = x;
+                if (x > maxXCam) maxXCam = x;
+                if (y < minYCam) minYCam = y;
+                if (y > maxYCam) maxYCam = y;
+            }
+
+            float rangeX = maxXCam - minXCam;
+            float rangeY = maxYCam - minYCam;
+
+            // -----------------------------
+            // 5) 自动 Z 尺度：让Z的显示范围与XY尺度成比例（可调参数）
+            //    zRangeFactor 越大，Z起伏看起来越夸张；越小越“扁”
+            // -----------------------------
+            double zRangeFactor = 0.5; // 你可改：0.2~2.0 视效果而定
+            double targetZRange = Math.Max(rangeX, rangeY) * zRangeFactor;
+            if (targetZRange < 1e-6) targetZRange = 1.0;
+
+            double zScaleAuto = targetZRange / (zHigh - zLow);
+            double zOffset = 0.0; // 想让最低点为0就保持0；想居中可改为 -targetZRange/2 等
+
+            // -----------------------------
+            // 6) 256 色 LUT（更通用，不依赖 short 65536）
+            // -----------------------------
+            /*            byte[] lutR = new byte[256];
+                        byte[] lutG = new byte[256];
+                        byte[] lutB = new byte[256];
+
+                        for (int k = 0; k < 256; k++)
+                        {
+                            double t = k / 255.0; // 0..1
+                            byte r = 0, g = 0, b = 0;
+
+                            if (t < 0.33)
+                            {
+                                b = (byte)(255 * (t / 0.33));
+                            }
+                            else if (t < 0.66)
+                            {
+                                b = (byte)(255 * (1 - (t - 0.33) / 0.33));
+                                g = (byte)(255 * ((t - 0.33) / 0.33));
+                            }
+                            else
+                            {
+                                g = (byte)(255 * (1 - (t - 0.66) / 0.34));
+                                r = (byte)(255 * ((t - 0.66) / 0.34));
+                            }
+
+                            lutR[k] = r;
+                            lutG[k] = g;
+                            lutB[k] = b;
+                        }*/
+            int N = 4096; // 256 -> 4096（越大越平滑）
+            byte[] lutR = new byte[N];
+            byte[] lutG = new byte[N];
+            byte[] lutB = new byte[N];
+
+            for (int i = 0; i < N; i++)
+            {
+                double t = i / (double)(N - 1);     // 0..1
+                                                    // 蓝(240°) -> 红(0°)
+                double hue = (1.0 - t) * 240.0;     // 240..0
+                double s = 1.0;
+                double v = 1.0;
+
+                (byte r, byte g, byte b) = HsvToRgbByte(hue, s, v);
+
+                lutR[i] = r;
+                lutG[i] = g;
+                lutB[i] = b;
+            }
+
+
+            // -----------------------------
+            // 7) 生成点云数据 + 颜色（自动Z + 自动颜色）
+            // -----------------------------
+            float[] pointData = new float[numPoints * 3];
+            byte[] colorData = new byte[numPoints * 3];
+
+            float minZCam = float.MaxValue, maxZCam = float.MinValue;
+
+            for (int i = 0; i < numPoints; i++)
+            {
+                float x = (float)cols[i].D;
+                float y = (float)rows[i].D;
+
+                double gRaw = grayVals[i].D;
+                double gClamped = gRaw;
+                if (gClamped < zLow) gClamped = zLow;
+                if (gClamped > zHigh) gClamped = zHigh;
+
+                float z = (float)((gClamped - zLow) * zScaleAuto + zOffset);
+
+                if (z < minZCam) minZCam = z;
+                if (z > maxZCam) maxZCam = z;
+
+                int idx3 = i * 3;
+                pointData[idx3] = x;
+                pointData[idx3 + 1] = y;
+                pointData[idx3 + 2] = z;
+
+                /*                double norm = (gClamped - zLow) / (zHigh - zLow); // 0..1
+                                int c = (int)Math.Round(norm * 255.0);
+                                if (c < 0) c = 0;
+                                if (c > 255) c = 255;
+
+                                colorData[idx3] = lutR[c];
+                                colorData[idx3 + 1] = lutG[c];
+                                colorData[idx3 + 2] = lutB[c];*/
+                double norm = (gClamped - zLow) / (zHigh - zLow);   // 0..1
+                norm = Math.Max(0.0, Math.Min(1.0, norm));
+
+                // 可选：加一点 gamma，让颜色分布更“柔和/均匀”
+                double gamma = 1.0; // 0.8~1.4 自己试
+                norm = Math.Pow(norm, gamma);
+
+                int c = (int)Math.Round(norm * (N - 1));
+                if (c < 0) c = 0;
+                if (c >= N) c = N - 1;
+
+                colorData[idx3] = lutR[c];
+                colorData[idx3 + 1] = lutG[c];
+                colorData[idx3 + 2] = lutB[c];
+            }
+
+            // -----------------------------
+            // 8) 传给 VTK（保持你原来的“Pinned + SetArray”方式）
+            //    注意：如果你遇到随机崩溃/花屏，说明 VTK 可能未拷贝数据，你需要改成拷贝/非托管分配方式。
+            // -----------------------------
+            vtkPoints points = vtkPoints.New();
+            vtkFloatArray floatArray = vtkFloatArray.New();
+            floatArray.SetNumberOfComponents(3);
+
+            GCHandle handlePoints = GCHandle.Alloc(pointData, GCHandleType.Pinned);
+            try
+            {
+                IntPtr ptrPoints = handlePoints.AddrOfPinnedObject();
+                // save=1 表示 VTK 会接管并在合适时释放（不同包装行为可能不同）
+                floatArray.SetArray(ptrPoints, numPoints * 3, 1);
+            }
+            finally
+            {
+                handlePoints.Free();
+            }
+            points.SetData(floatArray);
+
+            vtkUnsignedCharArray colors = vtkUnsignedCharArray.New();
+            colors.SetNumberOfComponents(3);
+            colors.SetName("Colors");
+
+            GCHandle handleColors = GCHandle.Alloc(colorData, GCHandleType.Pinned);
+            try
+            {
+                IntPtr ptrColors = handleColors.AddrOfPinnedObject();
+                colors.SetArray(ptrColors, numPoints * 3, 1);
+            }
+            finally
+            {
+                handleColors.Free();
+            }
+
+            vtkPolyData polyData = vtkPolyData.New();
+            polyData.SetPoints(points);
+            polyData.GetPointData().SetScalars(colors);
+
+            vtkVertexGlyphFilter glyphFilter = vtkVertexGlyphFilter.New();
+            glyphFilter.SetInput(polyData);
+
+            vtkPolyDataMapper mapper = vtkPolyDataMapper.New();
+            mapper.SetInputConnection(glyphFilter.GetOutputPort());
+
+            vtkRenderer renderer = vtkRenderWindow2.RenderWindow.GetRenderers().GetFirstRenderer();
+            renderer.RemoveAllViewProps();
+
+            actor = vtkActor.New();
+            actor.SetMapper(mapper);
+
+            renderer.SetBackground(0.1, 0.1, 0.1);
+            renderer.AddActor(actor);
+
+            // -----------------------------
+            // 9) 相机：沿用你的包围盒逻辑（现在Z是自动尺度后的世界坐标）
+            // -----------------------------
+            float centerX = (minXCam + maxXCam) / 2.0f;
+            float centerY = (minYCam + maxYCam) / 2.0f;
+            float centerZ = (minZCam + maxZCam) / 2.0f;
+
+            float rangeZ = maxZCam - minZCam;
+            float maxRange = Math.Max(rangeX, Math.Max(rangeY, rangeZ));
+            if (maxRange < 1e-6f) maxRange = 1.0f;
+
+            vtkCamera camera = renderer.GetActiveCamera();
+            double cameraZ = centerZ + maxRange * 2.0;
+
+            camera.SetPosition(centerX, centerY, cameraZ);
+            camera.SetFocalPoint(centerX, centerY, centerZ);
+            camera.SetViewUp(0, 1, 0);
+            camera.SetViewAngle(30);
+            camera.SetClippingRange(0.001, maxRange * 100000);
+
+            camparams.pos = camera.GetPosition();
+            camparams.fp = camera.GetFocalPoint();
+            camparams.up = camera.GetViewUp();
+            camparams.angle = camera.GetViewAngle();
+            camparams.clip = camera.GetClippingRange();
+
+            // -----------------------------
+            // 10) 坐标轴（沿用你的逻辑）
+            // -----------------------------
+            axesActor = vtkAxesActor.New();
+            axesWidget = vtkOrientationMarkerWidget.New();
+            axesWidget.SetOutlineColor(0.93, 0.57, 0.13);
+            axesWidget.SetOrientationMarker(axesActor);
+            axesWidget.SetInteractor(vtkRenderWindow2.RenderWindow.GetInteractor());
+            axesWidget.SetViewport(0.0, 0.0, 0.2, 0.4);
+            axesWidget.SetEnabled(1);
+            axesWidget.InteractiveOff();
+
+            vtkRenderWindow2.RenderWindow.Render();
+        }
+
+
+    public void CreatePointCloudFromTiffFast(Mat mat)
         {
             //var mat = Cv2.ImRead(imagePath, ImreadModes.Unchanged); // 使用Unchanged保持图像原始深度
             
