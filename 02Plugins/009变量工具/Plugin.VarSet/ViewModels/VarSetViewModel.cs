@@ -144,6 +144,12 @@ namespace Plugin.VarSet.ViewModels
                                         }
                                         current.IsCompileSuccess = true;
                                     }
+                                    // 保存注释到项目变量
+                                    VarModel var = base.Prj.GetParamByName(current.Link);
+                                    if (var != null)
+                                    {
+                                        var.Note = current.Note;
+                                    }
                                 }
                                 ChangeModuleRunStatus(eRunStatus.OK);
                                 varSetView.Close();
@@ -272,6 +278,13 @@ namespace Plugin.VarSet.ViewModels
                 }
                 foreach (VarSetModel item in VarSet)
                 {
+                    // 保存注释到项目变量
+                    VarModel var = base.Prj.GetParamByName(item.Link);
+                    if (var != null)
+                    {
+                        var.Note = item.Note;
+                    }
+
                     if (item.Expression == "" || item.Expression == "NULL")
                     {
                         continue;
@@ -299,22 +312,20 @@ namespace Plugin.VarSet.ViewModels
                         }
                         item.Value = item.m_TempScriptSupport.CodeRun();
                         var2.Value = item.Value;
-                        var2.Note = item.Note;
                         item.IsCompileSuccess = true;
                     }
                     else
                     {
-                        VarModel var = base.Prj.GetParamByName(item.Link);
-                        Logger.AddLog($"Test2：{var.Value}");
-                        if (var == null)
+                        VarModel var3 = base.Prj.GetParamByName(item.Link);
+                        Logger.AddLog($"Test2：{var3.Value}");
+                        if (var3 == null)
                         {
                             ChangeModuleRunStatus(eRunStatus.NG);
                             return false;
                         }
                         item.Value = item.m_TempScriptSupport.CodeRun();
-                        var.Value = item.Value;
-                        var.Note = item.Note;
-                        Logger.AddLog($"Test3：{var.Value}");
+                        var3.Value = item.Value;
+                        Logger.AddLog($"Test3：{var3.Value}");
                     }
                 }
                 ChangeModuleRunStatus(eRunStatus.OK);

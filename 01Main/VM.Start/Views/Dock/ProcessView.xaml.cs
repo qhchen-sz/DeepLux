@@ -1718,10 +1718,16 @@ namespace HV.Views.Dock
             Types = new List<string>();
             string pattern = @"^(.*?)\d+$"; // 匹配末尾数字前的所有字符
             // 定义不可复制的模块类型
+            // HashSet<string> forbiddenTypes = new HashSet<string>
+            // {
+            //     "如果", "循环开始", "并行处理开始", "坐标补正开始", "点云补正开始",
+            //     "结束", "循环结束", "并行处理结束", "坐标补正结束", "点云补正结束",
+
+            // };
             HashSet<string> forbiddenTypes = new HashSet<string>
             {
-                "如果", "循环开始", "并行处理开始", "坐标补正开始", "点云补正开始",
-                "结束", "循环结束", "并行处理结束", "坐标补正结束", "点云补正结束",
+                //"如果", "循环开始", "并行处理开始", "点云补正开始",
+                //"结束", "循环结束", "并行处理结束", "点云补正结束",
             };
             if (IsMultiSelectedModel() == true)//是否多选
             {
@@ -1826,9 +1832,9 @@ namespace HV.Views.Dock
                 {
                     type = match.Groups[1].Value;
                 }
-                if (type == "如果" || type == "循环开始" || type == "并行处理开始" || type == "坐标补正开始" || type == "点云补正开始" 
-                    || type == "结束" || type == "循环结束" || type == "并行处理结束" || type == "坐标补正结束" || type == "点云补正结束")
-                    return;
+                //if (type == "如果" || type == "循环开始" || type == "并行处理开始" || type == "点云补正开始"
+                //    || type == "结束" || type == "循环结束" || type == "并行处理结束" || type == "点云补正结束")
+                //    return;
                 //    int no = 0;
                 //string moduleName = "";
                 //while (true)
