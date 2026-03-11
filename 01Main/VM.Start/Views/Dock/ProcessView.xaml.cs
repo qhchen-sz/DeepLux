@@ -759,12 +759,43 @@ namespace HV.Views.Dock
                 e.Handled = true;
                 return;
             }
-
+            //按住Ctrl键 多选（toggle selection）  <- 【新增】
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ToggleMultiSelect();
+                e.Handled = true;
+                return;
+            }
+            //如果按下了Ctrl键但不是单独的Ctrl键（比如Ctrl+A），取消已选择项并选择当前项  <- 【新增】
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                CancelMultiSelect();
+            }
             if (selectedItem != null)
             {
                 SelectedNode = selectedItem.DataContext as ModuleNode;
-                selectedItem.IsSelected = true;
+
+                // 如果没有按Ctrl键，则清除之前的选择，只选择当前项  <- 【修改】
+                if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {
+                    CancelMultiSelect();
+                    selectedItem.IsSelected = true;
+                    //// 【新增】确保当前节点也被添加到 SelectedModuleNameList
+                    //if (SelectedNode != null && !SelectedModuleNameList.Contains(SelectedNode.ModuleInfo.ModuleParam.ModuleName))
+                    //{
+                    //    SelectedModuleNameList.Add(SelectedNode.ModuleInfo.ModuleParam.ModuleName);
+                    //    // 更新 MultiSelectedStart 和 MultiSelectedEnd
+                    //    MultiSelectedStart = SelectedNode.ModuleInfo.ModuleParam.ModuleName;
+                    //    MultiSelectedEnd = SelectedNode.ModuleInfo.ModuleParam.ModuleName;
+                    //    MultiSelectedCount = 1;
+                    //}
+                }
             }
+            // if (selectedItem != null)
+            // {
+            //     SelectedNode = selectedItem.DataContext as ModuleNode;
+            //     seletedItem.IsSelectedc = true;
+            // }
 
             //靠近滚轮则不执行拖动
             if (moduleTree.ActualWidth - pt.X > 80)
@@ -782,10 +813,14 @@ namespace HV.Views.Dock
         //鼠标左键弹起
         private void ModuleTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift) //鼠标弹起 多选模式 取消显示
+            if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift && Keyboard.Modifiers != ModifierKeys.Control) //鼠标弹起 多选模式 取消显示  <- 【修改】
             {
                 CancelMultiSelect();
             }
+            // if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift) //鼠标弹起 多选模式 取消显示
+            // {
+            //     CancelMultiSelect();
+            // }
         }
 
         //多选
@@ -997,7 +1032,62 @@ namespace HV.Views.Dock
                 }
             }
         }
+        //添加ToggleMultiSelect方法来支持Ctrl+Click切换选择  <- 【新增】
+        private void ToggleMultiSelect()
+        {
+            if (SelectedNode == null)
+                return;
 
+            // 切换当前节点的选择状态
+            SelectedNode.IsMultiSelected = !SelectedNode.IsMultiSelected;
+            
+            string moduleName = SelectedNode.ModuleInfo.ModuleParam.ModuleName;
+            
+            // 更新SelectedModuleNameList
+            if (SelectedNode.IsMultiSelected)
+            {
+                if (!SelectedModuleNameList.Contains(moduleName))
+                {
+                    SelectedModuleNameList.Add(moduleName);
+                }
+            }
+            else
+            {
+                if (SelectedModuleNameList.Contains(moduleName))
+                {
+                    SelectedModuleNameList.Remove(moduleName);
+                }
+            }
+            // ✅ 新增：计算 MultiSelectedStart 和 MultiSelectedEnd
+            if (SelectedModuleNameList.Count > 0)
+            {
+                Dictionary<int, string> dic = new Dictionary<int, string>();
+                foreach (string name in SelectedModuleNameList)
+                {
+                    int index = Solution.Ins.CurrentProject.ModuleList.FindIndex(
+                        c => c.ModuleParam.ModuleName == name
+                    );
+                    if (index != -1)
+                    {
+                        dic[index] = name;
+                    }
+                }
+                
+                if (dic.Count > 0)
+                {
+                    MultiSelectedStart = dic[dic.Keys.Min()];
+                    MultiSelectedEnd = dic[dic.Keys.Max()];
+                    MultiSelectedCount = dic.Keys.Max() - dic.Keys.Min() + 1;
+                }
+            }
+            else
+            {
+                // 如果没有选中任何模块，清空范围
+                MultiSelectedStart = null;
+                MultiSelectedEnd = null;
+                MultiSelectedCount = 0;
+            }
+        }
         //取消多选样式
         public void CancelMultiSelect()
         {
@@ -1627,12 +1717,48 @@ namespace HV.Views.Dock
             modules = new ObservableCollection<ModuleBase>();
             Types = new List<string>();
             string pattern = @"^(.*?)\d+$"; // 匹配末尾数字前的所有字符
-
+            // 定义不可复制的模块类型
+            HashSet<string> forbiddenTypes = new HashSet<string>
+            {
+                "如果", "循环开始", "并行处理开始", "坐标补正开始", "点云补正开始",
+                "结束", "循环结束", "并行处理结束", "坐标补正结束", "点云补正结束",
+            };
             if (IsMultiSelectedModel() == true)//是否多选
             {
                 int startIndex = modulenameList.IndexOf(MultiSelectedStart);
                 int endIndex = modulenameList.IndexOf(MultiSelectedEnd);
-                bool State = false;
+                // 检查索引有效性
+                if (startIndex == -1 || endIndex == -1 || startIndex > endIndex)
+                {
+                    return;
+                }
+
+                // bool State = false;
+                for (int i = startIndex; i <= endIndex; i++)
+                {
+                    ModuleBase sourceModule = Solution.Ins.CurrentProject.ModuleList[i];
+                    string moduleName = sourceModule.ModuleParam.ModuleName;
+                    
+                    // 提取模块类型（去掉末尾数字）
+                    Match match = Regex.Match(moduleName, pattern);
+                    string type = match.Success ? match.Groups[1].Value : moduleName;
+                    
+                    // 跳过不可复制的模块类型
+                    if (forbiddenTypes.Contains(type))
+                    {
+                        Logger.AddLog($"跳过不可复制的模块: {moduleName}", eMsgType.Warn);
+                        continue;
+                    }
+                    ModuleBase temp = CloneObject.DeepCopy(sourceModule);
+                    modules.Add(temp);
+                }
+
+                if (modules.Count == 0)
+                {
+                    Logger.AddLog("没有可复制的模块！", eMsgType.Warn);
+                    return;
+                }
+
                 //for (int i = startIndex; i < endIndex+1; i++)
                 //{
                 //    ModuleBase temp = CloneObject.DeepCopy(Solution.Ins.CurrentProject.ModuleList[i]);
@@ -1724,56 +1850,103 @@ namespace HV.Views.Dock
         {
             if (modules.Count == 0)
                 return;
-            string moduleName = "";
-            string type = modules[0].ModuleParam.ModuleName;
-            int no = 0;
+        
             List<string> modulenameList = Solution.Ins.CurrentProject.ModuleList
-            .Select(c => c.ModuleParam.ModuleName)
-            .ToList();
-            while (true)
+                .Select(c => c.ModuleParam.ModuleName)
+                .ToList();
+            
+            string insertAfterModule = SelectedNode?.Name ?? 
+                Solution.Ins.CurrentProject.ModuleList.Last()?.ModuleParam.ModuleName;
+            
+            // 遍历所有要粘贴的模块
+            foreach (var module in modules)
             {
-                moduleName = type + ((no != 0) ? no.ToString() : "");
-
-                if (!modulenameList.Contains(moduleName))
+                // // 生成不重复的名称
+                // string moduleName = GenerateUniqueName(module.ModuleParam.ModuleName, modulenameList);
+                string type = module.ModuleParam.ModuleName;
+                int no = 0;
+                string moduleName;
+                while (true)
                 {
-                    break; //没有重名就跳出循环
+                    moduleName = type + ((no != 0) ? no.ToString() : "");
+                    if (!modulenameList.Contains(moduleName))
+                        break;
+                    no++;
                 }
-                no++;
+                
+                // 更新模块信息
+                module.ModuleParam.ModuleName = moduleName;
+                module.Prj = Solution.Ins.CurrentProject;
+                module.ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
+                // ⚠️ 重要：生成新的 GUID，避免与原模块冲突
+                module.ModuleGuid = Guid.NewGuid();
+                module.ModuleParam.ModuleEncode = module.ModuleGuid.GetHashCode();
+                
+                // 插入模块
+                int insertIndex = Solution.Ins.CurrentProject.ModuleList.FindIndex(
+                    c => c.ModuleParam.ModuleName == insertAfterModule) + 1;
+                Solution.Ins.CurrentProject.ModuleList.Insert(insertIndex, module);
+                
+                // 更新插入位置
+                insertAfterModule = moduleName;
+                modulenameList.Add(moduleName);
             }
-            modules[0].ModuleParam.ModuleName = moduleName;
-            modules[0].Prj = Solution.Ins.CurrentProject;
-            modules[0].ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
-            if (SelectedNode != null && Solution.Ins.CurrentProject.ModuleList.Count != 0)
-            {
-
-                    Solution.Ins.CurrentProject.ModuleList.Insert(
-                        Solution.Ins.CurrentProject.ModuleList.FindIndex(
-                            c => c.ModuleParam.ModuleName == SelectedNode.Name
-                        ) + 1,
-                        modules[0]
-                    );
-                    Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-
-            }
-            else if (Solution.Ins.CurrentProject.ModuleList.Count == 0)
-            {
-                Solution.Ins.CurrentProject.ModuleList.Add(modules[0]);
-                Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-            }
-            else //没有选择 则默认选择最后一个
-            {
-                Solution.Ins.CurrentProject.ModuleList.Insert(
-                        Solution.Ins.CurrentProject.ModuleList.FindIndex(
-                            c => c.ModuleParam.ModuleName == Solution.Ins.CurrentProject.ModuleList.Last().ModuleParam.ModuleName
-                        ) + 1,
-                        modules[0]
-                    );
-                Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-
-            }
-            string addModuleName = modules[0].ModuleParam.ModuleName;
-            UpdateTree(addModuleName);
+            
+            Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
+            UpdateTree(modules[0].ModuleParam.ModuleName);
             modules.Clear();
+            // if (modules.Count == 0)
+            //     return;
+            // string moduleName = "";
+            // string type = modules[0].ModuleParam.ModuleName;
+            // int no = 0;
+            // List<string> modulenameList = Solution.Ins.CurrentProject.ModuleList
+            // .Select(c => c.ModuleParam.ModuleName)
+            // .ToList();
+            // while (true)
+            // {
+            //     moduleName = type + ((no != 0) ? no.ToString() : "");
+
+            //     if (!modulenameList.Contains(moduleName))
+            //     {
+            //         break; //没有重名就跳出循环
+            //     }
+            //     no++;
+            // }
+            // modules[0].ModuleParam.ModuleName = moduleName;
+            // modules[0].Prj = Solution.Ins.CurrentProject;
+            // modules[0].ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
+            // if (SelectedNode != null && Solution.Ins.CurrentProject.ModuleList.Count != 0)
+            // {
+
+            //         Solution.Ins.CurrentProject.ModuleList.Insert(
+            //             Solution.Ins.CurrentProject.ModuleList.FindIndex(
+            //                 c => c.ModuleParam.ModuleName == SelectedNode.Name
+            //             ) + 1,
+            //             modules[0]
+            //         );
+            //         Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
+
+            // }
+            // else if (Solution.Ins.CurrentProject.ModuleList.Count == 0)
+            // {
+            //     Solution.Ins.CurrentProject.ModuleList.Add(modules[0]);
+            //     Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
+            // }
+            // else //没有选择 则默认选择最后一个
+            // {
+            //     Solution.Ins.CurrentProject.ModuleList.Insert(
+            //             Solution.Ins.CurrentProject.ModuleList.FindIndex(
+            //                 c => c.ModuleParam.ModuleName == Solution.Ins.CurrentProject.ModuleList.Last().ModuleParam.ModuleName
+            //             ) + 1,
+            //             modules[0]
+            //         );
+            //     Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
+
+            // }
+            // string addModuleName = modules[0].ModuleParam.ModuleName;
+            // UpdateTree(addModuleName);
+            // modules.Clear();
 
         }
 
