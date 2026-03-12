@@ -1886,7 +1886,7 @@ namespace HV.Views.Dock
                 module.ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
                 // ⚠️ 重要：生成新的 GUID，避免与原模块冲突
                 module.ModuleGuid = Guid.NewGuid();
-                module.ModuleParam.ModuleEncode = module.ModuleGuid.GetHashCode();
+                module.ModuleParam.ModuleEncode = Math.Abs(module.ModuleGuid.GetHashCode());
                 
                 // 插入模块
                 int insertIndex = Solution.Ins.CurrentProject.ModuleList.FindIndex(
