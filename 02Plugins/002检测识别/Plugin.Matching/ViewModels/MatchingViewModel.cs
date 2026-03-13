@@ -11,6 +11,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Configuration;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.ModelBinding;
@@ -71,6 +72,13 @@ namespace Plugin.Matching.ViewModels
     [Serializable]
     public class MatchingViewModel : ModuleBase
     {
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (RoiList == null)
+                RoiList = new Dictionary<string, ROI>();
+        }
+
         private List<Coord_Info> coord_Infos = new List<Coord_Info>();
         public override void SetDefaultLink()
         {
@@ -283,6 +291,7 @@ namespace Plugin.Matching.ViewModels
 
         [NonSerialized]
         private bool _IsStudying = false;
+        [NonSerialized]
         private HImage _ModelCutImage;
         public HImage ModelCutImage
         {
@@ -320,9 +329,11 @@ namespace Plugin.Matching.ViewModels
         }
 
         /// <summary> 模板图像 </summary>
+        [NonSerialized]
         public HHandle ModelImage;
 
         /// <summary> 区域列表 </summary>
+        [NonSerialized]
         public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
         private eSearchRegion _SearchRegionSource = eSearchRegion.矩形1;
 
@@ -453,7 +464,8 @@ namespace Plugin.Matching.ViewModels
         }
 
         [NonSerialized]
-        public HXLDCont contour_xld; //无法反序列化！！！
+        public HXLDCont contour_xld;
+        [NonSerialized]
         public HObject OutImage;
         #endregion
 

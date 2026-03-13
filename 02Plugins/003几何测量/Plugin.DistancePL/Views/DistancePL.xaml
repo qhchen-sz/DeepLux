@@ -46,13 +46,17 @@
                 </TabControl.Resources>
                 <TabItem Header="基本参数">
                     <Grid x:Name="gd">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="43*"/>
+                            <ColumnDefinition Width="114*"/>
+                        </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="70"/>
                             <RowDefinition Height="200"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="auto"/>
                         </Grid.RowDefinitions>
-                        <Border>
+                        <Border Grid.ColumnSpan="2">
                             <GroupBox Header="图像链接">
                                 <StackPanel Orientation="Horizontal" Margin="5 0">
                                     <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -64,7 +68,7 @@
                                 </StackPanel>
                             </GroupBox>
                         </Border>
-                        <Border Grid.Row="1">
+                        <Border Grid.Row="1" Grid.ColumnSpan="2">
                             <GroupBox Header="参数设置">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
@@ -91,10 +95,17 @@
                                                  mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Line1}"
                                                  mah:TextBoxHelper.Watermark="object"/>
                                     </StackPanel>
+                                    <!-- 方向线控制 -->
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="直线角度:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                        Text="{Binding ManualLineAngle, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=true, StringFormat={}{0:0.##}}"/>
+                                    </StackPanel>
+
                                 </StackPanel>
                             </GroupBox>
                         </Border>
-                        <Border Grid.Row="2" >
+                        <Border Grid.Row="2" Grid.ColumnSpan="2" Grid.RowSpan="2" >
                             <GroupBox Header="输出数据">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">

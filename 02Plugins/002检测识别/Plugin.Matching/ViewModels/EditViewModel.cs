@@ -127,6 +127,7 @@ namespace Plugin.Matching.ViewModels
         public HXLDCont contour_xld;
         [NonSerialized]
         public HObject OutImage;
+        [NonSerialized]
         HObject finalRegion = new HObject();
         [NonSerialized]
         HObject brushRegion = new HObject();

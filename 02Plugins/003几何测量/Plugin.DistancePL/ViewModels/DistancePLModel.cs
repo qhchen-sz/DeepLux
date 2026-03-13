@@ -1,18 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
 using HandyControl.Controls;
-using Plugin.DistancePL.Views;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data.Common;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Documents;
-using VM.Halcon;
-using VM.Halcon.Config;
-using VM.Halcon.Model;
 using HV.Attributes;
 using HV.Common;
 using HV.Common.Enums;
@@ -24,6 +12,19 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Plugin.DistancePL.Views;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data.Common;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Documents;
+using System.Windows.Shapes;
+using VM.Halcon;
+using VM.Halcon.Config;
+using VM.Halcon.Model;
 
 namespace Plugin.DistancePL.ViewModels
 {
@@ -34,8 +35,8 @@ namespace Plugin.DistancePL.ViewModels
         Line1,
         X,
         Y,
+        
     }
-
     #endregion
 
     [Category("几何测量")]
@@ -56,6 +57,25 @@ namespace Plugin.DistancePL.ViewModels
                 InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
         }
 
+        // ========== 新增手动输入属性 ==========
+
+        private bool _UseManualLine;
+        public bool UseManualLine
+        {
+            get { return _UseManualLine; }
+            set { Set(ref _UseManualLine, value); }
+        }
+
+      
+        private double _ManualLineAngle=0;
+        public double ManualLineAngle
+        {
+            get { return _ManualLineAngle; }
+            set { Set(ref _ManualLineAngle, value); }
+        }
+
+
+
         public override bool ExeModule()
         {
             Stopwatch.Restart();
@@ -67,30 +87,136 @@ namespace Plugin.DistancePL.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                GetDispImage(InputImageLinkText,true);
+                GetDispImage(InputImageLinkText, true);
                 if (DispImage != null && DispImage.IsInitialized())
                 {
-                    Line1 = (ROILine)Prj.GetParamByName(Line1LinkText).Value;
-                    PXLinkValue = Convert.ToDouble(GetLinkValue(PXLinkText));
-                    PYLinkValue = Convert.ToDouble(GetLinkValue(PYLinkText));
-                    RPoint mRPoint = new RPoint(Line1.X, Line1.Y);
 
-                    Dis.PLPedal(PXLinkValue, PYLinkValue, Line1, out double outY, out double outX, out double dis);
-                    PointX=Math.Round(outX,4); 
-                    PointY= Math.Round(outY, 4);
+                    // 根据模式获取直线参数
+                    ROILine line = null;
+                    line = (ROILine)Prj.GetParamByName(Line1LinkText).Value;
+                    
+
+                    // 计算垂足和距离
+                    Dis.PLPedal(PXLinkValue, PYLinkValue, line, out double outY, out double outX, out double dis);
+                    PointX = Math.Round(outX, 4);
+                    PointY = Math.Round(outY, 4);
                     Distance = Math.Round(dis, 4);
-                    if (ShowResultLine)
-                    {
-                        Gen.GenContour(out HObject Line1XLD, PYLinkValue, outY, PXLinkValue, outX);
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.测量直线1, "red", new HObject(Line1XLD)));
-                    }
+
+                    // 图形生成（垂足点、原始点、虚线、垂线）
+                    double size = 30; 
+                    HObject x1 = null, x2 = null, allDashes = null, perpLine = null;
+
+                    // 垂足点
                     if (ShowResultPoint)
                     {
-                        Gen.GenCross(out HObject Point1, outY, outX, 60, 0);
-                        Gen.GenCross(out HObject Point2, PYLinkValue, PXLinkValue, 60, 0);
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测点P1, "cyan", new HObject(Point1)));
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测点P2, "cyan", new HObject(Point2)));
+                        double row1 = outY, col1 = outX;
+                        HOperatorSet.GenEmptyObj(out x1);
+                        HOperatorSet.GenContourPolygonXld(out HObject line1,
+                            new HTuple(new double[] { row1 - size / 2, row1 + size / 2 }),
+                            new HTuple(new double[] { col1 - size / 2, col1 + size / 2 }));
+                        HOperatorSet.GenContourPolygonXld(out HObject line2,
+                            new HTuple(new double[] { row1 - size / 2, row1 + size / 2 }),
+                            new HTuple(new double[] { col1 + size / 2, col1 - size / 2 }));
+                        HOperatorSet.ConcatObj(line1, line2, out x1);
                     }
+
+                    // 原始点
+                    if (ShowResultPoint)
+                    {
+                        double row2 = PYLinkValue, col2 = PXLinkValue;
+                        HOperatorSet.GenEmptyObj(out x2);
+                        HOperatorSet.GenContourPolygonXld(out HObject line1,
+                            new HTuple(new double[] { row2 - size / 2, row2 + size / 2 }),
+                            new HTuple(new double[] { col2 - size / 2, col2 + size / 2 }));
+                        HOperatorSet.GenContourPolygonXld(out HObject line2,
+                            new HTuple(new double[] { row2 - size / 2, row2 + size / 2 }),
+                            new HTuple(new double[] { col2 + size / 2, col2 - size / 2 }));
+                        HOperatorSet.ConcatObj(line1, line2, out x2);
+                    }
+
+                    // 虚线（原点到垂足）
+                    if (ShowResultLine)
+                    {
+                        double startX = PXLinkValue, startY = PYLinkValue;
+                        double endX = outX, endY = outY;
+                        double length = Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
+                        if (length >= 1e-6)
+                        {
+                            double dashLength = 30, gapLength = 10;
+                            double segmentLength = dashLength + gapLength;
+                            int dashCount = (int)Math.Ceiling(length / segmentLength);
+                            double dx = (endX - startX) / length;
+                            double dy = (endY - startY) / length;
+                            HOperatorSet.GenEmptyObj(out allDashes);
+                            for (int i = 0; i < dashCount; i++)
+                            {
+                                double cycleStartX = startX + i * segmentLength * dx;
+                                double cycleStartY = startY + i * segmentLength * dy;
+                                double segEndX = cycleStartX + dashLength * dx;
+                                double segEndY = cycleStartY + dashLength * dy;
+                                if (Math.Abs(segEndX - startX) > Math.Abs(endX - startX) ||
+                                    Math.Abs(segEndY - startY) > Math.Abs(endY - startY))
+                                {
+                                    segEndX = endX;
+                                    segEndY = endY;
+                                }
+                                HOperatorSet.GenContourPolygonXld(out HObject dashSegment,
+                                    new HTuple(new double[] { cycleStartY, segEndY }),
+                                    new HTuple(new double[] { cycleStartX, segEndX }));
+                                HOperatorSet.ConcatObj(allDashes, dashSegment, out allDashes);
+                                if (segEndX == endX && segEndY == endY) break;
+                            }
+                        }
+                    }
+
+
+
+                    // 垂线（以垂足为中心，方向由 ManualLineAngle 控制）
+
+                    if (ShowResultLine)
+                    {
+                        double angleRad = ManualLineAngle * Math.PI / 180.0; // 角度转弧度
+                        double halfLength = 200; // 线段半长，可改为配置属性
+
+                        double dx = halfLength * Math.Cos(angleRad);
+                        double dy = halfLength * Math.Sin(angleRad);
+
+                        double startX = outX - dx;
+                        double startY = outY - dy;
+                        double endX = outX + dx;
+                        double endY = outY + dy;
+
+                        HOperatorSet.GenEmptyObj(out perpLine);
+                        HOperatorSet.GenContourPolygonXld(out perpLine,
+                            new HTuple(new double[] { startY, endY }),
+                            new HTuple(new double[] { startX, endX }));
+                    }
+
+                    // 合并显示（垂足点+虚线+垂线）作为检测点P1
+                    if (ShowResultPoint || ShowResultLine)
+                    {
+                        HObject combined = null;
+                        HOperatorSet.GenEmptyObj(out combined);
+                        if (ShowResultPoint && x1 != null)
+                            HOperatorSet.ConcatObj(combined, x1, out combined);
+                        if (ShowResultLine && allDashes != null)
+                            HOperatorSet.ConcatObj(combined, allDashes, out combined);
+                        if (ShowResultLine && perpLine != null)
+                            HOperatorSet.ConcatObj(combined, perpLine, out combined);
+                        if (combined != null && combined.IsInitialized())
+                        {
+                            ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                                              HRoiType.检测点P1, "cyan", combined));
+                        }
+                    }
+
+                    // 原始点作为检测点P2
+                    if (ShowResultPoint && x2 != null)
+                    {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                                          HRoiType.检测点P2, "cyan", x2));
+                    }
+
                     ShowHRoi();
                     ChangeModuleRunStatus(eRunStatus.OK);
                     return true;
@@ -108,6 +234,7 @@ namespace Plugin.DistancePL.ViewModels
                 return false;
             }
         }
+
         public override void AddOutputParams()
         {
             AddOutputParam("距离", "double", Distance);
@@ -116,84 +243,67 @@ namespace Plugin.DistancePL.ViewModels
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK ? true : false);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
+
         #region Prop
         private double _Distance;
-        /// <summary>距离</summary>
         public double Distance
         {
             get { return _Distance; }
             set { Set(ref _Distance, value); }
         }
+
         private bool _ShowResultLine = true;
-        /// <summary>显示垂线</summary>
         public bool ShowResultLine
         {
             get { return _ShowResultLine; }
             set { Set(ref _ShowResultLine, value); }
         }
+
         private bool _ShowResultPoint = true;
-        /// <summary>显示垂点</summary>
         public bool ShowResultPoint
         {
             get { return _ShowResultPoint; }
             set { Set(ref _ShowResultPoint, value); }
         }
-        /// <summary>
-        /// 直线1信息
-        /// </summary>
+
         public ROILine Line1 { get; set; } = new ROILine();
-        /// <summary>
-        /// 直线2信息
-        /// </summary>
+
         private string _InputImageLinkText;
-        /// <summary>
-        /// 输入图像链接文本
-        /// </summary>
         public string InputImageLinkText
         {
             get { return _InputImageLinkText; }
             set { Set(ref _InputImageLinkText, value); }
         }
+
         private string _Line1LinkText;
-        /// <summary>
-        /// 直线1链接文本
-        /// </summary>
         public string Line1LinkText
         {
             get { return _Line1LinkText; }
             set { Set(ref _Line1LinkText, value); }
         }
+
         private string _PXLinkText;
-        /// <summary>
-        /// 点X链接文本
-        /// </summary>
         public string PXLinkText
         {
             get { return _PXLinkText; }
             set { Set(ref _PXLinkText, value); }
         }
-        private double  _PXLinkValue;
-        /// <summary>
-        /// 点X链接文本
-        /// </summary>
-        public double  PXLinkValue
+
+        private double _PXLinkValue;
+        public double PXLinkValue
         {
             get { return _PXLinkValue; }
             set { _PXLinkValue = value; }
         }
+
         private string _PYLinkText;
-        /// <summary>
-        /// 点Y链接文本
-        /// </summary>
         public string PYLinkText
         {
             get { return _PYLinkText; }
             set { Set(ref _PYLinkText, value); }
         }
+
         private double _PYLinkValue;
-        /// <summary>
-        /// 点Y链接文本
-        /// </summary>
         public double PYLinkValue
         {
             get { return _PYLinkValue; }
@@ -201,24 +311,23 @@ namespace Plugin.DistancePL.ViewModels
         }
 
         private double _PointX;
-        /// <summary>
-        /// 垂点X
-        /// </summary>
         public double PointX
         {
             get { return _PointX; }
             set { Set(ref _PointX, value); }
         }
+
         private double _PointY;
-        /// <summary>
-        /// 垂点Y
-        /// </summary>
         public double PointY
         {
             get { return _PointY; }
             set { Set(ref _PointY, value); }
         }
+
+     
+
         #endregion
+
         #region Command
         public override void Loaded()
         {
@@ -235,12 +344,13 @@ namespace Plugin.DistancePL.ViewModels
                 SetDefaultLink();
                 if (InputImageLinkText == null) return;
             }
-            GetDispImage(InputImageLinkText,true);
+            GetDispImage(InputImageLinkText, true);
             if (DispImage != null && DispImage.IsInitialized())
             {
                 ShowHRoi();
             }
         }
+
         [NonSerialized]
         private CommandBase _ExecuteCommand;
         public CommandBase ExecuteCommand
@@ -257,6 +367,7 @@ namespace Plugin.DistancePL.ViewModels
                 return _ExecuteCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _ConfirmCommand;
         public CommandBase ConfirmCommand
@@ -277,6 +388,7 @@ namespace Plugin.DistancePL.ViewModels
                 return _ConfirmCommand;
             }
         }
+
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             switch (obj.SendName.Split(',')[1])
@@ -293,10 +405,13 @@ namespace Plugin.DistancePL.ViewModels
                 case "PY":
                     PYLinkText = obj.LinkName;
                     break;
+              
+                    break;
                 default:
                     break;
             }
         }
+
         [NonSerialized]
         private CommandBase _LinkCommand;
         public CommandBase LinkCommand
@@ -305,7 +420,6 @@ namespace Plugin.DistancePL.ViewModels
             {
                 if (_LinkCommand == null)
                 {
-                    //以GUID+类名作为筛选器
                     EventMgr.Ins.GetEvent<VarChangedEvent>().Subscribe(OnVarChanged, o => o.SendName.StartsWith($"{ModuleGuid}"));
                     _LinkCommand = new CommandBase((obj) =>
                     {
@@ -328,18 +442,15 @@ namespace Plugin.DistancePL.ViewModels
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},InputImageLink");
                                 break;
+                             
                             default:
                                 break;
                         }
-
                     });
                 }
                 return _LinkCommand;
             }
         }
-        #endregion
-        #region Method
-        
         #endregion
     }
 }
