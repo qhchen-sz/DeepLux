@@ -267,7 +267,7 @@
                                 <CheckBox Content="裁剪镭射图像" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="镭射反向扫描" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="手动阈值" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
-                                <CheckBox Content="输出亮度图" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                <CheckBox Content="输出亮度图" IsChecked="{Binding OutputHeiImage}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <Button Content="触发line1" HorizontalAlignment="Left" Margin="10 10 0 0"/>
                             </StackPanel>
                         </GroupBox>

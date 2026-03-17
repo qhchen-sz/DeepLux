@@ -82,9 +82,9 @@
       <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="halcondotnet">
-      <HintPath>..\..\..\00Exe\Plugins\halcondotnet.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="halcondotnet, Version=20.11.1.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>E:\Halcon\bin\dotnet35\halcondotnet.dll</HintPath>
     </Reference>
     <Reference Include="HandyControl, Version=3.4.0.0, Culture=neutral, PublicKeyToken=45be8712787a1e5b, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\HandyControl.3.4.0\lib\net472\HandyControl.dll</HintPath>

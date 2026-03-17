@@ -33,9 +33,209 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 namespace Plugin.Matching.ViewModels
 {
+    #region tempfile version
+    /// <summary>
+    /// 模板保存数据结构
+    /// </summary>
+    [Serializable]
+    public class ModelSaveData
+    {
+        /// <summary>
+        /// 模板数据（形状模板/灰度模板）
+        /// </summary>
+        public byte[] ModelData { get; set; }
+        /// <summary>
+        /// 模板裁剪图像数据
+        /// </summary>
+        public byte[] ModelCutImageData { get; set; }
+        /// <summary>
+        /// 模板区域ROI数据
+        /// </summary>
+        public byte[] TempletROIData { get; set; }
+        /// <summary>
+        /// 搜索区域ROI数据
+        /// </summary>
+        //public byte[] SearchROIData { get; set; }
+    }
+    #endregion
+    
+    #region no tempfile version
+    /// <summary>
+    /// 模板数据（使用内存序列化，不创建临时文件）
+    /// </summary>
+    [Serializable]
+    public class ModelDataNoTempFile
+    {
+        /// <summary>
+        /// 序列化后的模板数据
+        /// </summary>
+        public byte[] ModelData { get; set; }
+
+        /// <summary>
+        /// 序列化后的模板裁剪图像
+        /// </summary>
+        public byte[] ImageData { get; set; }
+
+        /// <summary>
+        /// 序列化后的ROI数据
+        /// </summary>
+        public byte[] RoiData { get; set; }
+    }
+
+    /// <summary>
+    /// 模板匹配模块辅助类 - 无临时文件版本
+    /// </summary>
+    public static class MatchingModelHelperNoTempFile
+    {
+        /// <summary>
+        /// 保存模板数据（使用内存序列化，不创建临时文件）
+        /// </summary>
+        /// <param name="modelImage">模板对象（HShapeModel或HNCCModel）</param>
+        /// <param name="modelCutImage">裁剪图像</param>
+        /// <param name="modelTemplet">模板ROI</param>
+        /// <returns>序列化的数据</returns>
+        public static byte[] SaveModelDataNoTempFile(HHandle modelImage, HImage modelCutImage, ROI modelTemplet)
+        {
+            if (modelImage == null || !modelImage.IsInitialized())
+                return null;
+
+            try
+            {
+                ModelDataNoTempFile data = new ModelDataNoTempFile();
+
+                // 1. 序列化模板图像（使用 SerializeImage）
+                HSerializedItem serializedImage = modelCutImage.SerializeImage();
+                data.ImageData = serializedImage; // HSerializedItem隐式转换为byte[]
+                serializedImage.Dispose();
+
+                // 2. 序列化ROI - 使用HObject扩展方法
+                HRegion region = modelTemplet.GetRegion();
+                if (region.IsInitialized())
+                {
+                    HSerializedItem serializedRoi = region.SerializeObject();
+                    data.RoiData = serializedRoi;
+                    serializedRoi.Dispose();
+                }
+                else
+                {
+                    // 如果region无效，使用空数据
+                    data.RoiData = new byte[0];
+                }
+
+                // 3. 序列化模板（使用 Halcon 20.11 的 SerializeShapeModel/SerializeNccModel）
+                if (modelImage is HShapeModel)
+                {
+                    HSerializedItem serializedModel = ((HShapeModel)modelImage).SerializeShapeModel();
+                    data.ModelData = serializedModel; // HSerializedItem隐式转换为byte[]
+                    serializedModel.Dispose();
+                }
+                else if (modelImage is HNCCModel)
+                {
+                    HSerializedItem serializedModel = ((HNCCModel)modelImage).SerializeNccModel();
+                    data.ModelData = serializedModel; // HSerializedItem隐式转换为byte[]
+                    serializedModel.Dispose();
+                }
+
+                // 4. 序列化整个配置数据
+                BinaryFormatter formatter = new BinaryFormatter();
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    formatter.Serialize(ms, data);
+                    return ms.ToArray();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"保存模板失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 加载模板数据（使用内存反序列化，不创建临时文件）
+        /// </summary>
+        /// <param name="data">序列化的数据</param>
+        /// <param name="modelType">模板类型</param>
+        /// <param name="modelImage">输出：模板对象</param>
+        /// <param name="modelCutImage">输出：裁剪图像</param>
+        /// <param name="roiTemplet">输出：模板ROI</param>
+        /// <returns>是否成功</returns>
+        public static bool LoadModelDataNoTempFile(byte[] data, eModelType modelType, out HHandle modelImage, out HImage modelCutImage, out ROIRectangle1 roiTemplet)
+        {
+            modelImage = null;
+            modelCutImage = null;
+            roiTemplet = null;
+
+            if (data == null || data.Length == 0)
+                return false;
+
+            try
+            {
+                // 1. 反序列化配置数据
+                BinaryFormatter formatter = new BinaryFormatter();
+                ModelDataNoTempFile config;
+                using (MemoryStream ms = new MemoryStream(data))
+                {
+                    config = (ModelDataNoTempFile)formatter.Deserialize(ms);
+                }
+
+                // 2. 反序列化图像 - 使用HOperatorSet
+                HSerializedItem serializedImage = new HSerializedItem(config.ImageData);
+                HObject imageObj;
+                HOperatorSet.DeserializeImage(out imageObj, serializedImage);
+                modelCutImage = new HImage(imageObj);
+                serializedImage.Dispose();
+
+                // 3. 反序列化ROI - 使用HOperatorSet
+                if (config.RoiData == null || config.RoiData.Length == 0)
+                {
+                    Console.WriteLine("警告: ROI数据为空");
+                }
+                else
+                {
+                    HSerializedItem serializedRoi = new HSerializedItem(config.RoiData);
+                    HObject region;
+                    //HOperatorSet.DeserializeRegion(out region, serializedRoi);
+                    HOperatorSet.DeserializeObject(out region, serializedRoi);
+                    serializedRoi.Dispose();
+
+                    // 获取ROI坐标
+                    HOperatorSet.SmallestRectangle1(region, out HTuple row1, out HTuple col1, out HTuple row2, out HTuple col2);
+                    roiTemplet = new ROIRectangle1(row1.D, col1.D, row2.D, col2.D);
+                    region.Dispose();
+                }
+
+                // 4. 反序列化模板 - 使用HOperatorSet
+                HSerializedItem serializedModel = new HSerializedItem(config.ModelData);
+                if (modelType == eModelType.形状模板)
+                {
+                    HTuple handle;
+                    HOperatorSet.DeserializeShapeModel(serializedModel, out handle);
+                    modelImage = new HShapeModel(handle.H.Handle);
+                }
+                else
+                {
+                    HTuple handle;
+                    HOperatorSet.DeserializeNccModel(serializedModel, out handle);
+                    modelImage = new HNCCModel(handle.H.Handle);
+                }
+                serializedModel.Dispose();
+
+                return modelImage != null && modelImage.IsInitialized();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"加载模板失败: {ex.Message}");
+                return false;
+            }
+        }
+    }
+    #endregion
     #region enum
     public enum eLinkCommand
     {
@@ -106,6 +306,32 @@ namespace Plugin.Matching.ViewModels
                     );
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
+                }
+                // 模板加载（反序列化）- no tempfile version
+                if (ModelData != null && ModelData.Length > 0 && ModelImage == null)
+                {
+                    bool success = MatchingModelHelperNoTempFile.LoadModelDataNoTempFile(
+                        ModelData,
+                        ModelType,
+                        out HHandle modelImage,
+                        out HImage modelCutImage,
+                        out ROIRectangle1 roiTemplet);
+
+                    if (success)
+                    {
+                        ModelImage = modelImage;
+                        ModelCutImage = modelCutImage;
+                        RoiList[ModuleParam.ModuleName + ROIDefine.Templet] = roiTemplet;
+                        // RoiList[ModuleParam.ModuleName + ROIDefine.Search] = new ROIRectangle1(
+                        //     roiTemplet.row1 - 50, roiTemplet.col1 - 50,
+                        //     roiTemplet.row2 + 50, roiTemplet.col2 + 50);
+
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
+                    }
+                    else
+                    {
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板加载失败！", eMsgType.Warn);
+                    }
                 }
                 if (ModelImage==null || !ModelImage.IsInitialized())
                 {
@@ -332,6 +558,9 @@ namespace Plugin.Matching.ViewModels
         [NonSerialized]
         public HHandle ModelImage;
 
+        /// <summary> 序列化后的模板数据 tempfile version </summary>
+        public byte[] ModelData;
+
         /// <summary> 区域列表 </summary>
         [NonSerialized]
         public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
@@ -487,6 +716,102 @@ namespace Plugin.Matching.ViewModels
                     view.mWindowH_Template = new VMHWindowControl();
                     view.winFormHost1.Child = view.mWindowH_Template;
                 }
+                // 模板加载（反序列化）- no tempfile version
+                if (ModelData != null && ModelData.Length > 0 && ModelImage == null)
+                {
+                    bool success = MatchingModelHelperNoTempFile.LoadModelDataNoTempFile(
+                        ModelData,
+                        ModelType,
+                        out HHandle modelImage,
+                        out HImage modelCutImage,
+                        out ROIRectangle1 roiTemplet);
+
+                    if (success)
+                    {
+                        ModelImage = modelImage;
+                        ModelCutImage = modelCutImage;
+                        RoiList[ModuleParam.ModuleName + ROIDefine.Templet] = roiTemplet;
+                        // RoiList[ModuleParam.ModuleName + ROIDefine.Search] = new ROIRectangle1(
+                        //     roiTemplet.row1 - 50, roiTemplet.col1 - 50,
+                        //     roiTemplet.row2 + 50, roiTemplet.col2 + 50);
+
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
+                    }
+                    else
+                    {
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板加载失败！", eMsgType.Warn);
+                    }
+                }
+                // 模板加载（反序列化） - tempfile version
+                // // 反序列化恢复模板
+                // if (ModelData != null && ModelData.Length > 0 && ModelImage == null)
+                // {
+                //     try
+                //     {
+                //         string tempFile = "1.shm";
+                //         string imageFile = "1.tiff";
+                //         try
+                //         {
+                //             // 反序列化ModelSaveData
+                //             System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                //             using (System.IO.MemoryStream ms = new System.IO.MemoryStream(ModelData))
+                //             {
+                //                 ModelSaveData saveData = (ModelSaveData)formatter.Deserialize(ms);
+
+                //                 // 恢复模板数据
+                //                 System.IO.File.WriteAllBytes(tempFile, saveData.ModelData);
+                //                 if (ModelType == eModelType.形状模板)
+                //                 {
+                //                     HOperatorSet.ReadShapeModel(tempFile, out HTuple shapeHandle);
+                //                     ModelImage = new HShapeModel(shapeHandle.H.Handle);
+                //                 }
+                //                 else
+                //                 {
+                //                     HOperatorSet.ReadNccModel(tempFile, out HTuple nccHandle);
+                //                     ModelImage = new HNCCModel(nccHandle.H.Handle);
+                //                 }
+
+                //                 // 恢复模板裁剪图像
+                //                 System.IO.File.WriteAllBytes(imageFile, saveData.ModelCutImageData);
+                //                 HOperatorSet.ReadImage(out HObject imageObj, imageFile);
+                //                 ModelCutImage = new HImage(imageObj);
+
+                //                 // 恢复模板ROI
+                //                 string templetRoiFile = "1_templet.reg";
+                //                 // string searchRoiFile = "1_search.reg";
+                //                 System.IO.File.WriteAllBytes(templetRoiFile, saveData.TempletROIData);
+                //                 HOperatorSet.ReadRegion(out HObject templetRegion, templetRoiFile);
+                //                 HOperatorSet.SmallestRectangle1(templetRegion, out HTuple row1, out HTuple col1, out HTuple row2, out HTuple col2);
+                //                 ROIRectangle1 roiTemplet = new ROIRectangle1(row1.D, col1.D, row2.D, col2.D);
+                //                 RoiList[ModuleParam.ModuleName + ROIDefine.Templet] = roiTemplet;
+
+                //                 // // 恢复搜索ROI
+                //                 // System.IO.File.WriteAllBytes(searchRoiFile, saveData.SearchROIData);
+                //                 // HOperatorSet.ReadRegion(out HObject searchRegion, searchRoiFile);
+                //                 // HOperatorSet.SmallestRectangle1(searchRegion, out HTuple row1_s, out HTuple col1_s, out HTuple row2_s, out HTuple col2_s);
+                //                 // ROIRectangle1 roiSearch = new ROIRectangle1(row1_s.D, col1_s.D, row2_s.D, col2_s.D);
+                //                 // RoiList[ModuleParam.ModuleName + ROIDefine.Search] = roiSearch;
+                //             }
+
+                //             // // 删除临时文件
+                //             // System.IO.File.Delete(tempFile);
+                //             // System.IO.File.Delete(imageFile);
+                //             // System.IO.File.Delete(roiFile + "_templet");
+                //             // System.IO.File.Delete(roiFile + "_search");
+
+                //             Logger.AddLog($"{ModuleParam.ModuleName}模板加载成功！", eMsgType.Info);
+                //         }
+                //         catch (Exception ex)
+                //         {
+                //             Logger.AddLog($"{ModuleParam.ModuleName}模板加载失败：{ex.Message}", eMsgType.Warn);
+                //         }
+                //     }
+                //     catch (Exception ex)
+                //     {
+                //         Logger.AddLog($"{ModuleParam.ModuleName}模板加载失败：{ex.Message}", eMsgType.Warn);
+                //     }
+                // }
+                // 模板加载（反序列化） - tempfile version
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     SetDefaultLink();
@@ -793,6 +1118,96 @@ namespace Plugin.Matching.ViewModels
                 editViewModel.OutImage = ModelCutImage;
                 editViewModel.CreateModel();
                 ModelImage = editViewModel.MatchingViewModel.ModelImage;
+                // 学习模板后，保存模板数据到工程文件（不创建临时文件）no tempfile version
+                if (ModelImage != null && ModelImage.IsInitialized())
+                {
+                    ModelData = MatchingModelHelperNoTempFile.SaveModelDataNoTempFile(
+                        ModelImage, 
+                        ModelCutImage, 
+                        ModelTemplet);
+                    
+                    if (ModelData != null)
+                    {
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板序列化成功（无临时文件）!", eMsgType.Info);
+                    }
+                    else
+                    {
+                        Logger.AddLog($"{ModuleParam.ModuleName} 模板序列化失败！", eMsgType.Warn);
+                    }
+                }
+                // // 模板加载（反序列化） - tempfile version
+                // // 序列化模板数据并保存
+                // if (ModelImage != null && ModelImage.IsInitialized())
+                // {
+                //     try
+                //     {
+                //         string tempFile = "1.shm";
+                //         string imageFile = "1.tiff";
+                //         try
+                //         {
+                //             // 保存模板数据
+                //             if (ModelType == eModelType.形状模板)
+                //             {
+                //                 HOperatorSet.WriteShapeModel((HShapeModel)ModelImage, tempFile);
+                //             }
+                //             else
+                //             {
+                //                 HOperatorSet.WriteNccModel((HNCCModel)ModelImage, tempFile);
+                //             }
+                //             byte[] modelData = System.IO.File.ReadAllBytes(tempFile);
+
+                //             // 保存模板裁剪图像
+                //             HOperatorSet.WriteImage(ModelCutImage, "tiff", 0, imageFile);
+                //             byte[] modelCutImageData = System.IO.File.ReadAllBytes(imageFile);
+
+                //             // 保存模板ROI和搜索ROI
+                //             string templetRoiFile = "1_templet.reg";
+                //             // string searchRoiFile = "1_search.reg";
+                //             HOperatorSet.WriteRegion(ModelTemplet.GetRegion(), templetRoiFile);
+                //             // HOperatorSet.WriteRegion(ModelSearch.GetRegion(), searchRoiFile);
+                //             byte[] templetRoiData = System.IO.File.ReadAllBytes(templetRoiFile);
+                //             // byte[] searchRoiData = System.IO.File.ReadAllBytes(searchRoiFile);
+
+                //             // 打包所有数据
+                //             ModelSaveData saveData = new ModelSaveData
+                //             {
+                //                 ModelData = modelData,
+                //                 ModelCutImageData = modelCutImageData,
+                //                 TempletROIData = templetRoiData,
+                //                 //SearchROIData = searchRoiData
+                //             };
+
+                //             // 序列化为字节数组
+                //             System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                //             using (System.IO.MemoryStream ms = new System.IO.MemoryStream())
+                //             {
+                //                 formatter.Serialize(ms, saveData);
+                //                 ModelData = ms.ToArray();
+                //             }
+
+                //             // // 删除临时文件
+                //             // System.IO.File.Delete(tempFile);
+                //             // System.IO.File.Delete(imageFile);
+                //             // System.IO.File.Delete(roiFile + "_templet");
+                //             // System.IO.File.Delete(roiFile + "_search");
+
+                //             Logger.AddLog($"{ModuleParam.ModuleName} 模板序列化成功!", eMsgType.Info);
+                //         }
+                //         catch (Exception ex)
+                //         {
+                //             Logger.GetExceptionMsg(ex);
+                //         }
+                //     }
+                //     catch (Exception ex)
+                //     {
+                //         Logger.GetExceptionMsg(ex);
+                //     }
+                // }
+                // else
+                // {
+                //     ModelData = null;
+                // }
+                // // 模板加载（反序列化） - tempfile version
                 //Find.CreateModel(
                 //    ModelType,
                 //    hImage1,

@@ -189,6 +189,56 @@ namespace Plugin.GrabImage.ViewModels
                 //    DispImage.Type = "3D";
                 if (DispImage != null )
                 {
+                    // 生成亮度图
+                    if (OutputHeiImage)
+                    {
+                        try
+                        {
+                            if (HeiImage != null && HeiImage.IsInitialized())
+                            {
+                                HeiImage.Dispose();
+                            }
+                            // 获取图像通道数
+                            HOperatorSet.CountChannels(DispImage, out HTuple Channels);
+                            HImage heiImg = new HImage();
+                            if (Channels == 2)
+                            {
+                                // 2通道图像，分解为两个通道
+                                HOperatorSet.Decompose2(DispImage, out HObject Image1, out HObject Image2);
+                                heiImg = new HImage(Image2);
+                            }
+                            else if (Channels == 1)
+                            {
+                                // 1通道图像，直接使用
+                                heiImg = new HImage(DispImage);
+                            }
+                            else
+                            {
+                                // 其他情况，不处理
+                                Logger.AddLog($"图像通道数为{Channels}，不支持生成亮度图", eMsgType.Warn);
+                            }
+                            if (heiImg != null && heiImg.IsInitialized())
+                            {
+                                HeiImage = new RImage(heiImg);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.AddLog($"生成亮度图失败: {ex.Message}", eMsgType.Warn);
+                        }
+                    }
+                    else
+                    {
+                        // 不输出亮度图时，清空之前的亮度图
+                        if (_HeiImage != null && _HeiImage.IsInitialized())
+                        {
+                            _HeiImage.Dispose();
+                        }
+                        _HeiImage = null;
+                        // 触发属性变更通知
+                        RaisePropertyChanged(nameof(HeiImage));
+                    }
+
                     VMHWindowControl mWindowH;
                     if (ModuleView == null || ModuleView.IsClosed )
                     {
@@ -238,8 +288,17 @@ namespace Plugin.GrabImage.ViewModels
         }
         public override void AddOutputParams()
         {
+            // 先清除所有输出，再重新添加
+            if (Prj != null)
+            {
+                Prj.ClearOutputParam(ModuleParam);
+            }
             base.AddOutputParams();
             AddOutputParam("图像", "HImage", DispImage);
+            if (OutputHeiImage && HeiImage != null && HeiImage.IsInitialized())
+            {
+                AddOutputParam("亮度图", "HImage", HeiImage);
+            }
         }
         #region Prop
         private bool _IsShow=false;
@@ -274,6 +333,31 @@ namespace Plugin.GrabImage.ViewModels
                 Set(ref _IsCyclicRead, value);
             }
         }
+
+        private bool _OutputHeiImage = false;
+        /// <summary>
+        /// 输出亮度图
+        /// </summary>
+        public bool OutputHeiImage
+        {
+            get { return _OutputHeiImage; }
+            set
+            {
+                Set(ref _OutputHeiImage, value);
+            }
+        }
+
+        [NonSerialized]
+        private RImage _HeiImage;
+        /// <summary>
+        /// 亮度图
+        /// </summary>
+        public RImage HeiImage
+        {
+            get { return _HeiImage; }
+            set { Set(ref _HeiImage, value); }
+        }
+
         private string _ImagePath;
         /// <summary>
         /// 图片路径
