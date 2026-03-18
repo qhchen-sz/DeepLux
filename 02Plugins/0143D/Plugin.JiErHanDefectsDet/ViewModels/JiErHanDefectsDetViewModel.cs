@@ -182,6 +182,18 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
                 }
                 maskByte.Dispose();
 
+                // 设置缺陷检测结果标志位
+                HasDefects = colorIdx > 0;
+                DefectCount = colorIdx;
+                TotalDefectArea = 0;
+                // 填充每个缺陷的面积列表
+                DefectAreas.Clear();
+                foreach (var defect in defectResults)
+                {
+                    DefectAreas.Add(defect.Area);
+                    TotalDefectArea += defect.Area;
+                }
+
                 //手动释放内存
                 Marshal.FreeHGlobal(img_para.data);
                 img_para.data = IntPtr.Zero;
@@ -244,7 +256,37 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
             this.Prj.ClearOutputParam(this.ModuleParam);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK ? true : false);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
+            // 添加缺陷检测结果输出参数
+            AddOutputParam("缺陷Flag", "bool", HasDefects);
+            AddOutputParam("缺陷数量", "int", DefectCount);
+            AddOutputParam("缺陷总面积", "double", TotalDefectArea);
+            // 动态添加每个缺陷面积的输出参数
+            for (int i = 0; i < DefectAreas.Count; i++)
+            {
+                AddOutputParam($"缺陷{i + 1}面积", "double", DefectAreas[i]);
+            }
         }
+
+        /// <summary>
+        /// 是否有缺陷（用于其他模块索引）
+        /// </summary>
+        public bool HasDefects { get; private set; } = false;
+
+        /// <summary>
+        /// 缺陷数量（用于其他模块索引）
+        /// </summary>
+        public int DefectCount { get; private set; } = 0;
+
+        /// <summary>
+        /// 缺陷总面积（用于其他模块索引）
+        /// </summary>
+        public double TotalDefectArea { get; private set; } = 0;
+
+        /// <summary>
+        /// 每个缺陷的面积列表（用于其他模块索引）
+        /// </summary>
+        public List<double> DefectAreas { get; private set; } = new List<double>();
+
         #region Prop
         [NonSerialized]
         private ObservableCollection<DefectResult> _uiDefects;

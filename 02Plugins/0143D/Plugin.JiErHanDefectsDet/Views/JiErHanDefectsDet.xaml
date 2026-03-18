@@ -73,7 +73,8 @@
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="缩放系数:" VerticalAlignment="Center" Width="65"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                         Text="{Binding MPScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"/>
+                                         Text="{Binding MPScale, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F3}"
+                                             GotKeyboardFocus="TextBox_GotKeyboardFocus" PreviewMouseLeftButtonDown="TextBox_PreviewMouseLeftButtonDown"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="搜索半径:" VerticalAlignment="Center" Width="65"/>

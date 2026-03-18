@@ -82,9 +82,14 @@ namespace Plugin.Matching.ViewModels
         public byte[] ImageData { get; set; }
 
         /// <summary>
-        /// 序列化后的ROI数据
+        /// 序列化后的模板ROI数据
         /// </summary>
         public byte[] RoiData { get; set; }
+
+        /// <summary>
+        /// 序列化后的搜索区域ROI数据
+        /// </summary>
+        public byte[] SearchRoiData { get; set; }
     }
 
     /// <summary>
@@ -98,8 +103,9 @@ namespace Plugin.Matching.ViewModels
         /// <param name="modelImage">模板对象（HShapeModel或HNCCModel）</param>
         /// <param name="modelCutImage">裁剪图像</param>
         /// <param name="modelTemplet">模板ROI</param>
+        /// <param name="modelSearch">搜索区域ROI</param>
         /// <returns>序列化的数据</returns>
-        public static byte[] SaveModelDataNoTempFile(HHandle modelImage, HImage modelCutImage, ROI modelTemplet)
+        public static byte[] SaveModelDataNoTempFile(HHandle modelImage, HImage modelCutImage, ROI modelTemplet, ROI modelSearch)
         {
             if (modelImage == null || !modelImage.IsInitialized())
                 return null;
@@ -113,7 +119,7 @@ namespace Plugin.Matching.ViewModels
                 data.ImageData = serializedImage; // HSerializedItem隐式转换为byte[]
                 serializedImage.Dispose();
 
-                // 2. 序列化ROI - 使用HObject扩展方法
+                // 2. 序列化模板ROI
                 HRegion region = modelTemplet.GetRegion();
                 if (region.IsInitialized())
                 {
@@ -127,7 +133,27 @@ namespace Plugin.Matching.ViewModels
                     data.RoiData = new byte[0];
                 }
 
-                // 3. 序列化模板（使用 Halcon 20.11 的 SerializeShapeModel/SerializeNccModel）
+                // 3. 序列化搜索区域ROI
+                if (modelSearch != null)
+                {
+                    HRegion searchRegion = modelSearch.GetRegion();
+                    if (searchRegion.IsInitialized())
+                    {
+                        HSerializedItem serializedSearchRoi = searchRegion.SerializeObject();
+                        data.SearchRoiData = serializedSearchRoi;
+                        serializedSearchRoi.Dispose();
+                    }
+                    else
+                    {
+                        data.SearchRoiData = new byte[0];
+                    }
+                }
+                else
+                {
+                    data.SearchRoiData = new byte[0];
+                }
+
+                // 4. 序列化模板（使用 Halcon 20.11 的 SerializeShapeModel/SerializeNccModel）
                 if (modelImage is HShapeModel)
                 {
                     HSerializedItem serializedModel = ((HShapeModel)modelImage).SerializeShapeModel();
@@ -141,7 +167,7 @@ namespace Plugin.Matching.ViewModels
                     serializedModel.Dispose();
                 }
 
-                // 4. 序列化整个配置数据
+                // 5. 序列化整个配置数据
                 BinaryFormatter formatter = new BinaryFormatter();
                 using (MemoryStream ms = new MemoryStream())
                 {
@@ -164,12 +190,14 @@ namespace Plugin.Matching.ViewModels
         /// <param name="modelImage">输出：模板对象</param>
         /// <param name="modelCutImage">输出：裁剪图像</param>
         /// <param name="roiTemplet">输出：模板ROI</param>
+        /// <param name="roiSearch">输出：搜索区域ROI</param>
         /// <returns>是否成功</returns>
-        public static bool LoadModelDataNoTempFile(byte[] data, eModelType modelType, out HHandle modelImage, out HImage modelCutImage, out ROIRectangle1 roiTemplet)
+        public static bool LoadModelDataNoTempFile(byte[] data, eModelType modelType, out HHandle modelImage, out HImage modelCutImage, out ROIRectangle1 roiTemplet, out ROIRectangle1 roiSearch)
         {
             modelImage = null;
             modelCutImage = null;
             roiTemplet = null;
+            roiSearch = null;
 
             if (data == null || data.Length == 0)
                 return false;
@@ -191,7 +219,7 @@ namespace Plugin.Matching.ViewModels
                 modelCutImage = new HImage(imageObj);
                 serializedImage.Dispose();
 
-                // 3. 反序列化ROI - 使用HOperatorSet
+                // 3. 反序列化模板ROI - 使用HOperatorSet
                 if (config.RoiData == null || config.RoiData.Length == 0)
                 {
                     Console.WriteLine("警告: ROI数据为空");
@@ -210,7 +238,21 @@ namespace Plugin.Matching.ViewModels
                     region.Dispose();
                 }
 
-                // 4. 反序列化模板 - 使用HOperatorSet
+                // 4. 反序列化搜索区域ROI
+                if (config.SearchRoiData != null && config.SearchRoiData.Length > 0)
+                {
+                    HSerializedItem serializedSearchRoi = new HSerializedItem(config.SearchRoiData);
+                    HObject searchRegion;
+                    HOperatorSet.DeserializeObject(out searchRegion, serializedSearchRoi);
+                    serializedSearchRoi.Dispose();
+
+                    // 获取搜索区域ROI坐标
+                    HOperatorSet.SmallestRectangle1(searchRegion, out HTuple sRow1, out HTuple sCol1, out HTuple sRow2, out HTuple sCol2);
+                    roiSearch = new ROIRectangle1(sRow1.D, sCol1.D, sRow2.D, sCol2.D);
+                    searchRegion.Dispose();
+                }
+
+                // 5. 反序列化模板 - 使用HOperatorSet
                 HSerializedItem serializedModel = new HSerializedItem(config.ModelData);
                 if (modelType == eModelType.形状模板)
                 {
@@ -315,16 +357,18 @@ namespace Plugin.Matching.ViewModels
                         ModelType,
                         out HHandle modelImage,
                         out HImage modelCutImage,
-                        out ROIRectangle1 roiTemplet);
+                        out ROIRectangle1 roiTemplet,
+                        out ROIRectangle1 roiSearch);
 
                     if (success)
                     {
                         ModelImage = modelImage;
                         ModelCutImage = modelCutImage;
                         RoiList[ModuleParam.ModuleName + ROIDefine.Templet] = roiTemplet;
-                        // RoiList[ModuleParam.ModuleName + ROIDefine.Search] = new ROIRectangle1(
-                        //     roiTemplet.row1 - 50, roiTemplet.col1 - 50,
-                        //     roiTemplet.row2 + 50, roiTemplet.col2 + 50);
+                        if (roiSearch != null)
+                        {
+                            RoiList[ModuleParam.ModuleName + ROIDefine.Search] = roiSearch;
+                        }
 
                         Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
                     }
@@ -724,16 +768,18 @@ namespace Plugin.Matching.ViewModels
                         ModelType,
                         out HHandle modelImage,
                         out HImage modelCutImage,
-                        out ROIRectangle1 roiTemplet);
+                        out ROIRectangle1 roiTemplet,
+                        out ROIRectangle1 roiSearch);
 
                     if (success)
                     {
                         ModelImage = modelImage;
                         ModelCutImage = modelCutImage;
                         RoiList[ModuleParam.ModuleName + ROIDefine.Templet] = roiTemplet;
-                        // RoiList[ModuleParam.ModuleName + ROIDefine.Search] = new ROIRectangle1(
-                        //     roiTemplet.row1 - 50, roiTemplet.col1 - 50,
-                        //     roiTemplet.row2 + 50, roiTemplet.col2 + 50);
+                        if (roiSearch != null)
+                        {
+                            RoiList[ModuleParam.ModuleName + ROIDefine.Search] = roiSearch;
+                        }
 
                         Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
                     }
@@ -1122,10 +1168,11 @@ namespace Plugin.Matching.ViewModels
                 if (ModelImage != null && ModelImage.IsInitialized())
                 {
                     ModelData = MatchingModelHelperNoTempFile.SaveModelDataNoTempFile(
-                        ModelImage, 
-                        ModelCutImage, 
-                        ModelTemplet);
-                    
+                        ModelImage,
+                        ModelCutImage,
+                        ModelTemplet,
+                        ModelSearch);
+
                     if (ModelData != null)
                     {
                         Logger.AddLog($"{ModuleParam.ModuleName} 模板序列化成功（无临时文件）!", eMsgType.Info);

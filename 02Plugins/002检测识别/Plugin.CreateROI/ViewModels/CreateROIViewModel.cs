@@ -70,7 +70,7 @@ namespace Plugin.CreateROI.ViewModels
             {
                 return;
             }
-            if (InputImageLinkText == null || InputImageLinkText=="")
+            if (InputImageLinkText == null)
                 InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
         }
 
@@ -109,6 +109,12 @@ namespace Plugin.CreateROI.ViewModels
                         break;
                     default:
                         break;
+                }
+                // 新增：检查 OutRegion 有效性
+                if (OutRegion == null || !OutRegion.IsInitialized() || OutRegion.Area <= 0)
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
                 }
                 GetHomMat2D();
                 if (HomMat2D != null && HomMat2D.Length > 0)
@@ -152,7 +158,6 @@ namespace Plugin.CreateROI.ViewModels
                      mWindowH.WindowH.DispHobject(OutRegion,"green",false);
                     }
                 }
-                ShowHRoi();
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -167,16 +172,36 @@ namespace Plugin.CreateROI.ViewModels
         {
             base.AddOutputParams();
             AddOutputParam("区域", "HRegion", OutRegion);
-            if (IsOutImageReduced && DispImage!=null && DispImage.IsInitialized())
+
+            if (IsOutImageReduced)
             {
-                ImageReduced = DispImage.ReduceDomain(OutRegion);
-                AddOutputParam("裁剪图像", "HImage", new RImage(ImageReduced.CropDomain()));
-            }
-            else
-            {
-                AddOutputParam("裁剪图像", "HImage", new HImage("byte",100,100));
+                try
+                {
+                    // 检查 OutRegion 有效性：非 null、已初始化、面积 > 0
+                    if (OutRegion != null && OutRegion.IsInitialized() && OutRegion.Area > 0)
+                    {
+                        ImageReduced = DispImage.ReduceDomain(OutRegion);
+                        if (ImageReduced != null && ImageReduced.IsInitialized())
+                        {
+                            HImage cropped = ImageReduced.CropDomain();
+                            if (cropped != null && cropped.IsInitialized())
+                            {
+                                AddOutputParam("裁剪图像", "HImage", new RImage(cropped));
+                                return;
+                            }
+                        }
+                    }
+                    // 若无效，添加默认空图像
+                    AddOutputParam("裁剪图像", "HImage", new RImage());
+                }
+                catch (Exception ex)
+                {
+                    Logger.GetExceptionMsg(ex);
+                    AddOutputParam("裁剪图像", "HImage", new RImage());
+                }
             }
         }
+
         #region Prop
         [NonSerialized]
         private bool IsDrawing = false;
@@ -216,9 +241,6 @@ namespace Plugin.CreateROI.ViewModels
                 if (DispImage != null && DispImage.IsInitialized())
                 {
                     ShowHRoi();
-                    var view = ModuleView as CreateROIView;
-                    view.mWindowH.hControl.MouseUp += HControl_MouseUp;
-                    IsLoaded_Flag = true;
                 }
             }
         }
@@ -413,6 +435,7 @@ namespace Plugin.CreateROI.ViewModels
                     IsLoaded_Flag = false;
                 }
                 DrawSize = 5;
+                // 确保所有参数改变都能触发ROI更新
                 Rect2Len1.TextChanged = new Action(() => { RoiChanged(); });
                 Rect2Len2.TextChanged = new Action(() => { RoiChanged(); });
                 Rect2MidR.TextChanged = new Action(() => { RoiChanged(); });
@@ -421,7 +444,16 @@ namespace Plugin.CreateROI.ViewModels
                 CircleX.TextChanged = new Action(() => { RoiChanged(); });
                 CircleY.TextChanged = new Action(() => { RoiChanged(); });
                 CircleRadius.TextChanged = new Action(() => { RoiChanged(); });
-
+                // 添加属性变更监听
+                this.PropertyChanged += (sender, e) =>
+                {
+                    if (e.PropertyName == nameof(SelectedROIType))
+                    {
+                        // ROI类型改变时，强制重新创建ROI
+                        RoiList.Clear();
+                        RoiChanged();
+                    }
+                };
             }
         }
         [NonSerialized]
@@ -586,119 +618,172 @@ namespace Plugin.CreateROI.ViewModels
             var view = ModuleView as CreateROIView;
             if (view == null) return;
             if (RoiChanged_Flag == true) return;
+
             RoiChanged_Flag = true;
             IsLoaded_Flag = true;
-            ShowHRoi();
-            RoiChanged_Flag = false;
-            IsLoaded_Flag = false;
+
+            try
+            {
+                // 强制清除ROI列表，确保重新创建
+                if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
+                {
+                    RoiList.Remove(ModuleParam.ModuleName + ROIDefine.Rectangle2);
+                }
+                if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Circle))
+                {
+                    RoiList.Remove(ModuleParam.ModuleName + ROIDefine.Circle);
+                }
+
+                ShowHRoi();
+            }
+            finally
+            {
+                RoiChanged_Flag = false;
+                IsLoaded_Flag = false;
+            }
         }
+
+        #region ROI区域
         private void HControl_MouseUp(object sender, MouseEventArgs e)
         {
             if (IsDrawing) return;
+
             try
             {
-                RoiChanged_Flag = true;
                 var view = ModuleView as CreateROIView;
                 if (view == null) return;
+
                 ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
-                if (index.Length < 1) return;
-                RoiList[index] = roi;
+                if (string.IsNullOrEmpty(index)) return;
+
                 switch (SelectedROIType)
                 {
                     case eDrawShape.矩形:
                         ROIRectangle2 rectangle2 = (ROIRectangle2)roi;
-                        if (HomMat2D_Inverse!=null && HomMat2D_Inverse.Length>0)
+
+                        // 获取原始坐标（显示坐标）
+                        double displayRow = rectangle2.MidR;
+                        double displayCol = rectangle2.MidC;
+                        double displayPhi = rectangle2.Phi;
+                        double displayLen1 = rectangle2.Length1;
+                        double displayLen2 = rectangle2.Length2;
+
+                        // 如果有逆变换，转换到原始坐标
+                        if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                         {
                             HRegion region = rectangle2.GetRegion();
                             region = region.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
-                            region.SmallestRectangle2(out double row, out double column, out double phi, out double length1, out double length2);
-                            Rect2.Length1 = Math.Round(length1, 3);
-                            Rect2.Length2 = Math.Round(length2, 3);
-                            Rect2.MidC = Math.Round(column, 3);
-                            Rect2.MidR = Math.Round(row, 3);
-                            Rect2.Phi = Math.Round(phi, 3);
+                            region.SmallestRectangle2(out double originalRow, out double originalCol,
+                                out double originalPhi, out double originalLen1, out double originalLen2);
+
+                            // 更新参数值
+                            UpdateRect2Parameters(originalRow, originalCol, originalPhi, originalLen1, originalLen2);
                         }
                         else
                         {
-                            Rect2.Length1 = Math.Round(rectangle2.Length1, 3);
-                            Rect2.Length2 = Math.Round(rectangle2.Length2, 3);
-                            Rect2.MidC = Math.Round(rectangle2.MidC, 3);
-                            Rect2.MidR = Math.Round(rectangle2.MidR, 3);
-                            Rect2.Phi = -Math.Round(rectangle2.Phi, 3);
-                        }
-                        if (!Rect2Len1.Text.StartsWith("&"))
-                        {
-                            Rect2Len1.Text = Rect2.Length1.ToString();
-                        }
-                        if (!Rect2Len2.Text.StartsWith("&"))
-                        {
-                            Rect2Len2.Text = Rect2.Length2.ToString();
-                        }
-                        if (!Rect2MidC.Text.StartsWith("&"))
-                        {
-                            Rect2MidC.Text = Rect2.MidC.ToString();
-                        }
-                        if (!Rect2MidR.Text.StartsWith("&"))
-                        {
-                            Rect2MidR.Text = Rect2.MidR.ToString();
-                        }
-                        if (!Rect2Deg.Text.StartsWith("&"))
-                        {
-                            Rect2Deg.Text = Rect2.Deg.ToString();
+                            // 直接使用显示坐标
+                            UpdateRect2Parameters(displayRow, displayCol, displayPhi, displayLen1, displayLen2);
                         }
 
-                        view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rectangle2.MidR, rectangle2.MidC, rectangle2.Phi, rectangle2.Length1, rectangle2.Length2, ref RoiList);
                         break;
+
                     case eDrawShape.圆形:
                         ROICircle circle = (ROICircle)roi;
+
+                        // 获取显示坐标
+                        double displayCenterY = circle.CenterY;
+                        double displayCenterX = circle.CenterX;
+                        double displayRadius = circle.Radius;
+
+                        // 如果有逆变换，转换到原始坐标
                         if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                         {
                             HRegion region2 = circle.GetRegion();
                             region2 = region2.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
-                            region2.SmallestCircle(out double row, out double column, out double radius);
-                            Circle.CenterX = Math.Round(row, 3);
-                            Circle.CenterY = Math.Round(column, 3);
-                            Circle.Radius = Math.Round(radius, 3);
+                            region2.SmallestCircle(out double originalRow, out double originalCol, out double originalRadius);
+
+                            // 更新参数值
+                            UpdateCircleParameters(originalRow, originalCol, originalRadius);
                         }
                         else
                         {
-                            Circle.CenterX = Math.Round(circle.CenterX, 3);
-                            Circle.CenterY = Math.Round(circle.CenterY, 3);
-                            Circle.Radius = Math.Round(circle.Radius, 3);
+                            // 直接使用显示坐标
+                            UpdateCircleParameters(displayCenterY, displayCenterX, displayRadius);
                         }
-                        if (!CircleX.Text.StartsWith("&"))
-                        {
-                            // CircleX.Text = Circle.CenterX.ToString();
-                            CircleX.Text = Circle.CenterY.ToString();
-                        }
-                        if (!CircleY.Text.StartsWith("&"))
-                        {
-                            // CircleY.Text = Circle.CenterY.ToString();
-                            CircleY.Text = Circle.CenterX.ToString();
-                        }
-                        if (!CircleRadius.Text.StartsWith("&"))
-                        {
-                            CircleRadius.Text = Circle.Radius.ToString();
-                        }
-                        view.mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, circle.CenterY, circle.CenterX, circle.Radius, ref RoiList);
-                        break;
-                    default:
+
                         break;
                 }
-                ShowHRoi();
+
+                // 强制更新显示
+                RoiChanged();
             }
             catch (Exception ex)
             {
+                Logger.GetExceptionMsg(ex);
             }
-            finally 
-            { 
-                RoiChanged_Flag = false; 
+        }
+
+        // 辅助方法：更新矩形参数
+        private void UpdateRect2Parameters(double row, double col, double phi, double len1, double len2)
+        {
+            // 更新Rect2对象
+            Rect2.MidR = Math.Round(row, 3);
+            Rect2.MidC = Math.Round(col, 3);
+            Rect2.Phi = Math.Round(phi, 3);
+            Rect2.Length1 = Math.Round(len1, 3);
+            Rect2.Length2 = Math.Round(len2, 3);
+
+            // 如果参数不是链接变量，则更新文本框值
+            if (!Rect2MidR.Text.StartsWith("&"))
+            {
+                Rect2MidR.Text = Rect2.MidR.ToString();
+            }
+            if (!Rect2MidC.Text.StartsWith("&"))
+            {
+                Rect2MidC.Text = Rect2.MidC.ToString();
+            }
+            if (!Rect2Deg.Text.StartsWith("&"))
+            {
+                // 注意：phi是弧度，需要转换为角度
+                Rect2Deg.Text = (Rect2.Phi * 180 / Math.PI).ToString();
+            }
+            if (!Rect2Len1.Text.StartsWith("&"))
+            {
+                Rect2Len1.Text = Rect2.Length1.ToString();
+            }
+            if (!Rect2Len2.Text.StartsWith("&"))
+            {
+                Rect2Len2.Text = Rect2.Length2.ToString();
+            }
+        }
+
+        // 辅助方法：更新圆形参数
+        private void UpdateCircleParameters(double centerY, double centerX, double radius)
+        {
+            // 更新Circle对象
+            Circle.CenterY = Math.Round(centerY, 3);
+            Circle.CenterX = Math.Round(centerX, 3);
+            Circle.Radius = Math.Round(radius, 3);
+
+            // 如果参数不是链接变量，则更新文本框值
+            if (!CircleY.Text.StartsWith("&"))
+            {
+                CircleY.Text = Circle.CenterY.ToString();
+            }
+            if (!CircleX.Text.StartsWith("&"))
+            {
+                CircleX.Text = Circle.CenterX.ToString();
+            }
+            if (!CircleRadius.Text.StartsWith("&"))
+            {
+                CircleRadius.Text = Circle.Radius.ToString();
             }
         }
         public override void ShowHRoi()
         {
             var view = ModuleView as CreateROIView;
             if (view == null) return;
+
             VMHWindowControl mWindowH;
             if (view == null || view.IsClosed)
             {
@@ -708,119 +793,125 @@ namespace Plugin.CreateROI.ViewModels
             {
                 mWindowH = view.mWindowH;
             }
+
             ClearRoiAndText();
             mWindowH.ClearROI();
-            HRegion region = new HRegion();
-            switch (SelectedROIType)
-            {
-                case eDrawShape.矩形:
-                    if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
-                    {
-                        ROIRectangle2 ROIRect2 = (ROIRectangle2)RoiList[ModuleParam.ModuleName + ROIDefine.Rectangle2];
-                        if (IsLoaded_Flag && HomMat2D!=null && HomMat2D.Length>0)
-                        {
-                            region = new HRegion();
-                            region.GenRectangle2(
-                                Convert.ToDouble(GetLinkValue(Rect2MidR)),
-                                Convert.ToDouble(GetLinkValue(Rect2MidC)),
-                                (double)((HTuple)(Convert.ToDouble(GetLinkValue(Rect2Deg)))).TupleRad(),
-                                Convert.ToDouble(GetLinkValue(Rect2Len1)),
-                                Convert.ToDouble(GetLinkValue(Rect2Len2)));
-                            region = region.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                            region.SmallestRectangle2(out double row, out double column, out double phi, out double length1, out double length2);
-                            if (region.Area.I != 0)
-                            {
-                                mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2,
-                                    row,
-                                    column,
-                                    -phi,
-                                    length1,
-                                    length2,
-                                    ref RoiList);
-                            }
-                            else
-                            {
-                                mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, 200, 200, 0, 30, 30, ref RoiList);
-                            }
-                        }
-                        else
-                        {
-                            mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, ROIRect2.MidR, ROIRect2.MidC, ROIRect2.Phi, ROIRect2.Length1, ROIRect2.Length2, ref RoiList);
-                        }
-                    }
-                    else
-                    {
-                        mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, 200, 200, 0, 30, 30, ref RoiList);
-                    }
-                    break;
-                case eDrawShape.圆形:
-                    if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Circle))
-                    {
-                        ROICircle ROICircle = (ROICircle)RoiList[ModuleParam.ModuleName + ROIDefine.Circle];
-                        if (IsLoaded_Flag)
-                        {
-                            region.GenCircle(
-                                Convert.ToDouble(GetLinkValue(CircleY)),
-                                Convert.ToDouble(GetLinkValue(CircleX)),
-                                Convert.ToDouble(GetLinkValue(CircleRadius)));
-                            if (HomMat2D != null || HomMat2D.Length!=0)
-                                region = region.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                            region.SmallestCircle(out double row, out double column, out double radius);
-                            if (region.Area.I != 0)
-                            {
-                                mWindowH.WindowH.genCircle(
-                                    ModuleParam.ModuleName + ROIDefine.Circle,
-                                    row,
-                                    column,
-                                    radius,
-                                    ref RoiList);
-                            }
-                            else
-                            {
-                                mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, 100, 100, 30, ref RoiList);
-                            }
-                        }
-                        else
-                        {
-                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, ROICircle.CenterY, ROICircle.CenterX, ROICircle.Radius, ref RoiList);
-                        }
-                    }
-                    else
-                    {
-                        mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, 100,100,30, ref RoiList);
-                    }
-                    break;
-                default:
-                    break;
-            }
-            if (finalRegion!=null && finalRegion.IsInitialized())
-            {
-                if (HomMat2D != null && HomMat2D.Length > 0)
-                {
-                    finalRegion_Temp = finalRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                }
-                else
-                {
-                    finalRegion_Temp = new HRegion(finalRegion);
-                }
-                ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.屏蔽范围, "green", new HObject(finalRegion_Temp)));
-            }
-            List<HRoi> roiList = mHRoi.Where(c => c.ModuleName == ModuleParam.ModuleName).ToList();
-            foreach (HRoi roi in roiList)
-            {
-                if (roi.roiType == HRoiType.文字显示)
-                {
-                    HText roiText = (HText)roi;
-                    ShowTool.SetFont(mWindowH.hControl.HalconWindow, roiText.size, "false", "false");
-                    ShowTool.SetMsg(mWindowH.hControl.HalconWindow, roiText.text, "image", roiText.row, roiText.col, roiText.drawColor, "false");
-                }
-                else
-                {
-                    mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
-                }
-            }
 
+            try
+            {
+                switch (SelectedROIType)
+                {
+                    case eDrawShape.矩形:
+                        // 直接从参数创建矩形，不使用RoiList中的缓存
+                        double rectRow, rectCol, rectPhi, rectLen1, rectLen2;
+
+                        try
+                        {
+                            rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
+                            rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
+                            rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
+                            rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
+                            rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
+
+                            // 如果有变换矩阵，应用变换
+                            if (HomMat2D != null && HomMat2D.Length > 0)
+                            {
+                                HRegion tempRegion = new HRegion();
+                                tempRegion.GenRectangle2(rectRow, rectCol, rectPhi, rectLen1, rectLen2);
+                                tempRegion = tempRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
+                                tempRegion.SmallestRectangle2(out rectRow, out rectCol, out rectPhi, out rectLen1, out rectLen2);
+                                tempRegion.Dispose();
+                            }
+
+                            mWindowH.WindowH.genRect2(
+                                ModuleParam.ModuleName + ROIDefine.Rectangle2,
+                                rectRow,
+                                rectCol,
+                                -rectPhi, // 注意：Halcon的phi方向和显示方向可能需要调整
+                                rectLen1,
+                                rectLen2,
+                                ref RoiList);
+                        }
+                        catch
+                        {
+                            mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, 200, 200, 0, 30, 30, ref RoiList);
+                        }
+                        break;
+
+                    case eDrawShape.圆形:
+                        // 直接从参数创建圆形
+                        double circleRow, circleCol, circleRadius;
+
+                        try
+                        {
+                            circleRow = Convert.ToDouble(GetLinkValue(CircleY));
+                            circleCol = Convert.ToDouble(GetLinkValue(CircleX));
+                            circleRadius = Convert.ToDouble(GetLinkValue(CircleRadius));
+
+                            // 如果有变换矩阵，应用变换
+                            if (HomMat2D != null && HomMat2D.Length > 0)
+                            {
+                                HRegion tempRegion = new HRegion();
+                                tempRegion.GenCircle(circleRow, circleCol, circleRadius);
+                                tempRegion = tempRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
+                                tempRegion.SmallestCircle(out circleRow, out circleCol, out circleRadius);
+                                tempRegion.Dispose();
+                            }
+
+                            mWindowH.WindowH.genCircle(
+                                ModuleParam.ModuleName + ROIDefine.Circle,
+                                circleRow,
+                                circleCol,
+                                circleRadius,
+                                ref RoiList);
+                        }
+                        catch
+                        {
+                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, 100, 100, 30, ref RoiList);
+                        }
+                        break;
+                }
+
+                // 显示其他ROI（如涂抹区域）
+                if (finalRegion != null && finalRegion.IsInitialized())
+                {
+                    if (HomMat2D != null && HomMat2D.Length > 0)
+                    {
+                        finalRegion_Temp = finalRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
+                    }
+                    else
+                    {
+                        finalRegion_Temp = new HRegion(finalRegion);
+                    }
+                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                        HRoiType.屏蔽范围, "green", new HObject(finalRegion_Temp)));
+                }
+
+                // 显示文字等其他ROI
+                List<HRoi> roiList = mHRoi.Where(c => c.ModuleName == ModuleParam.ModuleName).ToList();
+                foreach (HRoi roi in roiList)
+                {
+                    if (roi.roiType == HRoiType.文字显示)
+                    {
+                        HText roiText = (HText)roi;
+                        ShowTool.SetFont(mWindowH.hControl.HalconWindow, roiText.size, "false", "false");
+                        ShowTool.SetMsg(mWindowH.hControl.HalconWindow, roiText.text, "image",
+                            roiText.row, roiText.col, roiText.drawColor, "false");
+                    }
+                    else
+                    {
+                        mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.GetExceptionMsg(ex);
+            }
         }
+
+        #endregion
+
         #region 涂抹
         private void SetBurshRegion()
         {
@@ -1025,14 +1116,25 @@ namespace Plugin.CreateROI.ViewModels
                 view.mWindowH.ClearROI();
                 if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                 {
-                    finalRegion = finalRegion_Temp.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
+                    if (finalRegion_Temp != null && finalRegion_Temp.IsInitialized())
+                    {
+                        finalRegion = finalRegion_Temp.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
+                    }
+                    // 若finalRegion_Temp无效，则保持finalRegion原有值
                 }
                 else
                 {
-                    finalRegion= new HRegion(finalRegion_Temp);
+                    if (finalRegion_Temp != null && finalRegion_Temp.IsInitialized())
+                    {
+                        finalRegion = new HRegion(finalRegion_Temp);
+                    }
+                    // 否则finalRegion不变
                 }
                 ShowHRoi();
-                view.mWindowH.DispObj(finalRegion_Temp, "blue");
+                if (finalRegion_Temp != null && finalRegion_Temp.IsInitialized())
+                {
+                    view.mWindowH.DispObj(finalRegion_Temp, "blue");
+                }
                 view.mWindowH.DrawModel = false;
                 IsDrawing = false;
             }

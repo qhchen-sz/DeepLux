@@ -41,5 +41,28 @@ namespace Plugin.JiErHanDefectsDet.Views
             this.Close();
         }
 
+        /// <summary>
+        /// TextBox获得焦点时选中所有内容
+        /// </summary>
+        private void TextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                textBox.SelectAll();
+            }
+        }
+
+        /// <summary>
+        /// 鼠标点击TextBox时选中所有内容
+        /// </summary>
+        private void TextBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBox textBox && !textBox.IsKeyboardFocusWithin)
+            {
+                textBox.Focus();
+                e.Handled = true;
+            }
+        }
+
     }
 }
