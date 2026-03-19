@@ -47,6 +47,7 @@
                 <TabControl.Resources>
                     <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
                 </TabControl.Resources>
+                <!--
                 <TabItem Header="基本参数">
                     <Grid x:Name="gd">
                         <Grid.RowDefinitions>
@@ -100,6 +101,62 @@
                                         <TextBlock Text="法向量角度:" VerticalAlignment="Center" Width="65"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                           Text="{Binding NormalDegree, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+
+                </TabItem>-->
+                <TabItem Header="基本参数">
+                    <Grid x:Name="gd">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="400"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border>
+                            <GroupBox Header="图像链接">
+                                <StackPanel Orientation="Horizontal" Margin="5 0">
+                                    <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                     Style="{StaticResource LinkTextBox}"
+                                     Text="{Binding InputImageLinkText}"
+                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="1">
+                            <GroupBox Header="参数设置">
+                                <StackPanel Orientation="Vertical" Margin="5 0">
+
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="缩放系数:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding MPScale, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F3}"
+                                             GotKeyboardFocus="TextBox_GotKeyboardFocus" PreviewMouseLeftButtonDown="TextBox_PreviewMouseLeftButtonDown"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="采样步长:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding SampleStep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="离群点阈值:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding SurfaceThreshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="检测类别:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                         Text="{Binding DetectType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="最小高度:" VerticalAlignment="Center" Width="65"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                          Text="{Binding ZThreshold, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </StackPanel>
 
                                 </StackPanel>

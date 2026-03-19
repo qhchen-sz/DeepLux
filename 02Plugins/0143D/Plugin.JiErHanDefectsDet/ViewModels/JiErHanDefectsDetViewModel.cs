@@ -92,24 +92,37 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
                 }
                 JEHDDModel.HalconToImgPara(DispImage, out JEHDDModel.ImgPara img_para);
                 Vector3d transformation_matrix = new Vector3d(1, 1, MPScale);
-                FuncPara func_para = new FuncPara()
+                //Version 1
+                //FuncPara func_para = new FuncPara()
+                //{
+                //    normal_degree = NormalDegree,//最小搜索角度
+                //    curvature_threshold = CurvatureThreshold,//曲率阈值
+                //    min_defects_size = MinDefectsSize,//最小缺陷点数
+                //    z_threshold = ZThreshold,//最小缺陷高度
+                //    radius = Radius,//搜索半径
+                //};
+                //Version 2
+                FuncParaV2 func_para = new FuncParaV2()
                 {
-                    normal_degree = NormalDegree,//最小搜索角度
-                    curvature_threshold = CurvatureThreshold,//曲率阈值
-                    min_defects_size = MinDefectsSize,//最小缺陷点数
+                    sample_step = SampleStep,//采样步长
+                    surface_threshold = SurfaceThreshold,//离群点阈值
                     z_threshold = ZThreshold,//最小缺陷高度
-                    radius = Radius,//搜索半径
+                    defect_type = DetectType,//检测类型 0: 全检; 1: 凸起; 2: 凹痕
                 };
                 bool debug_mode = false;
                 //创建mask_para，并分配内存
                 ImgPara mask_para = new ImgPara();
                 mask_para.data = Marshal.AllocHGlobal(img_para.wid * img_para.hei);
                 Defect defects = new Defect();
-                bool run_flag = detect_smooth_surface_v1(ref img_para, ref transformation_matrix, 
-                                    ref func_para, out mask_para, out defects, debug_mode);
+                //Version1
+                //bool run_flag = detect_smooth_surface_v1(ref img_para, ref transformation_matrix, 
+                //                    ref func_para, out mask_para, out defects, debug_mode);
+                //Version2
+                bool run_flag = detect_smooth_surface_v2(ref img_para, ref transformation_matrix,
+                    ref func_para, out mask_para, out defects, debug_mode);
                 if (!run_flag)
                 {
-                    Logger.AddLog("AI模型执行失败！", eMsgType.Error);
+                    Logger.AddLog("缺陷检测模块执行失败！", eMsgType.Error);
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
@@ -337,7 +350,7 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
                 RaisePropertyChanged();
             }
         }
-        private float _ZThreshold = 7.0f;
+        private float _ZThreshold = 3.0f;
         public float ZThreshold
         {
             get { return _ZThreshold; }
@@ -354,6 +367,36 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
             set
             {
                 _Radius = value;
+                RaisePropertyChanged();
+            }
+        }
+        private float _SurfaceThreshold = 1.5f;
+        public float SurfaceThreshold
+        {
+            get { return _SurfaceThreshold; }
+            set
+            {
+                _SurfaceThreshold = value;
+                RaisePropertyChanged();
+            }
+        }
+        private int _SampleStep = 1;
+        public int SampleStep
+        {
+            get { return _SampleStep; }
+            set
+            {
+                _SampleStep = value;
+                RaisePropertyChanged();
+            }
+        }
+        private int _DetectType = 0; //0: 全检; 1: 凸起; 2: 凹痕
+        public int DetectType
+        {
+            get { return _DetectType; }
+            set
+            {
+                _DetectType = value;
                 RaisePropertyChanged();
             }
         }

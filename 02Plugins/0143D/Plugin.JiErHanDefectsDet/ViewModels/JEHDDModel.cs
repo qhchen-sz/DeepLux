@@ -253,6 +253,15 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
         }
 
         [StructLayout(LayoutKind.Sequential)]
+        public struct FuncParaV2
+        {
+            public int sample_step;
+            public float surface_threshold;
+            public float z_threshold;
+            public int defect_type;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
         public struct Defect
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 50)]
@@ -263,6 +272,13 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
         public static extern bool detect_smooth_surface_v1(ref ImgPara img,
             ref Vector3d transformation_matrix,
             ref FuncPara func_para,
+            out ImgPara mask_para,
+            out Defect defects,
+            bool debug_mode);
+        [DllImport("SurfaceSmoothDetect.dll", EntryPoint = "detect_smooth_surface_v2", CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool detect_smooth_surface_v2(ref ImgPara img,
+            ref Vector3d transformation_matrix,
+            ref FuncParaV2 func_para,
             out ImgPara mask_para,
             out Defect defects,
             bool debug_mode);
