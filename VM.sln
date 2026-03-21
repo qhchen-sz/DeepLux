@@ -215,6 +215,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.ColorRecognition", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.DistancePL", "02Plugins\003几何测量\Plugin.DistancePL\Plugin.DistancePL.csproj", "{36B467AB-BD27-4D06-BDF0-B767AE1B46B5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.AffineeRegion", "02Plugins\004几何关系\Plugin.AffineeRegion\Plugin.AffineeRegion.csproj", "{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1257,6 +1259,18 @@ Global
 		{36B467AB-BD27-4D06-BDF0-B767AE1B46B5}.Release|x64.Build.0 = Release|x64
 		{36B467AB-BD27-4D06-BDF0-B767AE1B46B5}.Release|x86.ActiveCfg = Release|x86
 		{36B467AB-BD27-4D06-BDF0-B767AE1B46B5}.Release|x86.Build.0 = Release|x86
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|x64.ActiveCfg = Debug|x64
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|x64.Build.0 = Debug|x64
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|x86.ActiveCfg = Debug|x86
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Debug|x86.Build.0 = Debug|x86
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|x64.ActiveCfg = Release|x64
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|x64.Build.0 = Release|x64
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|x86.ActiveCfg = Release|x86
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1364,6 +1378,7 @@ Global
 		{E4180669-2758-47DB-91FE-477069E2B988} = {92830BCF-C069-4B18-B220-DA17F038C3D2}
 		{55FA97CC-817F-4C61-BEED-DCABF4F36AFF} = {DAA6C301-AA5A-4084-A6C9-2795E6F11599}
 		{36B467AB-BD27-4D06-BDF0-B767AE1B46B5} = {3899DED0-EDE1-40F2-A1E4-2C540B43B6F1}
+		{D1601F2C-AC0A-458B-9BDD-901E3E80D21F} = {65CEB893-2090-4378-9110-7092FF8B12C4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D3CA5C80-BBBA-46E4-A469-24D7F763EF41}

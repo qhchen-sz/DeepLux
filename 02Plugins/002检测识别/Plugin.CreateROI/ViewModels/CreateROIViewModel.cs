@@ -173,6 +173,27 @@ namespace Plugin.CreateROI.ViewModels
             base.AddOutputParams();
             AddOutputParam("区域", "HRegion", OutRegion);
 
+            // 根据ROI类型输出对应的参数
+            switch (SelectedROIType)
+            {
+                case eDrawShape.矩形:
+                    // 输出矩形参数
+                    AddOutputParam("矩形中心行", "double", Convert.ToDouble(GetLinkValue(Rect2MidR)));
+                    AddOutputParam("矩形中心列", "double", Convert.ToDouble(GetLinkValue(Rect2MidC)));
+                    AddOutputParam("矩形角度", "double", Convert.ToDouble(GetLinkValue(Rect2Deg)));
+                    AddOutputParam("矩形半长1", "double", Convert.ToDouble(GetLinkValue(Rect2Len1)));
+                    AddOutputParam("矩形半长2", "double", Convert.ToDouble(GetLinkValue(Rect2Len2)));
+                    AddOutputParam("ROI类型", "string", "矩形");
+                    break;
+                case eDrawShape.圆形:
+                    // 输出圆形参数
+                    AddOutputParam("圆形中心行", "double", Convert.ToDouble(GetLinkValue(CircleX)));
+                    AddOutputParam("圆形中心列", "double", Convert.ToDouble(GetLinkValue(CircleY)));
+                    AddOutputParam("圆形半径", "double", Convert.ToDouble(GetLinkValue(CircleRadius)));
+                    AddOutputParam("ROI类型", "string", "圆形");
+                    break;
+            }
+
             if (IsOutImageReduced)
             {
                 try

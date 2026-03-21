@@ -13,7 +13,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -52,7 +52,6 @@ namespace Plugin.NPointCal.ViewModels
         InputImageY,
         InputRealX,
         InputRealY,
-
     }
     public enum eInputType
     {
@@ -69,8 +68,105 @@ namespace Plugin.NPointCal.ViewModels
         // 添加一个计数器来跟踪自动执行的次数
         private int _autoExecuteCounter = 0;
 
+        // 防止重复初始化的标志（不参与序列化）
+        [NonSerialized]
+        private bool _isInitialized = false;
+
+        /// <summary>
+        /// 构造函数：确保软件启动时自动初始化一次
+        /// </summary>
+        public NPointCal()
+        {
+            // 延迟到 UI 线程执行，避免在构造函数中直接操作 UI 元素
+            if (System.Windows.Application.Current != null)
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (!_isInitialized)
+                    {
+                        InitModule();
+                        _isInitialized = true;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+        }
+
+        /// <summary>
+        /// 反序列化完成后的回调：重置内部计数器，并尝试自动计算标定矩阵
+        /// </summary>
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            // 重置自动执行计数器，保证重启后从第1个点开始
+            _autoExecuteCounter = 0;
+
+            // 重置旧版本遗留的计数器（如果使用）
+            mAutoCalCounter = 0;
+
+            // 允许视图加载时再次执行初始化
+            _isInitialized = false;
+
+            // 延迟到 UI 线程尝试自动计算标定矩阵（因为可能涉及界面日志或属性通知）
+            if (System.Windows.Application.Current != null)
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    TryAutoCalculateMatrix();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+        }
+
+        /// <summary>
+        /// 尝试自动计算标定矩阵（如果点数足够且尚未计算）
+        /// </summary>
+        private void TryAutoCalculateMatrix()
+        {
+            try
+            {
+                int requiredPoints = GetRequiredPoints();
+                if (NPointCalParams != null && NPointCalParams.Count >= requiredPoints)
+                {
+                    // 如果矩阵为空或点数变化导致需要重新计算，可以强制计算
+                    // 这里我们总是重新计算，以确保矩阵最新（反序列化后矩阵字段为null）
+                    CalculateCalibrationMatrix();
+                    AddOutputParams();
+                    Logger.AddLog("反序列化后自动完成标定矩阵计算", eMsgType.Success);
+                }
+                else
+                {
+                    Logger.AddLog($"反序列化后检查标定点数：当前{NPointCalParams?.Count ?? 0}，需要{requiredPoints}，暂不计算", eMsgType.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"自动计算标定矩阵失败: {ex.Message}", eMsgType.Error);
+            }
+        }
+
+        /// <summary>
+        /// 获取当前标定类型所需的点数
+        /// </summary>
+        private int GetRequiredPoints()
+        {
+            switch (MPointType)
+            {
+                case PointType.Three:
+                    return 3;
+                case PointType.Nine:
+                    return 9;
+                case PointType.Fourteen:
+                    return 14;
+                default:
+                    return 9;
+            }
+        }
+
         public override void SetDefaultLink()
         {
+            // 增加空值保护
+            if (VarLinkViewModel.Ins?.Modules == null || VarLinkViewModel.Ins.Modules.Count == 0)
+                return;
+
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
             var moduls = VarLinkViewModel.Ins.Modules.LastOrDefault();
             if (moduls == null || moduls.VarModels.Count == 0)
@@ -87,19 +183,7 @@ namespace Plugin.NPointCal.ViewModels
 
             try
             {
-                int requiredPoints = 0;
-                switch (MPointType)
-                {
-                    case PointType.Three:
-                        requiredPoints = 3;
-                        break;
-                    case PointType.Nine:
-                        requiredPoints = 9;
-                        break;
-                    case PointType.Fourteen:
-                        requiredPoints = 14;
-                        break;
-                }
+                int requiredPoints = GetRequiredPoints();
 
                 if (NPointCalParams == null)
                 {
@@ -347,12 +431,22 @@ namespace Plugin.NPointCal.ViewModels
 
         public override void InitModule()
         {
-            IsOpenWindows = true;
-            // 初始化时，重置计数器
+            // 记录日志，便于追踪（可删除或保留）
+            Logger.AddLog("InitModule 被调用，重置自动执行计数器", eMsgType.Info);
+
+            // 重置自动执行计数器（这是关键，用于控制自动标定的点序）
             _autoExecuteCounter = 0;
-            // 初始化时，如果表格为空，可以不做任何操作
-            // ExeModule();  // 注释掉这一行，因为初始化时不应该执行标定
-            IsOpenWindows = false;
+
+            // 重置标定矩阵和旋转中心（因为之前计算的矩阵可能已过时）
+            mHomMat2DTransl = new HTuple();
+            mRotateCenterX = 0;
+            mRotateCenterY = 0;
+            mPhiSingle = 0.0;
+            mCalibRms = 0.0;
+            testrealx = 0;
+            testrealy = 0;
+
+            // 注意：不清空 NPointCalParams，保留用户已采集的点
         }
 
         #region 抄过来
@@ -479,9 +573,8 @@ namespace Plugin.NPointCal.ViewModels
             get { return _testrealy; }
             set { _testrealy = value; RaisePropertyChanged(); }
         }
-
-
         #endregion
+
         #region Prop
         private string _InputImageLinkText;
         /// <summary>
@@ -492,6 +585,7 @@ namespace Plugin.NPointCal.ViewModels
             get { return _InputImageLinkText; }
             set { Set(ref _InputImageLinkText, value); }
         }
+
         private ObservableCollection<NPointCalParam> _NPointCalParams = new ObservableCollection<NPointCalParam>();
         public ObservableCollection<NPointCalParam> NPointCalParams
         {
@@ -568,6 +662,7 @@ namespace Plugin.NPointCal.ViewModels
             return result;
         }
         #endregion
+
         #region Command
         public override void Loaded()
         {
@@ -576,6 +671,21 @@ namespace Plugin.NPointCal.ViewModels
             if (view != null)
             {
                 SetDefaultLink();
+                if (!_isInitialized)
+                {
+                    // 延迟执行，确保视图加载完成
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        InitModule();
+                        _isInitialized = true;
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+
+                // 备用：如果视图加载后点数足够且矩阵尚未计算，再次尝试自动计算
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    TryAutoCalculateMatrix();
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
         }
 
@@ -711,12 +821,13 @@ namespace Plugin.NPointCal.ViewModels
                 {
                     _GenerateNinePointsCommand = new CommandBase((obj) =>
                     {
-
+                        // 此命令未实现具体功能，可根据需要添加
                     });
                 }
                 return _GenerateNinePointsCommand;
             }
         }
+
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             switch (obj.SendName.Split(',')[1])
@@ -844,7 +955,6 @@ namespace Plugin.NPointCal.ViewModels
                                 }
                                 break;
 
-
                             case "Test":
                                 if (MHomMat2DTransl.Length > 0)
                                 {
@@ -940,6 +1050,7 @@ namespace Plugin.NPointCal.ViewModels
             get { return _realY; }
             set { _realY = value; OnPropertyChanged(nameof(RealY)); }
         }
+
         [field: NonSerialized]
         public event PropertyChangedEventHandler PropertyChanged;
 

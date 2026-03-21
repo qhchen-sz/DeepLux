@@ -26,145 +26,110 @@ using HV.Views;
 
 namespace Plugin.VarDefine.ViewModels
 {
-    // Token: 0x02000005 RID: 5
     [Category("变量工具")]
     [DisplayName("变量定义")]
     [ModuleImageName("VarDefine")]
     [Serializable]
     public class VarDefineViewModel : ModuleBase
     {
-        // Token: 0x0600001F RID: 31 RVA: 0x0000305C File Offset: 0x0000125C
         public override bool ExeModule()
         {
             base.Stopwatch.Restart();
-            bool result;
             try
             {
-                bool isAlwaysExe = this.IsAlwaysExe;
-                if (isAlwaysExe)
+                if (this.IsAlwaysExe)
                 {
-                    bool flag = this.Task_Compile != null && this.Task_Compile.Count > 0;
-                    if (flag)
+                    if (this.Task_Compile != null && this.Task_Compile.Count > 0)
                     {
                         Task.WaitAll(this.Task_Compile.ToArray());
                     }
                     foreach (VarModel item in this.LocalVar)
                     {
-                        bool flag2 = item.Expression == "" || item.Expression == "NULL";
-                        if (!flag2)
+                        if (item.Expression == "" || item.Expression == "NULL")
+                            continue;
+
+                        if (!item.IsCompileSuccess)
                         {
-                            bool flag3 = !item.IsCompileSuccess;
-                            if (flag3)
+                            item.m_TempScriptSupport.Source =
+                                ExpressionScriptTemplate.GetScriptCode(
+                                    base.ModuleParam.ProjectID,
+                                    base.ModuleParam.ModuleName,
+                                    item.Expression
+                                );
+                            if (!item.m_TempScriptSupport.Compile())
                             {
-                                item.m_TempScriptSupport.Source =
-                                    ExpressionScriptTemplate.GetScriptCode(
-                                        base.ModuleParam.ProjectID,
-                                        base.ModuleParam.ModuleName,
-                                        item.Expression
-                                    );
-                                bool flag4 = !item.m_TempScriptSupport.Compile();
-                                if (flag4)
-                                {
-                                    item.IsCompileSuccess = false;
-                                    base.ChangeModuleRunStatus(eRunStatus.NG);
-                                    return false;
-                                }
-                                item.Value = item.m_TempScriptSupport.CodeRun();
-                                item.IsCompileSuccess = true;
+                                item.IsCompileSuccess = false;
+                                base.ChangeModuleRunStatus(eRunStatus.NG);
+                                return false;
                             }
-                            else
-                            {
-                                item.Value = item.m_TempScriptSupport.CodeRun();
-                            }
+                            object result = item.m_TempScriptSupport.CodeRun();
+                            item.Value = ConvertToExpectedType(result, item.DataType);
+                            item.IsCompileSuccess = true;
+                        }
+                        else
+                        {
+                            object result = item.m_TempScriptSupport.CodeRun();
+                            item.Value = ConvertToExpectedType(result, item.DataType);
                         }
                     }
                 }
                 base.ChangeModuleRunStatus(eRunStatus.OK);
-                result = true;
+                return true;
             }
             catch (Exception ex)
             {
                 base.ChangeModuleRunStatus(eRunStatus.NG);
                 Logger.GetExceptionMsg(ex, "", true);
-                result = false;
+                return false;
             }
-            return result;
         }
 
-        // Token: 0x06000020 RID: 32 RVA: 0x00003218 File Offset: 0x00001418
         public override void AddOutputParams()
         {
             ClearOutputParam();
             base.AddOutputParams();
             foreach (VarModel item in this.LocalVar)
             {
-                bool flag = !this.IsAlwaysExe;
-                if (flag)
+                if (!this.IsAlwaysExe)
                 {
-                    bool flag2 = base.Prj.OutputMap.ContainsKey(base.ModuleParam.ModuleName);
-                    if (flag2)
+                    if (base.Prj.OutputMap.ContainsKey(base.ModuleParam.ModuleName) &&
+                        base.Prj.OutputMap[base.ModuleParam.ModuleName].ContainsKey(item.Name))
                     {
-                        bool flag3 = base.Prj.OutputMap[base.ModuleParam.ModuleName].ContainsKey(
-                            item.Name
-                        );
-                        if (flag3)
-                        {
-                            base.Prj.OutputMap[base.ModuleParam.ModuleName][item.Name].Note =
-                                item.Note;
-                            break;
-                        }
+                        base.Prj.OutputMap[base.ModuleParam.ModuleName][item.Name].Note = item.Note;
+                        break;
                     }
                 }
                 base.AddOutputParam(item.Name, item.DataType, item.Value, item.Note);
             }
         }
 
-        // Token: 0x06000021 RID: 33 RVA: 0x00003324 File Offset: 0x00001524
         public override void CompileScript()
         {
-            bool flag = this.Task_Compile == null;
-            if (flag)
-            {
+            if (this.Task_Compile == null)
                 this.Task_Compile = new List<Task>();
-            }
+
             foreach (VarModel item in this.LocalVar)
             {
-                bool flag2 = item.Expression == "" || item.Expression == "NULL";
-                if (!flag2)
+                if (item.Expression == "" || item.Expression == "NULL")
+                    continue;
+
+                VarModel varModel = item;
+                this.Task_Compile.Add(Task.Run(() =>
                 {
-                    VarModel varModel = item;
-                    this.Task_Compile.Add(
-                        Task.Run(
-                            delegate()
-                            {
-                                varModel.m_TempScriptSupport.Source =
-                                    ExpressionScriptTemplate.GetScriptCode(
-                                        this.ModuleParam.ProjectID,
-                                        this.ModuleParam.ModuleName,
-                                        varModel.Expression
-                                    );
-                                bool flag3 = !varModel.m_TempScriptSupport.Compile();
-                                if (flag3)
-                                {
-                                    varModel.IsCompileSuccess = false;
-                                }
-                                else
-                                {
-                                    varModel.IsCompileSuccess = true;
-                                }
-                            }
-                        )
-                    );
-                }
+                    varModel.m_TempScriptSupport.Source =
+                        ExpressionScriptTemplate.GetScriptCode(
+                            this.ModuleParam.ProjectID,
+                            this.ModuleParam.ModuleName,
+                            varModel.Expression
+                        );
+                    varModel.IsCompileSuccess = varModel.m_TempScriptSupport.Compile();
+                }));
             }
         }
 
-        // Token: 0x17000004 RID: 4
-        // (get) Token: 0x06000022 RID: 34 RVA: 0x000033E8 File Offset: 0x000015E8
-        // (set) Token: 0x06000023 RID: 35 RVA: 0x00003400 File Offset: 0x00001600
         public int SelectedIndex
         {
-            get { return this._SelectedIndex; }
+            get => this._SelectedIndex;
             set
             {
                 this._SelectedIndex = value;
@@ -172,12 +137,9 @@ namespace Plugin.VarDefine.ViewModels
             }
         }
 
-        // Token: 0x17000005 RID: 5
-        // (get) Token: 0x06000024 RID: 36 RVA: 0x00003418 File Offset: 0x00001618
-        // (set) Token: 0x06000025 RID: 37 RVA: 0x00003430 File Offset: 0x00001630
         public bool IsAlwaysExe
         {
-            get { return this._IsAlwaysExe; }
+            get => this._IsAlwaysExe;
             set
             {
                 this._IsAlwaysExe = value;
@@ -185,415 +147,419 @@ namespace Plugin.VarDefine.ViewModels
             }
         }
 
-        // Token: 0x17000006 RID: 6
-        // (get) Token: 0x06000026 RID: 38 RVA: 0x00003448 File Offset: 0x00001648
-        // (set) Token: 0x06000027 RID: 39 RVA: 0x0000347A File Offset: 0x0000167A
         public ObservableCollection<VarModel> LocalVar
         {
             get
             {
-                bool flag = this._LocalVar == null;
-                if (flag)
-                {
+                if (this._LocalVar == null)
                     this._LocalVar = new ObservableCollection<VarModel>();
-                }
                 return this._LocalVar;
             }
-            set { this._LocalVar = value; }
+            set => this._LocalVar = value;
         }
 
-        // Token: 0x17000007 RID: 7
-        // (get) Token: 0x06000028 RID: 40 RVA: 0x00003484 File Offset: 0x00001684
-        // (set) Token: 0x06000029 RID: 41 RVA: 0x000034B6 File Offset: 0x000016B6
         public ObservableCollection<ModuleList> Modules
         {
             get
             {
-                bool flag = this._Modules == null;
-                if (flag)
-                {
+                if (this._Modules == null)
                     this._Modules = new ObservableCollection<ModuleList>();
-                }
                 return this._Modules;
             }
-            set { this._Modules = value; }
+            set => this._Modules = value;
         }
 
-        // Token: 0x0600002A RID: 42 RVA: 0x000034C0 File Offset: 0x000016C0
         public override void Loaded()
         {
             base.Loaded();
             this.ClosedView = true;
             foreach (VarModel item in this.LocalVar)
             {
-                bool flag = base.Prj.OutputMap.ContainsKey(base.ModuleParam.ModuleName);
-                if (flag)
+                if (base.Prj.OutputMap.ContainsKey(base.ModuleParam.ModuleName) &&
+                    base.Prj.OutputMap[base.ModuleParam.ModuleName].ContainsKey(item.Name) &&
+                    base.Prj.OutputMap[base.ModuleParam.ModuleName][item.Name].Value != null)
                 {
-                    bool flag2 = base.Prj.OutputMap[base.ModuleParam.ModuleName].ContainsKey(
-                        item.Name
-                    );
-                    if (flag2)
-                    {
-                        bool flag3 =
-                            base.Prj.OutputMap[base.ModuleParam.ModuleName][item.Name].Value
-                            != null;
-                        if (flag3)
-                        {
-                            item.Value = base.Prj.OutputMap[base.ModuleParam.ModuleName][
-                                item.Name
-                            ].Value;
-                        }
-                    }
+                    item.Value = base.Prj.OutputMap[base.ModuleParam.ModuleName][item.Name].Value;
                 }
             }
         }
 
-        // Token: 0x17000008 RID: 8
-        // (get) Token: 0x0600002B RID: 43 RVA: 0x000035D8 File Offset: 0x000017D8
         public CommandBase ConfirmCommand
         {
             get
             {
-                bool flag = this._ConfirmCommand == null;
-                if (flag)
+                if (this._ConfirmCommand == null)
                 {
-                    this._ConfirmCommand = new CommandBase(
-                        delegate(object obj)
+                    this._ConfirmCommand = new CommandBase(obj =>
+                    {
+                        VarDefineView view = base.ModuleView as VarDefineView;
+                        if (view == null) return;
+
+                        if (CommonMethods.SameNameJudge(this.LocalVar, out string sameName))
                         {
-                            VarDefineView view = base.ModuleView as VarDefineView;
-                            bool flag2 = view != null;
-                            if (flag2)
+                            MessageView.Ins.MessageBoxShow(
+                                "(" + sameName + ")变量重名，请检查！",
+                                eMsgType.Warn,
+                                MessageBoxButton.OK,
+                                true
+                            );
+                            return;
+                        }
+
+                        foreach (VarModel item in this.LocalVar)
+                        {
+                            if (item.Expression == "" || item.Expression == "NULL")
+                                continue;
+
+                            if (!item.IsCompileSuccess)
                             {
-                                string sameName;
-                                bool flag3 = CommonMethods.SameNameJudge(
-                                    this.LocalVar,
-                                    out sameName
-                                );
-                                if (flag3)
+                                item.m_TempScriptSupport.Source =
+                                    ExpressionScriptTemplate.GetScriptCode(
+                                        base.ModuleParam.ProjectID,
+                                        base.ModuleParam.ModuleName,
+                                        item.Expression
+                                    );
+                                if (!item.m_TempScriptSupport.Compile())
                                 {
+                                    item.IsCompileSuccess = false;
+                                    base.ChangeModuleRunStatus(eRunStatus.NG);
                                     MessageView.Ins.MessageBoxShow(
-                                        "(" + sameName + ")变量重名，请检查！",
+                                        "表达式错误，无法保存！",
                                         eMsgType.Warn,
                                         MessageBoxButton.OK,
                                         true
                                     );
+                                    return;
                                 }
-                                else
-                                {
-                                    foreach (VarModel item in this.LocalVar)
-                                    {
-                                        bool flag4 =
-                                            item.Expression == "" || item.Expression == "NULL";
-                                        if (!flag4)
-                                        {
-                                            bool flag5 = !item.IsCompileSuccess;
-                                            if (flag5)
-                                            {
-                                                item.m_TempScriptSupport.Source =
-                                                    ExpressionScriptTemplate.GetScriptCode(
-                                                        base.ModuleParam.ProjectID,
-                                                        base.ModuleParam.ModuleName,
-                                                        item.Expression
-                                                    );
-                                                bool flag6 = !item.m_TempScriptSupport.Compile();
-                                                if (flag6)
-                                                {
-                                                    item.IsCompileSuccess = false;
-                                                    base.ChangeModuleRunStatus(eRunStatus.NG);
-                                                    MessageView.Ins.MessageBoxShow(
-                                                        "表达式错误，无法保存！",
-                                                        eMsgType.Warn,
-                                                        MessageBoxButton.OK,
-                                                        true
-                                                    );
-                                                    return;
-                                                }
-                                                item.Value = item.m_TempScriptSupport.CodeRun();
-                                                item.IsCompileSuccess = true;
-                                            }
-                                        }
-                                    }
-                                    base.ChangeModuleRunStatus(eRunStatus.OK);
-                                    view.Close();
-                                }
+                                object result = item.m_TempScriptSupport.CodeRun();
+                                item.Value = ConvertToExpectedType(result, item.DataType);
+                                item.IsCompileSuccess = true;
                             }
                         }
-                    );
+                        base.ChangeModuleRunStatus(eRunStatus.OK);
+                        view.Close();
+                    });
                 }
                 return this._ConfirmCommand;
             }
         }
 
-        // Token: 0x17000009 RID: 9
-        // (get) Token: 0x0600002C RID: 44 RVA: 0x00003618 File Offset: 0x00001818
         public CommandBase ExecuteCommand
         {
             get
             {
-                bool flag = this._ExecuteCommand == null;
-                if (flag)
+                if (this._ExecuteCommand == null)
                 {
-                    this._ExecuteCommand = new CommandBase(
-                        delegate(object obj)
-                        {
-                            bool temp = this.IsAlwaysExe;
-                            this.IsAlwaysExe = true;
-                            this.ExeModule();
-                            this.IsAlwaysExe = temp;
-                        }
-                    );
+                    this._ExecuteCommand = new CommandBase(obj =>
+                    {
+                        bool temp = this.IsAlwaysExe;
+                        this.IsAlwaysExe = true;
+                        this.ExeModule();
+                        this.IsAlwaysExe = temp;
+                    });
                 }
                 return this._ExecuteCommand;
             }
         }
 
-        // Token: 0x1700000A RID: 10
-        // (get) Token: 0x0600002D RID: 45 RVA: 0x00003658 File Offset: 0x00001858
         public CommandBase AddVarCommand
         {
             get
             {
-                bool flag = this._AddVarCommand == null;
-                if (flag)
+                if (this._AddVarCommand == null)
                 {
-                    this._AddVarCommand = new CommandBase(
-                        delegate(object obj)
+                    this._AddVarCommand = new CommandBase(obj =>
+                    {
+                        string text = obj as string;
+                        if (text == null) return;
+
+                        if (text == "int")
                         {
-                            string text = obj as string;
-                            if (text != null)
+                            this.LocalVar.Add(new VarModel
                             {
-                                if (!(text == "int"))
-                                {
-                                    if (!(text == "double"))
-                                    {
-                                        if (!(text == "string"))
-                                        {
-                                            if (!(text == "bool"))
-                                            {
-                                                if (text == "Region")
-                                                {
-                                                    this.LocalVar.Add(
-                                                        new VarModel
-                                                        {
-                                                            Index = this.LocalVar.Count + 1,
-                                                            Name = CommonMethods.GetNewVarName(
-                                                                obj.ToString(),
-                                                                this.LocalVar
-                                                            ),
-                                                            DataType = obj.ToString(),
-                                                            Value = new HRegion(10.0, 10.0, 5.0),
-                                                            Note = "区域"
-                                                        }
-                                                    );
-                                                }
-                                            }
-                                            else
-                                            {
-                                                this.LocalVar.Add(
-                                                    new VarModel
-                                                    {
-                                                        Index = this.LocalVar.Count + 1,
-                                                        Name = CommonMethods.GetNewVarName(
-                                                            obj.ToString(),
-                                                            this.LocalVar
-                                                        ),
-                                                        DataType = obj.ToString(),
-                                                        Value = false,
-                                                        Note = "True为真，False为假"
-                                                    }
-                                                );
-                                            }
-                                        }
-                                        else
-                                        {
-                                            this.LocalVar.Add(
-                                                new VarModel
-                                                {
-                                                    Index = this.LocalVar.Count + 1,
-                                                    Name = CommonMethods.GetNewVarName(
-                                                        obj.ToString(),
-                                                        this.LocalVar
-                                                    ),
-                                                    DataType = obj.ToString(),
-                                                    Value = "",
-                                                    Note = "字符串类型"
-                                                }
-                                            );
-                                        }
-                                    }
-                                    else
-                                    {
-                                        this.LocalVar.Add(
-                                            new VarModel
-                                            {
-                                                Index = this.LocalVar.Count + 1,
-                                                Name = CommonMethods.GetNewVarName(
-                                                    obj.ToString(),
-                                                    this.LocalVar
-                                                ),
-                                                DataType = obj.ToString(),
-                                                Value = 0,
-                                                Note = "双精度浮点类型"
-                                            }
-                                        );
-                                    }
-                                }
-                                else
-                                {
-                                    this.LocalVar.Add(
-                                        new VarModel
-                                        {
-                                            Index = this.LocalVar.Count + 1,
-                                            Name = CommonMethods.GetNewVarName(
-                                                obj.ToString(),
-                                                this.LocalVar
-                                            ),
-                                            DataType = obj.ToString(),
-                                            Value = 0,
-                                            Note = "整数类型"
-                                        }
-                                    );
-                                }
-                            }
-                            this.UpdateIndex();
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = 0,
+                                Note = "整数类型"
+                            });
                         }
-                    );
+                        else if (text == "double")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = 0.0,
+                                Note = "双精度浮点类型"
+                            });
+                        }
+                        else if (text == "string")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = "",
+                                Note = "字符串类型"
+                            });
+                        }
+                        else if (text == "bool")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = false,
+                                Note = "True为真，False为假"
+                            });
+                        }
+                        else if (text == "Region")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new HRegion(10.0, 10.0, 5.0),
+                                Note = "区域"
+                            });
+                        }
+                        else if (text == "double[]")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new List<double>(),
+                                Note = "双精度浮点数组"
+                            });
+                        }
+                        else if (text == "int[]")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new List<int>(),
+                                Note = "整数数组"
+                            });
+                        }
+                        else if (text == "string[]")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new List<string>(),
+                                Note = "字符串数组"
+                            });
+                        }
+                        else if (text == "bool[]")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new List<bool>(),
+                                Note = "布尔数组"
+                            });
+                        }
+                        else if (text == "Image[]")
+                        {
+                            this.LocalVar.Add(new VarModel
+                            {
+                                Index = this.LocalVar.Count + 1,
+                                Name = CommonMethods.GetNewVarName(text, this.LocalVar),
+                                DataType = text,
+                                Value = new List<HImage>(),
+                                Note = "图像数组"
+                            });
+                        }
+                        this.UpdateIndex();
+                    });
                 }
                 return this._AddVarCommand;
             }
         }
 
-        // Token: 0x1700000B RID: 11
-        // (get) Token: 0x0600002E RID: 46 RVA: 0x00003698 File Offset: 0x00001898
         public CommandBase DeleteCommand
         {
             get
             {
-                bool flag = this._DeleteCommand == null;
-                if (flag)
+                if (this._DeleteCommand == null)
                 {
-                    this._DeleteCommand = new CommandBase(
-                        delegate(object obj)
+                    this._DeleteCommand = new CommandBase(obj =>
+                    {
+                        if (this.SelectedIndex != -1)
                         {
-                            bool flag2 = this.SelectedIndex == -1;
-                            if (!flag2)
-                            {
-                                this.LocalVar.RemoveAt(this.SelectedIndex);
-                                this.UpdateIndex();
-                            }
+                            this.LocalVar.RemoveAt(this.SelectedIndex);
+                            this.UpdateIndex();
                         }
-                    );
+                    });
                 }
                 return this._DeleteCommand;
             }
         }
 
-        // Token: 0x1700000C RID: 12
-        // (get) Token: 0x0600002F RID: 47 RVA: 0x000036D8 File Offset: 0x000018D8
         public CommandBase MoveCommand
         {
             get
             {
-                bool flag = this._MoveCommand == null;
-                if (flag)
+                if (this._MoveCommand == null)
                 {
-                    this._MoveCommand = new CommandBase(
-                        delegate(object obj)
+                    this._MoveCommand = new CommandBase(obj =>
+                    {
+                        string text = obj as string;
+                        if (text == null) return;
+
+                        if (text == "Up")
                         {
-                            string text = obj as string;
-                            if (text != null)
+                            if (this.SelectedIndex > 0 && this.LocalVar.Count > 1)
                             {
-                                if (!(text == "Up"))
-                                {
-                                    if (text == "Down")
-                                    {
-                                        bool flag2 =
-                                            this.SelectedIndex == -1
-                                            || this.LocalVar.Count <= 1
-                                            || this.SelectedIndex == this.LocalVar.Count - 1;
-                                        if (!flag2)
-                                        {
-                                            this.LocalVar.Move(
-                                                this.SelectedIndex,
-                                                this.SelectedIndex + 1
-                                            );
-                                            this.UpdateIndex();
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    bool flag3 =
-                                        this.SelectedIndex <= 0 || this.LocalVar.Count <= 1;
-                                    if (!flag3)
-                                    {
-                                        this.LocalVar.Move(
-                                            this.SelectedIndex,
-                                            this.SelectedIndex - 1
-                                        );
-                                        this.UpdateIndex();
-                                    }
-                                }
+                                this.LocalVar.Move(this.SelectedIndex, this.SelectedIndex - 1);
+                                this.UpdateIndex();
                             }
                         }
-                    );
+                        else if (text == "Down")
+                        {
+                            if (this.SelectedIndex != -1 && this.LocalVar.Count > 1 &&
+                                this.SelectedIndex < this.LocalVar.Count - 1)
+                            {
+                                this.LocalVar.Move(this.SelectedIndex, this.SelectedIndex + 1);
+                                this.UpdateIndex();
+                            }
+                        }
+                    });
                 }
                 return this._MoveCommand;
             }
         }
 
-        // Token: 0x06000030 RID: 48 RVA: 0x00003718 File Offset: 0x00001918
         private void UpdateIndex()
         {
-            bool flag = this.LocalVar.Count == 0;
-            if (!flag)
+            if (this.LocalVar.Count == 0) return;
+            for (int i = 0; i < this.LocalVar.Count; i++)
             {
-                for (int i = 0; i < this.LocalVar.Count; i++)
-                {
-                    this.LocalVar[i].Index = i;
-                }
+                this.LocalVar[i].Index = i;
             }
         }
 
-        // Token: 0x04000013 RID: 19
+        /// <summary>
+        /// 将表达式结果转换为 VarModel.set_Value 所期望的类型。
+        /// - 若目标类型为标量（double/int/string/bool）且值为数组/列表，则取第一个元素。
+        /// - 若目标类型为数组（double[]/int[]/string[]/bool[]/Image[]）且值为标量，则包装为单元素列表。
+        /// - 其他情况直接返回原值。
+        /// </summary>
+        private object ConvertToExpectedType(object value, string dataType)
+        {
+            if (value == null || string.IsNullOrEmpty(dataType))
+                return value;
+
+            switch (dataType)
+            {
+                case "double":
+                    if (value is double[] dArray)
+                        return dArray.Length > 0 ? dArray[0] : 0.0;
+                    if (value is List<double> dList)
+                        return dList.Count > 0 ? dList[0] : 0.0;
+                    break;
+
+                case "int":
+                    if (value is int[] iArray)
+                        return iArray.Length > 0 ? iArray[0] : 0;
+                    if (value is List<int> iList)
+                        return iList.Count > 0 ? iList[0] : 0;
+                    break;
+
+                case "string":
+                    if (value is string[] sArray)
+                        return sArray.Length > 0 ? sArray[0] : "";
+                    if (value is List<string> sList)
+                        return sList.Count > 0 ? sList[0] : "";
+                    break;
+
+                case "bool":
+                    if (value is bool[] bArray)
+                        return bArray.Length > 0 ? bArray[0] : false;
+                    if (value is List<bool> bList)
+                        return bList.Count > 0 ? bList[0] : false;
+                    break;
+
+                case "double[]":
+                    if (value is double d)
+                        return new List<double> { d };
+                    if (value is double[] dArray2)
+                        return new List<double>(dArray2);
+                    break;
+
+                case "int[]":
+                    if (value is int i)
+                        return new List<int> { i };
+                    if (value is int[] iArray2)
+                        return new List<int>(iArray2);
+                    break;
+
+                case "string[]":
+                    if (value is string s)
+                        return new List<string> { s };
+                    if (value is string[] sArray2)
+                        return new List<string>(sArray2);
+                    break;
+
+                case "bool[]":
+                    if (value is bool b)
+                        return new List<bool> { b };
+                    if (value is bool[] bArray2)
+                        return new List<bool>(bArray2);
+                    break;
+
+                case "Image[]":
+                    if (value is HImage hImage)
+                        return new List<HImage> { hImage };
+                    if (value is HImage[] hImageArray)
+                        return new List<HImage>(hImageArray);
+                    break;
+            }
+
+            return value;
+        }
+
         [NonSerialized]
         private List<Task> Task_Compile = new List<Task>();
 
-        // Token: 0x04000014 RID: 20
         [NonSerialized]
         private int _SelectedIndex;
 
-        // Token: 0x04000015 RID: 21
         private bool _IsAlwaysExe = true;
 
-        // Token: 0x04000016 RID: 22
         private ObservableCollection<VarModel> _LocalVar;
 
-        // Token: 0x04000017 RID: 23
         [NonSerialized]
         private ObservableCollection<ModuleList> _Modules;
 
-        // Token: 0x04000018 RID: 24
         [NonSerialized]
         public ExpressionView expressionView;
 
-        // Token: 0x04000019 RID: 25
         [NonSerialized]
         private CommandBase _ConfirmCommand;
 
-        // Token: 0x0400001A RID: 26
         [NonSerialized]
         private CommandBase _ExecuteCommand;
 
-        // Token: 0x0400001B RID: 27
         [NonSerialized]
         private CommandBase _AddVarCommand;
 
-        // Token: 0x0400001C RID: 28
         [NonSerialized]
         private CommandBase _DeleteCommand;
 
-        // Token: 0x0400001D RID: 29
         [NonSerialized]
         private CommandBase _MoveCommand;
     }
