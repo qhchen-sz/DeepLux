@@ -144,9 +144,9 @@ namespace Plugin.AffineeRegion.ViewModels
                 ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
                     HRoiType.检测结果, "green", new HObject(OutRegion)));
 
-                // 显示输入区域（参考用，蓝色）
-                ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
-                    HRoiType.检测范围, "blue", new HObject(inputRegion)));
+                //// 显示输入区域（参考用，蓝色）
+                //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                //    HRoiType.检测范围, "blue", new HObject(inputRegion)));
 
                 ShowHRoi();
 
@@ -240,11 +240,11 @@ namespace Plugin.AffineeRegion.ViewModels
                 _InputImageLinkText = value;
                 RaisePropertyChanged();
                 GetDispImage(InputImageLinkText);
-                if (DispImage != null && DispImage.IsInitialized())
-                {
-                    ShowHRoi();
-                    ShowInputRegion();
-                }
+                //if (DispImage != null && DispImage.IsInitialized())
+                //{
+                //    ShowHRoi();
+                //    ShowInputRegion();
+                //}
             }
         }
         private string _InputRegionLinkText;

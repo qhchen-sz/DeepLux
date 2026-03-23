@@ -146,7 +146,22 @@ namespace Plugin.GrabImage.ViewModels
                                 SelectedCameraModel.EventWait.Reset();
 
                                 SelectedCameraModel.CaptureImage(IsOpenWindows);
-                                SelectedCameraModel.EventWait.WaitOne();
+                                //// 使用超时参数等待，避免无限等待
+                                //if (!SelectedCameraModel.EventWait.WaitOne(SelectedCameraModel.DelayTime))
+                                //{
+                                //    // 超时处理
+                                //    ChangeModuleRunStatus(eRunStatus.NG);
+                                //    Logger.AddLog($"等待图像超时: {SelectedCameraModel.DelayTime}ms");
+                                //    return false;
+                                //}
+                                // 使用超时参数等待，避免无限等待
+                                if (!SelectedCameraModel.EventWait.WaitOne(0))
+                                {
+                                    // 超时处理
+                                    ChangeModuleRunStatus(eRunStatus.NG);
+                                    Logger.AddLog($"等待图像超时: {SelectedCameraModel.DelayTime}ms");
+                                    return false;
+                                }
 
                                 if (SelectedCameraModel.DispImage != null)
                                 {

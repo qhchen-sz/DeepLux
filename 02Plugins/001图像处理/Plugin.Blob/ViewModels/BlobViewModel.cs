@@ -638,6 +638,48 @@ namespace Plugin.Blob.ViewModels
             AddOutputParam("宽度", "double[]", OutPutWidth);
             AddOutputParam("高度", "double[]", OutPutHeight);
             AddOutputParam("角度", "double[]", OutPutPhi);
+
+            // 添加结果区域最小外接矩形中心点
+            try
+            {
+                if (ResultRegion != null && ResultRegion.IsInitialized() && ResultRegion.Area > 0)
+                {
+                    // 先合并所有连通区域为一个整体区域
+                    HRegion unionRegion;
+                    m_PretreatHelp.Union1(ResultRegion, out unionRegion);
+
+                    // 计算合并后区域的最小外接矩形
+                    HTuple row1, col1, row2, col2;
+                    // ResultRegion.SmallestRectangle1(out row1, out col1, out row2, out col2);
+                    unionRegion.SmallestRectangle1(out row1, out col1, out row2, out col2);
+
+                    if (row1.Length > 0 && col1.Length > 0)
+                    {
+                        double centerRow = Math.Round((row1.D + row2.D) / 2, 3);
+                        double centerCol = Math.Round((col1.D + col2.D) / 2, 3);
+                        AddOutputParam("结果中心X", "double", centerCol);
+                        AddOutputParam("结果中心Y", "double", centerRow);
+                    }
+                    else
+                    {
+                        AddOutputParam("结果中心X", "double", 0.0);
+                        AddOutputParam("结果中心Y", "double", 0.0);
+                    }
+                    // 释放资源
+                    if (unionRegion != null) unionRegion.Dispose();
+                }
+                else
+                {
+                    AddOutputParam("结果中心X", "double", 0.0);
+                    AddOutputParam("结果中心Y", "double", 0.0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.GetExceptionMsg(ex);
+                AddOutputParam("结果中心X", "double", 0.0);
+                AddOutputParam("结果中心Y", "double", 0.0);
+            }
         }
         #region Prop
         public PretreatHelp m_PretreatHelp = new PretreatHelp();

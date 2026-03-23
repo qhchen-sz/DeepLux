@@ -47,6 +47,9 @@ namespace Plugin.CameraKeyence
         [NonSerialized]
         private bool _isDataReceived;
 
+        private int DelayReduce = 6000;
+        private int DelayQurey = 100;
+
         [NonSerialized]
         LJX8IF_HIGH_SPEED_PRE_START_REQUEST request;
         [NonSerialized]
@@ -284,7 +287,7 @@ namespace Plugin.CameraKeyence
                     // 如果已经在运行，等待完成或强制停止
                     if (_captureThread != null && _captureThread.IsAlive)
                     {
-                        _captureThread.Join(2000); // 等待2秒
+                        _captureThread.Join(DelayQurey); // 等待0.5秒后强制终止
                         if (_captureThread.IsAlive)
                         {
                             _captureThread.Abort(); // 强制终止（谨慎使用）
@@ -325,8 +328,9 @@ namespace Plugin.CameraKeyence
                 captureThread.Start();
                 _captureThread = captureThread;
 
-                // 等待线程完成
-                if (captureThread.Join(10000)) // 10秒超时
+                // 等待线程完成，使用 DelayTime 作为超时时间
+                DelayReduce = DelayTime - DelayQurey;
+                if (captureThread.Join(DelayReduce > 0 ? DelayReduce : 10000))
                 {
                     return result;
                 }
