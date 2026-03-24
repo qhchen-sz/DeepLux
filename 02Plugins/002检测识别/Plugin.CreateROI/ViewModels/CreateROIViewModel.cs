@@ -208,17 +208,72 @@ namespace Plugin.CreateROI.ViewModels
                             if (cropped != null && cropped.IsInitialized())
                             {
                                 AddOutputParam("裁剪图像", "HImage", new RImage(cropped));
-                                return;
+                            }
+                            else
+                            {
+                                AddOutputParam("裁剪图像", "HImage", new RImage());
                             }
                         }
+                        else
+                        {
+                            AddOutputParam("裁剪图像", "HImage", new RImage());
+                        }
                     }
-                    // 若无效，添加默认空图像
-                    AddOutputParam("裁剪图像", "HImage", new RImage());
+                    else
+                    {
+                        // 若无效，添加默认空图像
+                        AddOutputParam("裁剪图像", "HImage", new RImage());
+                    }
                 }
                 catch (Exception ex)
                 {
                     Logger.GetExceptionMsg(ex);
                     AddOutputParam("裁剪图像", "HImage", new RImage());
+                }
+            }
+
+            if (IsOutImageComplement)
+            {
+                try
+                {
+                    // 检查 OutRegion 有效性：非 null、已初始化、面积 > 0
+                    if (OutRegion != null && OutRegion.IsInitialized() && OutRegion.Area > 0)
+                    {
+                        // 获取全图区域
+                        HRegion fullRegion = DispImage.GetDomain();
+                        // 计算 ROI 区域的补集（全图区域减去 ROI 区域）
+                        HRegion complementRegion = fullRegion.Difference(OutRegion);
+                        if (complementRegion != null && complementRegion.IsInitialized() && complementRegion.Area > 0)
+                        {
+                            // 使用ROI区域在原图上喷绘，ROI区域设为0（黑色），补集区域保持原图像素
+                            HImage complementImage = OutRegion.PaintRegion(DispImage, 0d, "fill");
+                            if (complementImage != null && complementImage.IsInitialized())
+                            {
+                                AddOutputParam("补集图像", "HImage", new RImage(complementImage));
+                                complementImage.Dispose();
+                            }
+                            else
+                            {
+                                AddOutputParam("补集图像", "HImage", new RImage());
+                            }
+                            complementRegion.Dispose();
+                        }
+                        else
+                        {
+                            AddOutputParam("补集图像", "HImage", new RImage());
+                        }
+                        fullRegion.Dispose();
+                    }
+                    else
+                    {
+                        // 若无效，添加默认空图像
+                        AddOutputParam("补集图像", "HImage", new RImage());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.GetExceptionMsg(ex);
+                    AddOutputParam("补集图像", "HImage", new RImage());
                 }
             }
         }
@@ -245,6 +300,15 @@ namespace Plugin.CreateROI.ViewModels
         {
             get { return _IsOutImageReduced; }
             set { Set(ref _IsOutImageReduced, value); }
+        }
+        private bool _IsOutImageComplement;
+        /// <summary>
+        /// 输出ROI补集图像
+        /// </summary>
+        public bool IsOutImageComplement
+        {
+            get { return _IsOutImageComplement; }
+            set { Set(ref _IsOutImageComplement, value); }
         }
 
         private string _InputImageLinkText="";

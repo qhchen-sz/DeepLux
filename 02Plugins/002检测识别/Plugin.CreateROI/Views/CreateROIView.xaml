@@ -33,7 +33,7 @@
                 <TabItem Header="基本参数">
                     <Grid x:Name="gd">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="100"/>
+                            <RowDefinition Height="150"/>
                             <RowDefinition Height="60"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
@@ -50,6 +50,9 @@
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5 10">
                                         <CheckBox Content="输出ROI裁剪图像" IsChecked="{Binding IsOutImageReduced}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5 10">
+                                        <CheckBox Content="输出ROI补集图像" IsChecked="{Binding IsOutImageComplement}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </GroupBox>
