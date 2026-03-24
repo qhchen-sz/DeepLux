@@ -413,15 +413,15 @@ namespace Plugin.Blob.ViewModels
                                     #region
                                     if (indexRegion < 0)
                                     {
-                                        m_PretreatHelp.Complement(regionThreshold, out outRegion);
+                                        m_PretreatHelp.ShapeTrans(regionThreshold, item.m_ConversionType, out outRegion);
                                     }
-                                    else if (item.m_ComplementIndex == "上一个区域")
+                                    else if (item.m_ConversionIndex == "上一个区域")
                                     {
-                                        m_PretreatHelp.Complement(m_ToolList[indexRegion].ResultRegion, out outRegion);
+                                        m_PretreatHelp.ShapeTrans(m_ToolList[indexRegion].ResultRegion, item.m_ConversionType, out outRegion);
                                     }
                                     else
                                     {
-                                        m_PretreatHelp.Complement(m_ToolList[Convert.ToInt32(item.m_ComplementIndex)].ResultRegion, out outRegion);
+                                        m_PretreatHelp.ShapeTrans(m_ToolList[Convert.ToInt32(item.m_ConversionIndex)].ResultRegion, item.m_ConversionType, out outRegion);
                                     }
                                     item.ResultRegion = new HRegion(outRegion);
                                     #endregion
