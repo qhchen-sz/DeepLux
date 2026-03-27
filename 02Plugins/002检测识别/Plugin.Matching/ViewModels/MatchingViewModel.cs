@@ -90,6 +90,11 @@ namespace Plugin.Matching.ViewModels
         /// 序列化后的搜索区域ROI数据
         /// </summary>
         public byte[] SearchRoiData { get; set; }
+
+        /// <summary>
+        /// 序列化后的涂抹区域数据
+        /// </summary>
+        public byte[] PaintRegionData { get; set; }
     }
 
     /// <summary>
@@ -104,8 +109,9 @@ namespace Plugin.Matching.ViewModels
         /// <param name="modelCutImage">裁剪图像</param>
         /// <param name="modelTemplet">模板ROI</param>
         /// <param name="modelSearch">搜索区域ROI</param>
+        /// <param name="paintRegion">涂抹区域（HObject类型）</param>
         /// <returns>序列化的数据</returns>
-        public static byte[] SaveModelDataNoTempFile(HHandle modelImage, HImage modelCutImage, ROI modelTemplet, ROI modelSearch)
+        public static byte[] SaveModelDataNoTempFile(HHandle modelImage, HImage modelCutImage, ROI modelTemplet, ROI modelSearch, HObject paintRegion)
         {
             if (modelImage == null || !modelImage.IsInitialized())
                 return null;
@@ -153,7 +159,19 @@ namespace Plugin.Matching.ViewModels
                     data.SearchRoiData = new byte[0];
                 }
 
-                // 4. 序列化模板（使用 Halcon 20.11 的 SerializeShapeModel/SerializeNccModel）
+                // 5. 序列化涂抹区域
+                if (paintRegion != null && paintRegion.IsInitialized())
+                {
+                    HSerializedItem serializedPaint = paintRegion.SerializeObject();
+                    data.PaintRegionData = serializedPaint;
+                    serializedPaint.Dispose();
+                }
+                else
+                {
+                    data.PaintRegionData = new byte[0];
+                }
+
+                // 6. 序列化模板（使用 Halcon 20.11 的 SerializeShapeModel/SerializeNccModel）
                 if (modelImage is HShapeModel)
                 {
                     HSerializedItem serializedModel = ((HShapeModel)modelImage).SerializeShapeModel();
@@ -191,13 +209,15 @@ namespace Plugin.Matching.ViewModels
         /// <param name="modelCutImage">输出：裁剪图像</param>
         /// <param name="roiTemplet">输出：模板ROI</param>
         /// <param name="roiSearch">输出：搜索区域ROI</param>
+        /// <param name="paintRegion">输出：涂抹区域（HObject类型）</param>
         /// <returns>是否成功</returns>
-        public static bool LoadModelDataNoTempFile(byte[] data, eModelType modelType, out HHandle modelImage, out HImage modelCutImage, out ROIRectangle1 roiTemplet, out ROIRectangle1 roiSearch)
+        public static bool LoadModelDataNoTempFile(byte[] data, eModelType modelType, out HHandle modelImage, out HImage modelCutImage, out ROIRectangle1 roiTemplet, out ROIRectangle1 roiSearch, out HObject paintRegion)
         {
             modelImage = null;
             modelCutImage = null;
             roiTemplet = null;
             roiSearch = null;
+            paintRegion = null;
 
             if (data == null || data.Length == 0)
                 return false;
@@ -252,7 +272,15 @@ namespace Plugin.Matching.ViewModels
                     searchRegion.Dispose();
                 }
 
-                // 5. 反序列化模板 - 使用HOperatorSet
+                // 5. 反序列化涂抹区域
+                if (config.PaintRegionData != null && config.PaintRegionData.Length > 0)
+                {
+                    HSerializedItem serializedPaint = new HSerializedItem(config.PaintRegionData);
+                    HOperatorSet.DeserializeObject(out paintRegion, serializedPaint);
+                    serializedPaint.Dispose();
+                }
+
+                // 6. 反序列化模板 - 使用HOperatorSet
                 HSerializedItem serializedModel = new HSerializedItem(config.ModelData);
                 if (modelType == eModelType.形状模板)
                 {
@@ -358,7 +386,8 @@ namespace Plugin.Matching.ViewModels
                         out HHandle modelImage,
                         out HImage modelCutImage,
                         out ROIRectangle1 roiTemplet,
-                        out ROIRectangle1 roiSearch);
+                        out ROIRectangle1 roiSearch,
+                        out HObject paintRegion);
 
                     if (success)
                     {
@@ -368,6 +397,11 @@ namespace Plugin.Matching.ViewModels
                         if (roiSearch != null)
                         {
                             RoiList[ModuleParam.ModuleName + ROIDefine.Search] = roiSearch;
+                        }
+                        // 恢复涂抹区域
+                        if (paintRegion != null && paintRegion.IsInitialized())
+                        {
+                            editViewModel.finalRegion = paintRegion;
                         }
 
                         Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
@@ -769,7 +803,8 @@ namespace Plugin.Matching.ViewModels
                         out HHandle modelImage,
                         out HImage modelCutImage,
                         out ROIRectangle1 roiTemplet,
-                        out ROIRectangle1 roiSearch);
+                        out ROIRectangle1 roiSearch,
+                        out HObject paintRegion);
 
                     if (success)
                     {
@@ -779,6 +814,11 @@ namespace Plugin.Matching.ViewModels
                         if (roiSearch != null)
                         {
                             RoiList[ModuleParam.ModuleName + ROIDefine.Search] = roiSearch;
+                        }
+                        // 恢复涂抹区域
+                        if (paintRegion != null && paintRegion.IsInitialized())
+                        {
+                            editViewModel.finalRegion = paintRegion;
                         }
 
                         Logger.AddLog($"{ModuleParam.ModuleName} 模板加载成功（无临时文件）！", eMsgType.Info);
@@ -1171,7 +1211,8 @@ namespace Plugin.Matching.ViewModels
                         ModelImage,
                         ModelCutImage,
                         ModelTemplet,
-                        ModelSearch);
+                        ModelSearch,
+                        editViewModel.finalRegion);
 
                     if (ModelData != null)
                     {

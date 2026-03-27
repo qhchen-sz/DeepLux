@@ -128,7 +128,7 @@ namespace Plugin.Matching.ViewModels
         [NonSerialized]
         public HObject OutImage;
         [NonSerialized]
-        HObject finalRegion = new HObject();
+        public HObject finalRegion = new HObject();
         [NonSerialized]
         HObject brushRegion = new HObject();
         private eEditMode _EditMode = eEditMode.正常显示;
@@ -530,6 +530,28 @@ namespace Plugin.Matching.ViewModels
                 //Find.CreateModel(MatchingViewModel.ModelType, image, finalRegion, Threshold, MatchingViewModel.Levels, StartPhi, EndPhi, MinScale, MaxScale, CompType, Optimization, ref MatchingViewModel.ModelImage);
                 int mathNum = int.Parse(MatchingViewModel.GetLinkValue(MatchingViewModel.MathNum).ToString());
                 Logger.AddLog(MatchingViewModel.ModuleParam.ModuleName + ":创建模板成功！");
+
+                // 保存模板数据（包括涂抹区域）到工程文件
+                if (finalRegion != null && finalRegion.IsInitialized())
+                {
+                    ROI modelTemplet = MatchingViewModel.RoiList[MatchingViewModel.ModuleParam.ModuleName + ROIDefine.Templet];
+                    ROI modelSearch = MatchingViewModel.RoiList[MatchingViewModel.ModuleParam.ModuleName + ROIDefine.Search];
+                    MatchingViewModel.ModelData = MatchingModelHelperNoTempFile.SaveModelDataNoTempFile(
+                        MatchingViewModel.ModelImage,
+                        MatchingViewModel.ModelCutImage,
+                        modelTemplet,
+                        modelSearch,
+                        finalRegion);
+
+                    if (MatchingViewModel.ModelData != null)
+                    {
+                        Logger.AddLog($"{MatchingViewModel.ModuleParam.ModuleName} 涂抹区域保存成功！", eMsgType.Info);
+                    }
+                    else
+                    {
+                        Logger.AddLog($"{MatchingViewModel.ModuleParam.ModuleName} 涂抹区域保存失败！", eMsgType.Warn);
+                    }
+                }
 
             }
             catch (Exception ex)

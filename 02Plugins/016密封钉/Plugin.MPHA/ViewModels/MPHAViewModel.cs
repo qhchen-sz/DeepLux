@@ -84,12 +84,12 @@ namespace Plugin.MPHA.ViewModels
                     return false;
                 }
                 var view = ModuleView as MPHAView;
-                if (IsOpenWindows)
-                {
-                    HOperatorSet.Decompose2(DispImage, out HObject imageH, out HObject imageG);
-                    MPHA.Create3DRGB(imageH, imageG, out HObject multimage, "精细");
-                    view.mWindowH.DispObj(multimage);
-                }
+                //if (IsOpenWindows)
+                //{
+                //    HOperatorSet.Decompose2(DispImage, out HObject imageH, out HObject imageG);
+                //    MPHA.Create3DRGB(imageH, imageG, out HObject multimage, "精细");
+                //    view.mWindowH.DispObj(multimage);
+                //}
                 if (DispImage.Type == "3D")
                 {
 
@@ -577,15 +577,15 @@ namespace Plugin.MPHA.ViewModels
                     if (InputImageLinkText == null) return;
                 }
                 GetDispImage(InputImageLinkText);
-                if (DispImage != null && DispImage.IsInitialized())
-                {
-                    HOperatorSet.Decompose2(DispImage, out HObject imageH, out HObject imageG);
-                    MPHA.Create3DRGB(imageH, imageG, out HObject multimage, "精细");
-                    view.mWindowH.DispObj(multimage);
-                    //view.mWindowH.HobjectToHimage(DispImage);
+                //if (DispImage != null && DispImage.IsInitialized())
+                //{
+                //    HOperatorSet.Decompose2(DispImage, out HObject imageH, out HObject imageG);
+                //    MPHA.Create3DRGB(imageH, imageG, out HObject multimage, "精细");
+                //    view.mWindowH.DispObj(multimage);
+                //    //view.mWindowH.HobjectToHimage(DispImage);
 
-                    //ShowHRoi();
-                }
+                //    //ShowHRoi();
+                //}
             }
             IsLoad = false;
         }
