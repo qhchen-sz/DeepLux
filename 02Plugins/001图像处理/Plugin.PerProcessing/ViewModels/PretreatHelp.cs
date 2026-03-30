@@ -123,13 +123,29 @@ namespace Plugin.PerProcessing.ViewModels
             outImage = inImage.RotateImage(a, "constant");
         }
         /// <summary>
-        /// 修改图像尺寸
+        /// 修改图像尺寸（缩放）
         /// </summary>
-        /// change_format(Image : ImagePart : Width, Height : )
+        /// 备注: change_format 是裁剪图像，不是缩放。使用 ZoomImageFactor 进行缩放
+        /// zoom_image_factor(Image : ImageZoomed : ScaleX, ScaleY, Interpolation : )
         public void ChangeFormat(HImage inImage, out HImage outImage, int W, int H)
         {
-            //HOperatorSet.ChangeFormat(inImage, out HObject imageMirror, W, H);
-            outImage = inImage.ChangeFormat(W, H);
+            // 原实现: change_format 是裁剪操作，不是缩放
+            // outImage = inImage.ChangeFormat(W, H);
+
+            // 新实现: 使用 ZoomImageFactor 进行图像缩放
+            HOperatorSet.GetImageSize(inImage, out HTuple width, out HTuple height);
+            if (width.D <= 0 || height.D <= 0)
+            {
+                outImage = new HImage(inImage);
+                return;
+            }
+            // 计算缩放因子
+            double scaleX = (double)W / width.D;
+            double scaleY = (double)H / height.D;
+            // 使用双线性插值进行缩放
+            HOperatorSet.ZoomImageFactor(inImage, out HObject zoomedImage, scaleX, scaleY, "bilinear");
+            outImage = new HImage(zoomedImage);
+            zoomedImage.Dispose();
         }
         #endregion
         #region 滤波

@@ -63,6 +63,11 @@ namespace Plugin.SaveImage.ViewModels
     public class SaveImageViewModel : ModuleBase
     {
         private static readonly object _viewLock = new object();
+        private static readonly object _ExeLock = new object();
+        private static readonly object _saveImageLock = new object();
+        private static readonly object _deleteLock = new object();
+        // 改为 Dictionary 记录多个路径的最后删除时间，支持多实例并发
+        private static readonly Dictionary<string, DateTime> _lastDeleteTimes = new Dictionary<string, DateTime>();
         public override void SetDefaultLink()
         {
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
@@ -85,75 +90,67 @@ namespace Plugin.SaveImage.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                GetDispImage(InputImageLinkText);
 
-                string FileFouderPath = "";
-                if (SelectedMode == LinkMode.Path)
-                    FileFouderPath = FilePath;
-                else
-                    FileFouderPath = GetLinkValue(SaveImageLinkText).ToString();
-
-                //                保存路径 /
-                //├── P001 /              ← 产品编号变量值
-                //│   ├── 20231201 /
-                //│   │   ├── B001.jpg   ← 批次号变量值
-                //│   │   └── B002.jpg
-                //│   └── 20231202 /
-                //├── P002 /              ← 产品编号变量值
-                //│   └── 20231201 /
-                //│       └── B003.jpg   ← 批次号变量值
-                //└── ...
-
-                // 获取链接变量的实际值（动态内容）
-                string linkFolderName = GetDynamicLinkFolderName();
-
-                if (DispImage != null && DispImage.IsInitialized() && FileFouderPath != "")
+                // 加锁保护：确保从获取图像到复制图像的过程不被其他工作流干扰
+                lock (_ExeLock)
                 {
-                    if (!Directory.Exists(FileFouderPath))
-                    {
-                        Directory.CreateDirectory(FileFouderPath);
-                    }
+                    GetDispImage(InputImageLinkText);
 
-                    // 创建以链接变量值命名的文件夹
-                    string linkFolderPath = FileFouderPath;
-                    if (!string.IsNullOrEmpty(linkFolderName))
+                    string FileFouderPath = "";
+                    if (SelectedMode == LinkMode.Path)
+                        FileFouderPath = FilePath;
+                    else
+                        FileFouderPath = GetLinkValue(SaveImageLinkText).ToString();
+
+                    //                保存路径 /
+                    //├── P001 /              ← 产品编号变量值
+                    //│   ├── 20231201 /
+                    //│   │   ├── B001.jpg   ← 批次号变量值
+                    //│   │   └── B002.jpg
+                    //│   └── 20231202 /
+                    //├── P002 /              ← 产品编号变量值
+                    //│   └── 20231201 /
+                    //│       └── B003.jpg   ← 批次号变量值
+                    //└── ...
+
+                    // 获取链接变量的实际值（动态内容）
+                    string linkFolderName = GetDynamicLinkFolderName();
+
+                    if (DispImage != null && DispImage.IsInitialized() && FileFouderPath != "")
                     {
-                        linkFolderPath = Path.Combine(FileFouderPath, linkFolderName);
-                        if (!Directory.Exists(linkFolderPath))
+                        // 生成路径信息（这些是轻量级操作，可同步执行）
+                        DateTime dt = DateTime.Now;
+                        string linkFolderPath = FileFouderPath;
+                        if (!string.IsNullOrEmpty(linkFolderName))
                         {
-                            Directory.CreateDirectory(linkFolderPath);
+                            linkFolderPath = Path.Combine(FileFouderPath, linkFolderName);
                         }
+                        string dateFolderPath = Path.Combine(linkFolderPath, dt.ToString("yyyyMMdd"));
+                        string fileName = GenerateFileName();
+                        string imageFullPath = Path.Combine(dateFolderPath, fileName + "." + ImageStytleList[SelectedIndex]);
+                        string saveType = SelectedSaveType.ToString();
+
+                        // 复制图像数据，避免原对象被释放导致问题
+                        HImage imageCopy = new HImage(DispImage.CopyImage());
+
+                        // 获取ROI数据（需要在主线程获取，因为可能涉及UI相关数据）
+                        List<HRoi> roiCopy = null;
+                        if (DispImage.mHRoi != null && DispImage.mHRoi.Count > 0)
+                        {
+                            roiCopy = new List<HRoi>(DispImage.mHRoi);
+                        }
+
+                        // 所有耗时操作放到异步任务中执行，不阻塞主线程
+                        Task.Run(() => SaveImageAsync(imageCopy, FileFouderPath, linkFolderPath, dateFolderPath, imageFullPath, saveType, roiCopy));
+
+                        ChangeModuleRunStatus(eRunStatus.OK);
+                        return true;
                     }
-
-                    DateTime dt = DateTime.Now;
-
-                    // 在链接变量文件夹下创建日期文件夹
-                    string dateFolderPath = Path.Combine(linkFolderPath, dt.ToString("yyyyMMdd"));
-                    if (!Directory.Exists(dateFolderPath))
+                    else
                     {
-                        Directory.CreateDirectory(dateFolderPath);
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
                     }
-
-                    // 生成文件名
-                    string fileName = GenerateFileName();
-                    string imageFullPath = Path.Combine(dateFolderPath, fileName + "." + ImageStytleList[SelectedIndex]);
-
-                    // 保存图像
-                    SaveImageToPath(imageFullPath);
-
-                    // 自动删除旧图片
-                    if (AutoDelete && SaveDay > 0)
-                    {
-                        RemoveOldImages(linkFolderPath, SaveDay);
-                    }
-
-                    ChangeModuleRunStatus(eRunStatus.OK);
-                    return true;
-                }
-                else
-                {
-                    ChangeModuleRunStatus(eRunStatus.NG);
-                    return false;
                 }
             }
             catch (Exception ex)
@@ -161,6 +158,112 @@ namespace Plugin.SaveImage.ViewModels
                 ChangeModuleRunStatus(eRunStatus.NG);
                 Logger.GetExceptionMsg(ex);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 异步保存图像（所有耗时操作都在后台线程执行）
+        /// </summary>
+        private void SaveImageAsync(HImage image, string baseFolderPath, string linkFolderPath, string dateFolderPath, string imageFullPath, string saveType, List<HRoi> roiCopy)
+        {
+            try
+            {
+                // 确保目录存在
+                EnsureDirectoriesExist(baseFolderPath, linkFolderPath, dateFolderPath);
+
+                // 根据保存类型执行保存
+                switch (saveType)
+                {
+                    case "原图":
+                        // 原图保存使用独立锁，不阻塞截图操作
+                        lock (_saveImageLock)
+                        {
+                            HOperatorSet.WriteImage(image, ImageStytleList[SelectedIndex], 0, imageFullPath);
+                        }
+                        break;
+                    case "截图":
+                        // 截图模式需要访问UI窗口，使用 _viewLock 保护
+                        SaveScreenshotAsync(image, imageFullPath, roiCopy);
+                        break;
+                    case "离线图片":
+                        // 离线图片处理
+                        break;
+                }
+
+                // 自动删除旧图片（异步执行，带频率限制）
+                if (AutoDelete && SaveDay > 0)
+                {
+                    TryRemoveOldImagesAsync(linkFolderPath, SaveDay);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"异步保存图像失败: {ex.Message}", eMsgType.Error);
+            }
+            finally
+            {
+                // 释放图像副本
+                if (image != null && image.IsInitialized())
+                {
+                    image.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 确保所有目录存在（轻量级操作）
+        /// </summary>
+        private void EnsureDirectoriesExist(string baseFolderPath, string linkFolderPath, string dateFolderPath)
+        {
+            if (!Directory.Exists(baseFolderPath))
+            {
+                Directory.CreateDirectory(baseFolderPath);
+            }
+            if (!string.IsNullOrEmpty(linkFolderPath) && !Directory.Exists(linkFolderPath))
+            {
+                Directory.CreateDirectory(linkFolderPath);
+            }
+            if (!string.IsNullOrEmpty(dateFolderPath) && !Directory.Exists(dateFolderPath))
+            {
+                Directory.CreateDirectory(dateFolderPath);
+            }
+        }
+
+        /// <summary>
+        /// 异步保存截图（需要访问UI窗口，必须回到主线程执行）
+        /// </summary>
+        private void SaveScreenshotAsync(HImage image, string imageFullPath, List<HRoi> roiCopy)
+        {
+            try
+            {
+                // UI操作必须回到主线程执行
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    lock (_viewLock)
+                    {
+                        VMHWindowControl mWindowH = ViewDic.GetView(98);
+                        if (mWindowH == null) return;
+
+                        HWindow hWindow = mWindowH.hControl.HalconWindow;
+                        HOperatorSet.GetImageSize(image, out HTuple Width, out HTuple Height);
+                        hWindow.SetWindowExtents(0, 0, Width, Height);
+                        mWindowH.HobjectToHimage(image);
+
+                        // ROI信息已在主线程获取并传入，直接使用
+                        if (roiCopy != null && roiCopy.Count > 0)
+                        {
+                            ShowHRoiForSave(mWindowH, roiCopy, imageFullPath);
+                        }
+                        else
+                        {
+                            HOperatorSet.DumpWindow(hWindow, "jpeg", imageFullPath);
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"保存截图失败: {ex.Message}", eMsgType.Error);
             }
         }
 
@@ -357,6 +460,33 @@ namespace Plugin.SaveImage.ViewModels
             {
                 Logger.AddLog($"自动删除图片时发生错误: {ex.Message}", eMsgType.Warn);
             }
+        }
+
+        /// <summary>
+        /// 异步执行删除旧图片（带频率限制，避免频繁遍历）
+        /// 同一个路径每24小时最多执行一次
+        /// </summary>
+        private void TryRemoveOldImagesAsync(string baseDirectoryPath, int saveDays)
+        {
+            Task.Run(() =>
+            {
+                lock (_deleteLock)
+                {
+                    // 检查该路径是否在24小时内执行过删除
+                    if (_lastDeleteTimes.TryGetValue(baseDirectoryPath, out DateTime lastTime))
+                    {
+                        if ((DateTime.Now - lastTime).TotalHours < 0.01)
+                        {
+                            return;
+                        }
+                    }
+
+                    // 更新该路径的最后删除时间
+                    _lastDeleteTimes[baseDirectoryPath] = DateTime.Now;
+
+                    RemoveOldImages(baseDirectoryPath, saveDays);
+                }
+            });
         }
 
         private void RemoveFilesFromDirectory(string directoryPath, DateTime cutoffDate)
@@ -740,8 +870,18 @@ namespace Plugin.SaveImage.ViewModels
 
                         if (!string.IsNullOrEmpty(directoryPath) && Directory.Exists(directoryPath))
                         {
-                            RemoveOldImages(directoryPath, SaveDay);
-                            MessageBox.Show($"已在文件夹 {linkFolderName} 中完成手动删除");
+                            // 异步执行删除，避免阻塞UI线程
+                            Task.Run(() =>
+                            {
+                                lock (_deleteLock)
+                                {
+                                    RemoveOldImages(directoryPath, SaveDay);
+                                }
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    MessageBox.Show($"已在文件夹 {linkFolderName} 中完成手动删除");
+                                });
+                            });
                         }
                         else
                         {
