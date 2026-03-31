@@ -13,6 +13,9 @@
              Height="680" Width="980" Icon="/Plugin.Blob;component/Assets/Images/Tool/Blob.png" Loaded="ModuleViewBase_Loaded" >
     <vb:ModuleViewBase.Resources>
         <Converter:Bool2VisibilityConverter x:Key="Bool2VisibilityConverter"/>
+        <!-- 阈值调整前景色Converter -->
+        <local:BoolToForegroundConverter x:Key="BoolToForegroundConverter"/>
+        <local:BoolToForegroundConverterInverse x:Key="BoolToForegroundConverterInverse"/>
     </vb:ModuleViewBase.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -93,34 +96,66 @@
 
                         <Border Grid.Row="3">
                             <GroupBox Header="二值化" >
-                                <StackPanel Orientation="Horizontal" Margin="5">
-                                    <TextBlock Text="分割阈值:" VerticalAlignment="Center"  Margin="5,1,5,1"/>
-                                    <mah:RangeSlider Width="200"    
-                                     Margin="4"
-                                     mah:SliderHelper.ChangeValueBy="LargeChange"
-                                     mah:SliderHelper.EnableMouseWheel="MouseHover"
-                                     AutoToolTipPlacement="TopLeft"
-                                     LargeChange="1"
-                                     LowerValue="{Binding ThresholdMin}"
-                                     Maximum="255"
-                                     Minimum="0"
-                                     Orientation="Horizontal"
-                                     SmallChange="1"
-                                     UpperValue="{Binding ThresholdMax}">
-                                        <mah:RangeSlider.AutoToolTipRangeValuesTemplate>
-                                            <DataTemplate DataType="mah:RangeSliderAutoTooltipValues">
-                                                <UniformGrid Columns="2" Rows="2">
-                                                    <TextBlock HorizontalAlignment="Right" Text="From:" />
-                                                    <TextBlock HorizontalAlignment="Right" Text="{Binding LowerValue, StringFormat='{}{0:N2}'}" />
-                                                    <TextBlock HorizontalAlignment="Right" Text="To:" />
-                                                    <TextBlock HorizontalAlignment="Right" Text="{Binding UpperValue, StringFormat='{}{0:N2}'}" />
-                                                </UniformGrid>
-                                            </DataTemplate>
-                                        </mah:RangeSlider.AutoToolTipRangeValuesTemplate>
-                                    </mah:RangeSlider>
-                                </StackPanel>
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" Grid.Row="0">
+                                        <TextBlock Text="分割阈值:" VerticalAlignment="Center"  Margin="5,1,5,1"/>
+                                        <!-- ToggleButton切换：选择调整最小值还是最大值 -->
+                                        <ToggleButton x:Name="tblThreshold"
+                                                      Content="调整上下限"
+                                                      Width="70" Height="24" Margin="5,1"
+                                                      IsChecked="{Binding IsAdjustingMinThreshold}"
+                                                      ToolTip="点击切换调整上限/下限"
+                                                      Click="tblThreshold_Click"/>
+                                        <!-- 显示当前数值 -->
+                                        <StackPanel Orientation="Horizontal" Margin="10,1,5,1" VerticalAlignment="Center">
+                                            <TextBlock Text="当前值: " VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding ThresholdMin}" VerticalAlignment="Center" Margin="2,0"
+                                                       Foreground="{Binding IsAdjustingMinThreshold, Converter={StaticResource BoolToForegroundConverter}}"/>
+                                            <TextBlock Text=" ~ " VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding ThresholdMax}" VerticalAlignment="Center" Margin="2,0"
+                                                       Foreground="{Binding IsAdjustingMinThreshold, Converter={StaticResource BoolToForegroundConverterInverse}}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Grid.Row="1">
+                                        <mah:RangeSlider x:Name="rangeThreshold"
+                                         Width="200"
+                                         Margin="4"
+                                         Focusable="True"
+                                         PreviewKeyDown="rangeThreshold_PreviewKeyDown"
+                                         mah:SliderHelper.ChangeValueBy="LargeChange"
+                                         mah:SliderHelper.EnableMouseWheel="MouseHover"
+                                         AutoToolTipPlacement="TopLeft"
+                                         LargeChange="1"
+                                         LowerValue="{Binding ThresholdMin}"
+                                         Maximum="255"
+                                         Minimum="0"
+                                         Orientation="Horizontal"
+                                         SmallChange="1"
+                                         UpperValue="{Binding ThresholdMax}">
+                                            <mah:RangeSlider.AutoToolTipRangeValuesTemplate>
+                                                <DataTemplate DataType="mah:RangeSliderAutoTooltipValues">
+                                                    <UniformGrid Columns="2" Rows="2">
+                                                        <TextBlock HorizontalAlignment="Right" Text="下限:" />
+                                                        <TextBlock HorizontalAlignment="Right" Text="{Binding LowerValue, StringFormat='{}{0:N0}'}" FontWeight="Bold"/>
+                                                        <TextBlock HorizontalAlignment="Right" Text="上限:" />
+                                                        <TextBlock HorizontalAlignment="Right" Text="{Binding UpperValue, StringFormat='{}{0:N0}'}" FontWeight="Bold"/>
+                                                    </UniformGrid>
+                                                </DataTemplate>
+                                            </mah:RangeSlider.AutoToolTipRangeValuesTemplate>
+                                        </mah:RangeSlider>
+                                        <!-- 提示信息 -->
+                                        <TextBlock Text="↑↓精细调整 Shift+↑↓快速调整"
+                                                   VerticalAlignment="Center"
+                                                   Margin="10,0,0,0"
+                                                   Foreground="Gray"
+                                                   FontSize="11"/>
+                                    </StackPanel>
+                                </Grid>
                             </GroupBox>
-                            
                         </Border>
                     </Grid>
                 </TabItem>

@@ -33,5 +33,6 @@ Control3D/WpfApp1/obj/
 .gitignore_bak
 02Plugins/002检测识别/Plugin.ColorRecognition/Plugin.ColorRecognition.sln
 CLAUDE.md
+ChatSessions/
 
 

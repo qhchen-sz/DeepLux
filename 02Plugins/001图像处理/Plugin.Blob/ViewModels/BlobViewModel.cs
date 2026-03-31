@@ -750,6 +750,18 @@ namespace Plugin.Blob.ViewModels
             get { return _ThresholdMax; }
             set { Set(ref _ThresholdMax, value); }
         }
+
+        // ========== 阈值键盘调整功能 ==========
+        private bool _IsAdjustingMinThreshold = true;  // 默认调整下限
+        /// <summary>
+        /// 是否正在调整下限阈值（True=下限，False=上限）
+        /// </summary>
+        public bool IsAdjustingMinThreshold
+        {
+            get { return _IsAdjustingMinThreshold; }
+            set { Set(ref _IsAdjustingMinThreshold, value); }
+        }
+
         private ObservableCollection<RegionResultParams> _RegionResultParams = new ObservableCollection<RegionResultParams>();
         public ObservableCollection<RegionResultParams> RegionResultParams
         {
