@@ -270,6 +270,11 @@
                                           Text="{Binding MPMin_Planar_Points, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="降采样:" VerticalAlignment="Center" Width="80"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                          Text="{Binding Down_Sample_Size, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="启动曲率:" VerticalAlignment="Center" Width="60"/>
                                         <ToggleButton Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                 IsChecked="{Binding Use_Curvature, Mode=TwoWay}" Content="启用" />

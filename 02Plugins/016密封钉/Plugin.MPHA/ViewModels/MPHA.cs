@@ -147,7 +147,7 @@ namespace Plugin.MPHA.ViewModels
             result = default; // 确保在异常情况下也有初始化
             try
             {
-                bool flag = measure_pindisk_height_dllv3(ref img, ref func_para, ref transformationMatrix, out result, debug_mode);
+                bool flag = measure_pindisk_height_dllv4(ref img, ref func_para, ref transformationMatrix, out result, debug_mode);
                 return flag;
             }
             catch (Exception ex)
@@ -658,47 +658,54 @@ namespace Plugin.MPHA.ViewModels
             public float central_plane_size;
             public float distance_threshold;
             public int min_planar_points;
+            public int down_sample_size;
         }
-
         [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool measure_pindisk_height_dllv3(ref ImgPara img,
+        public static extern bool measure_pindisk_height_dllv4(ref ImgPara img,
         ref FuncPara func_para,
         ref Vector3d transformation_matrix,
         out ResultParaPindisk result,
         bool debug_mode);
 
-/*        //preprocessing array to pointcloud
-        [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void measure_pindisk_height_dll3(ref PointArray pa,
+        /*        [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
+                public static extern bool measure_pindisk_height_dllv3(ref ImgPara img,
+                ref FuncPara func_para,
+                ref Vector3d transformation_matrix,
+                out ResultParaPindisk result,
+                bool debug_mode);*/
+
+        /*        //preprocessing array to pointcloud
+                [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
+                public static extern void measure_pindisk_height_dll3(ref PointArray pa,
+                    ref Vector3d transformationMatrix,
+                    out ResultParaPindisk result,
+                    ref TiffPara tiff_para,
+                    float central_plane_size,
+                    bool debug_mode);
+
+
+                [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
+                public static extern void measure_pindisk_height_dll2(ref PointArray bottom_pa,
+                    ref PointArray central_pa,
+                    ref Vector3d transformationMatrix,
+                    out ResultParaPindisk result,
+                    bool debug_mode);
+
+                //corner points and central cloud version
+                [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
+                public static extern void measure_pindisk_height_dllv2(ref CornerPoints bottom_points,
+                ref PointArray central_pa,
+                ref FuncPara func_para,
+                ref Vector3d transformation_matrix,
+                out ResultParaPindisk result,
+                bool debug_mode);
+                [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
+                public static extern void measure_pindisk_height_dll(ref PointArray pa,
             ref Vector3d transformationMatrix,
             out ResultParaPindisk result,
             ref TiffPara tiff_para,
             float central_plane_size,
-            bool debug_mode);
-
-
-        [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void measure_pindisk_height_dll2(ref PointArray bottom_pa,
-            ref PointArray central_pa,
-            ref Vector3d transformationMatrix,
-            out ResultParaPindisk result,
-            bool debug_mode);
-
-        //corner points and central cloud version
-        [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void measure_pindisk_height_dllv2(ref CornerPoints bottom_points,
-        ref PointArray central_pa,
-        ref FuncPara func_para,
-        ref Vector3d transformation_matrix,
-        out ResultParaPindisk result,
-        bool debug_mode);
-        [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void measure_pindisk_height_dll(ref PointArray pa,
-    ref Vector3d transformationMatrix,
-    out ResultParaPindisk result,
-    ref TiffPara tiff_para,
-    float central_plane_size,
-    bool debug_mode);*/
+            bool debug_mode);*/
         #endregion
     }
 }

@@ -182,6 +182,7 @@ namespace Plugin.MPHA.ViewModels
                         central_plane_size = Central_Plane_Size,//钉面区域
                         distance_threshold = MPDistance_Threshold,//噪声阈值
                         min_planar_points = MPMin_Planar_Points,//最小面需要多少点
+                        down_sample_size = Down_Sample_Size,//降采样尺寸
                     };
                     MPHA.ResultParaPindisk result;
                     //MPHA.TiffPara tiff_para;
@@ -513,7 +514,7 @@ namespace Plugin.MPHA.ViewModels
             }
         }
 
-        private float _Central_Plane_Size = 75;
+        private float _Central_Plane_Size = 100;
         public float Central_Plane_Size
         {
             get { return _Central_Plane_Size; }
@@ -535,13 +536,24 @@ namespace Plugin.MPHA.ViewModels
                 RaisePropertyChanged();
             }
         }
-        private int _MPMin_Planar_Points = 100;
+        private int _MPMin_Planar_Points = 50;
         public int MPMin_Planar_Points
         {
             get { return _MPMin_Planar_Points; }
             set
             {
                 _MPMin_Planar_Points = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        private int _Down_Sample_Size = 2;
+        public int Down_Sample_Size
+        {
+            get { return _Down_Sample_Size; }
+            set
+            {
+                _Down_Sample_Size = value;
                 RaisePropertyChanged();
             }
         }

@@ -102,9 +102,10 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
                 if (absHisto[i].I > 0)
                     values.Add(i);
             }
-
-            // 通常你希望更“稳定”的顺序：从大到小（255、127、85…）
-            values.Sort((a, b) => b.CompareTo(a));
+            //从大到小排序
+            // values.Sort((a, b) => b.CompareTo(a));
+            // 从小到大排序
+            values.Sort();
             return values;
         }
 
