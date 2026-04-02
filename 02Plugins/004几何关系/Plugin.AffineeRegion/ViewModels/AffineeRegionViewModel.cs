@@ -88,8 +88,8 @@ namespace Plugin.AffineeRegion.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                if (!IsManMual)
-                    GetDispImage(InputImageLinkText);
+                //if (!IsManMual)
+                GetDispImage(InputImageLinkText);
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -167,7 +167,7 @@ namespace Plugin.AffineeRegion.ViewModels
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
         #region Prop
-        private bool IsManMual = true;
+        //private bool IsManMual = true;
         HRegion OutRegion = new HRegion(0.0, 0, 3);
 
         /// <summary>
@@ -386,9 +386,9 @@ namespace Plugin.AffineeRegion.ViewModels
                 {
                     _ExecuteCommand = new CommandBase((obj) =>
                     {
-                        IsManMual = true;
+                        //IsManMual = true;
                         ExeModule();
-                        IsManMual = false;
+                        //IsManMual = false;
                     });
                 }
                 return _ExecuteCommand;
