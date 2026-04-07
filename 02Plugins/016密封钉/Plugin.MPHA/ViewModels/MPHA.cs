@@ -11,19 +11,25 @@ namespace Plugin.MPHA.ViewModels
     public enum eLinkCommand
     {
         InputImageLink,
-        TopSurfaceRegionLink1,
-        TopSurfaceRegionLink2,
-        TopSurfaceRegionLink3,
-        TopSurfaceRegionLink4,
-        NailSurfaceRegionLink,
-        TopSurfaceXTextLink,
-        TopSurfaceYTextLink,
-        TopSurfaceWidthTextLink,
-        TopSurfaceHeightTextLink,
-        NailSurfaceX1TextLink,
-        NailSurfaceY1TextLink,
-        NailSurfaceX2TextLink,
-        NailSurfaceY2TextLink,
+        // [已注释] 顶盖区域 - 区域模式
+        // TopSurfaceRegionLink1,
+        // TopSurfaceRegionLink2,
+        // TopSurfaceRegionLink3,
+        // TopSurfaceRegionLink4,
+        // NailSurfaceRegionLink,
+        // [已注释] 顶盖区域 - 数组模式
+        // TopSurfaceXTextLink,
+        // TopSurfaceYTextLink,
+        // TopSurfaceWidthTextLink,
+        // TopSurfaceHeightTextLink,
+        // [已注释] 钉面区域 - 左上/右下角模式
+        // NailSurfaceX1TextLink,
+        // NailSurfaceY1TextLink,
+        // NailSurfaceX2TextLink,
+        // NailSurfaceY2TextLink,
+        // [当前] 钉面区域 - 中心点模式
+        NailSurfaceXTextLink,
+        NailSurfaceYTextLink,
     }
     public class MPHA
     {
@@ -147,7 +153,7 @@ namespace Plugin.MPHA.ViewModels
             result = default; // 确保在异常情况下也有初始化
             try
             {
-                bool flag = measure_pindisk_height_dllv4(ref img, ref func_para, ref transformationMatrix, out result, debug_mode);
+                bool flag = measure_pindisk_height_dllv5(ref img, ref func_para, ref transformationMatrix, out result, debug_mode);
                 return flag;
             }
             catch (Exception ex)
@@ -659,9 +665,11 @@ namespace Plugin.MPHA.ViewModels
             public float distance_threshold;
             public int min_planar_points;
             public int down_sample_size;
+            public float centerX;
+            public float centerY;
         }
         [DllImport("MeasurePindiskHeight.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool measure_pindisk_height_dllv4(ref ImgPara img,
+        public static extern bool measure_pindisk_height_dllv5(ref ImgPara img,
         ref FuncPara func_para,
         ref Vector3d transformation_matrix,
         out ResultParaPindisk result,

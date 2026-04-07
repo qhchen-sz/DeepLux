@@ -24,6 +24,7 @@ using HV.Services;
 using System.Windows;
 using VM.Halcon.Config;
 using System.Globalization;
+using System.Threading;
 
 namespace Plugin.SaveImage.ViewModels
 {
@@ -66,8 +67,6 @@ namespace Plugin.SaveImage.ViewModels
         private static readonly object _ExeLock = new object();
         private static readonly object _saveImageLock = new object();
         private static readonly object _deleteLock = new object();
-        // 改为 Dictionary 记录多个路径的最后删除时间，支持多实例并发
-        private static readonly Dictionary<string, DateTime> _lastDeleteTimes = new Dictionary<string, DateTime>();
         public override void SetDefaultLink()
         {
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
@@ -424,7 +423,275 @@ namespace Plugin.SaveImage.ViewModels
             }
         }
 
-        private void RemoveOldImages(string baseDirectoryPath, int saveDays)
+        ///// <summary>
+        ///// 旧版全量删除方法（已弃用，改用 RemoveOldImagesBatched 分批删除）
+        ///// </summary>
+        //private void RemoveOldImages(string baseDirectoryPath, int saveDays)
+        //{
+        //    try
+        //    {
+        //        if (string.IsNullOrEmpty(baseDirectoryPath) || saveDays <= 0 || !Directory.Exists(baseDirectoryPath))
+        //            return;
+        //
+        //        DateTime currentTime = DateTime.Now;
+        //        var cutoffDate = currentTime.AddDays(-saveDays);
+        //
+        //        // 删除baseDirectoryPath下的所有日期文件夹中的旧文件
+        //        foreach (var directory in Directory.GetDirectories(baseDirectoryPath))
+        //        {
+        //            RemoveFilesFromDirectory(directory, cutoffDate);
+        //
+        //            // 如果日期文件夹为空，删除空文件夹
+        //            if (Directory.GetFiles(directory).Length == 0 &&
+        //                Directory.GetDirectories(directory).Length == 0)
+        //            {
+        //                try
+        //                {
+        //                    Directory.Delete(directory);
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    Logger.AddLog($"删除空目录失败: {directory}, 错误: {ex.Message}", eMsgType.Warn);
+        //                }
+        //            }
+        //        }
+        //
+        //        Logger.AddLog($"在文件夹 {Path.GetFileName(baseDirectoryPath)} 中自动删除超过{saveDays}天的图片完成", eMsgType.Info);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Logger.AddLog($"自动删除图片时发生错误: {ex.Message}", eMsgType.Warn);
+        //    }
+        //}
+
+        // ========== 原实现（已弃用，保留注释参考）==========
+
+        ///// <summary>
+        ///// 异步执行删除旧图片（带频率限制，避免频繁遍历）
+        ///// 同一个路径每24小时最多执行一次
+        ///// </summary>
+        //private void TryRemoveOldImagesAsync(string baseDirectoryPath, int saveDays)
+        //{
+        //    Task.Run(() =>
+        //    {
+        //        lock (_deleteLock)
+        //        {
+        //            // 检查该路径是否在24小时内执行过删除
+        //            if (_lastDeleteTimes.TryGetValue(baseDirectoryPath, out DateTime lastTime))
+        //            {
+        //                if ((DateTime.Now - lastTime).TotalHours < 0.01)
+        //                {
+        //                    return;
+        //                }
+        //            }
+        //
+        //            // 更新该路径的最后删除时间
+        //            _lastDeleteTimes[baseDirectoryPath] = DateTime.Now;
+        //
+        //            RemoveOldImages(baseDirectoryPath, saveDays);
+        //        }
+        //    });
+        //}
+
+        ///// <summary>
+        ///// 删除目录下的过期文件
+        ///// </summary>
+        //private void RemoveFilesFromDirectory(string directoryPath, DateTime cutoffDate)
+        //{
+        //    try
+        //    {
+        //        foreach (var file in Directory.GetFiles(directoryPath))
+        //        {
+        //            try
+        //            {
+        //                var fileInfo = new FileInfo(file);
+        //                if (fileInfo.CreationTime < cutoffDate || fileInfo.LastWriteTime < cutoffDate)
+        //                {
+        //                    fileInfo.Attributes = FileAttributes.Normal;
+        //                    File.Delete(file);
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Logger.AddLog($"删除文件失败: {file}, 错误: {ex.Message}", eMsgType.Warn);
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Logger.AddLog($"访问目录失败: {directoryPath}, 错误: {ex.Message}", eMsgType.Warn);
+        //    }
+        //}
+
+        ///// <summary>
+        ///// 旧版全量删除方法（已弃用，改用 RemoveOldImagesBatched 分批删除）
+        ///// </summary>
+        //private void RemoveOldImages(string baseDirectoryPath, int saveDays)
+        //{
+        //    try
+        //    {
+        //        if (string.IsNullOrEmpty(baseDirectoryPath) || saveDays <= 0 || !Directory.Exists(baseDirectoryPath))
+        //            return;
+        //
+        //        DateTime currentTime = DateTime.Now;
+        //        var cutoffDate = currentTime.AddDays(-saveDays);
+        //
+        //        // 删除baseDirectoryPath下的所有日期文件夹中的旧文件
+        //        foreach (var directory in Directory.GetDirectories(baseDirectoryPath))
+        //        {
+        //            RemoveFilesFromDirectory(directory, cutoffDate);
+        //
+        //            // 如果日期文件夹为空，删除空文件夹
+        //            if (Directory.GetFiles(directory).Length == 0 &&
+        //                Directory.GetDirectories(directory).Length == 0)
+        //            {
+        //                try
+        //                {
+        //                    Directory.Delete(directory);
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    Logger.AddLog($"删除空目录失败: {directory}, 错误: {ex.Message}", eMsgType.Warn);
+        //                }
+        //            }
+        //        }
+        //
+        //        Logger.AddLog($"在文件夹 {Path.GetFileName(baseDirectoryPath)} 中自动删除超过{saveDays}天的图片完成", eMsgType.Info);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Logger.AddLog($"自动删除图片时发生错误: {ex.Message}", eMsgType.Warn);
+        //    }
+        //}
+
+        // ========== 新实现：改进的分批删除（实例级别状态） ==========
+
+        /// <summary>
+        /// 待清理路径的队列（实例级别，避免多实例共享导致状态混乱）
+        /// 注意：由于类会被反序列化，不能使用 readonly
+        /// </summary>
+        private HashSet<string> _pendingCleanupPaths = new HashSet<string>();
+
+        /// <summary>
+        /// 是否有删除任务正在执行（实例级别）
+        /// </summary>
+        private volatile bool _isCleanupRunning = false;
+
+        /// <summary>
+        /// 上次清理时间记录（实例级别，每个实例独立控制清理频率）
+        /// 注意：由于类会被反序列化，不能使用 readonly
+        /// </summary>
+        private Dictionary<string, DateTime> _lastCleanupTimes = new Dictionary<string, DateTime>();
+
+        /// <summary>
+        /// 保护本实例清理状态的锁
+        /// 注意：由于类会被反序列化，不能使用 readonly
+        /// </summary>
+        private object _instanceCleanupLock = new object();
+
+        /// <summary>
+        /// 异步执行删除旧图片（改进版：分批执行 + 频率控制 + 立即返回）
+        /// </summary>
+        /// <param name="baseDirectoryPath">待清理的根目录</param>
+        /// <param name="saveDays">保留天数</param>
+        private void TryRemoveOldImagesAsync(string baseDirectoryPath, int saveDays)
+        {
+            // 防御性检查：确保所有字段已初始化（反序列化后可能为null）
+            if (_pendingCleanupPaths == null)
+                _pendingCleanupPaths = new HashSet<string>();
+            if (_lastCleanupTimes == null)
+                _lastCleanupTimes = new Dictionary<string, DateTime>();
+            if (_instanceCleanupLock == null)
+                _instanceCleanupLock = new object();
+
+            // 将待清理路径加入队列（HashSet自动去重）
+            lock (_pendingCleanupPaths)
+            {
+                _pendingCleanupPaths.Add(baseDirectoryPath);
+            }
+
+            // 启动后台清理任务（如果当前没有运行的话）
+            Task.Run(() => ProcessCleanupQueueAsync(saveDays));
+        }
+
+        /// <summary>
+        /// 处理清理队列（分批执行，避免阻塞）
+        /// </summary>
+        private void ProcessCleanupQueueAsync(int saveDays)
+        {
+            // 防御性检查：确保所有字段已初始化（反序列化后可能为null）
+            if (_pendingCleanupPaths == null)
+                _pendingCleanupPaths = new HashSet<string>();
+            if (_lastCleanupTimes == null)
+                _lastCleanupTimes = new Dictionary<string, DateTime>();
+            if (_instanceCleanupLock == null)
+                _instanceCleanupLock = new object();
+
+            // 使用 lock 确保只有一个清理任务在运行
+            lock (_deleteLock)
+            {
+                if (_isCleanupRunning)
+                    return;
+                _isCleanupRunning = true;
+            }
+
+            try
+            {
+                List<string> pathsToClean;
+                lock (_pendingCleanupPaths)
+                {
+                    if (_pendingCleanupPaths.Count == 0)
+                        return;
+                    pathsToClean = new List<string>(_pendingCleanupPaths);
+                    _pendingCleanupPaths.Clear();
+                }
+
+                foreach (var baseDirectoryPath in pathsToClean)
+                {
+                    // 线程安全地检查清理时间
+                    bool shouldCleanup = false;
+                    lock (_instanceCleanupLock)
+                    {
+                        if (_lastCleanupTimes.TryGetValue(baseDirectoryPath, out DateTime lastTime))
+                        {
+                            if ((DateTime.Now - lastTime).TotalHours < 24)
+                            {
+                                // 不满足清理条件，保留在队列中下次再试
+                                lock (_pendingCleanupPaths)
+                                {
+                                    _pendingCleanupPaths.Add(baseDirectoryPath);
+                                }
+                                continue;
+                            }
+                        }
+                        shouldCleanup = true;
+                    }
+
+                    if (shouldCleanup)
+                    {
+                        // 执行分批删除
+                        RemoveOldImagesBatched(baseDirectoryPath, saveDays);
+
+                        // 线程安全地更新最后清理时间
+                        lock (_instanceCleanupLock)
+                        {
+                            _lastCleanupTimes[baseDirectoryPath] = DateTime.Now;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _isCleanupRunning = false;
+            }
+        }
+
+        /// <summary>
+        /// 分批删除旧图片（每次只处理一个日期文件夹，避免长时间阻塞）
+        /// </summary>
+        /// <param name="baseDirectoryPath">根目录路径</param>
+        /// <param name="saveDays">保留天数</param>
+        private void RemoveOldImagesBatched(string baseDirectoryPath, int saveDays)
         {
             try
             {
@@ -432,68 +699,75 @@ namespace Plugin.SaveImage.ViewModels
                     return;
 
                 DateTime currentTime = DateTime.Now;
-                var cutoffDate = currentTime.AddDays(-saveDays);
+                DateTime cutoffDate = currentTime.AddDays(-saveDays);
 
-                // 删除baseDirectoryPath下的所有日期文件夹中的旧文件
-                foreach (var directory in Directory.GetDirectories(baseDirectoryPath))
+                // 获取所有日期文件夹
+                string[] dateDirectories;
+                try
                 {
-                    RemoveFilesFromDirectory(directory, cutoffDate);
-
-                    // 如果日期文件夹为空，删除空文件夹
-                    if (Directory.GetFiles(directory).Length == 0 &&
-                        Directory.GetDirectories(directory).Length == 0)
-                    {
-                        try
-                        {
-                            Directory.Delete(directory);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.AddLog($"删除空目录失败: {directory}, 错误: {ex.Message}", eMsgType.Warn);
-                        }
-                    }
+                    dateDirectories = Directory.GetDirectories(baseDirectoryPath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.AddLog($"访问目录失败: {baseDirectoryPath}, 错误: {ex.Message}", eMsgType.Warn);
+                    return;
                 }
 
-                Logger.AddLog($"在文件夹 {Path.GetFileName(baseDirectoryPath)} 中自动删除超过{saveDays}天的图片完成", eMsgType.Info);
+                foreach (var dateDir in dateDirectories)
+                {
+                    // 解析日期文件夹名称，判断是否过期
+                    string dirName = Path.GetFileName(dateDir);
+                    if (IsDateFolderExpired(dirName, cutoffDate))
+                    {
+                        // 删除该日期文件夹下的所有过期文件
+                        DeleteExpiredFilesInDirectory(dateDir, cutoffDate);
+
+                        // 删除空文件夹
+                        DeleteEmptyDirectory(dateDir);
+                    }
+
+                    // 每处理完一个日期文件夹，让出CPU，避免长时间阻塞
+                    Thread.Sleep(5);
+                }
+
+                Logger.AddLog($"自动清理完成，路径: {baseDirectoryPath}", eMsgType.Info);
             }
             catch (Exception ex)
             {
-                Logger.AddLog($"自动删除图片时发生错误: {ex.Message}", eMsgType.Warn);
+                Logger.AddLog($"分批删除图片时发生错误: {ex.Message}", eMsgType.Warn);
             }
         }
 
         /// <summary>
-        /// 异步执行删除旧图片（带频率限制，避免频繁遍历）
-        /// 同一个路径每24小时最多执行一次
+        /// 判断日期文件夹是否过期（根据文件夹名称判断，避免遍历文件）
         /// </summary>
-        private void TryRemoveOldImagesAsync(string baseDirectoryPath, int saveDays)
+        /// <param name="folderName">文件夹名称，期望格式 yyyyMMdd</param>
+        /// <param name="cutoffDate">截止日期</param>
+        /// <returns>是否过期</returns>
+        private bool IsDateFolderExpired(string folderName, DateTime cutoffDate)
         {
-            Task.Run(() =>
+            // 跳过不符合日期格式的文件夹
+            if (string.IsNullOrEmpty(folderName) || folderName.Length != 8)
+                return false;
+
+            // 尝试解析日期
+            if (DateTime.TryParseExact(folderName, "yyyyMMdd", null, DateTimeStyles.None, out DateTime folderDate))
             {
-                lock (_deleteLock)
-                {
-                    // 检查该路径是否在24小时内执行过删除
-                    if (_lastDeleteTimes.TryGetValue(baseDirectoryPath, out DateTime lastTime))
-                    {
-                        if ((DateTime.Now - lastTime).TotalHours < 0.01)
-                        {
-                            return;
-                        }
-                    }
+                return folderDate < cutoffDate;
+            }
 
-                    // 更新该路径的最后删除时间
-                    _lastDeleteTimes[baseDirectoryPath] = DateTime.Now;
-
-                    RemoveOldImages(baseDirectoryPath, saveDays);
-                }
-            });
+            return false;
         }
 
-        private void RemoveFilesFromDirectory(string directoryPath, DateTime cutoffDate)
+        /// <summary>
+        /// 删除目录下的过期文件（分批执行，每100个文件让出一次CPU）
+        /// </summary>
+        private void DeleteExpiredFilesInDirectory(string directoryPath, DateTime cutoffDate)
         {
+            int processedCount = 0;
             try
             {
-                foreach (var file in Directory.GetFiles(directoryPath))
+                foreach (var file in Directory.EnumerateFiles(directoryPath))
                 {
                     try
                     {
@@ -508,11 +782,40 @@ namespace Plugin.SaveImage.ViewModels
                     {
                         Logger.AddLog($"删除文件失败: {file}, 错误: {ex.Message}", eMsgType.Warn);
                     }
+
+                    // 每处理100个文件让出一次CPU
+                    processedCount++;
+                    if (processedCount % 100 == 0)
+                    {
+                        Thread.Sleep(10);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Logger.AddLog($"访问目录失败: {directoryPath}, 错误: {ex.Message}", eMsgType.Warn);
+            }
+        }
+
+        /// <summary>
+        /// 删除空目录（如果目录下没有文件也没有子目录）
+        /// </summary>
+        private void DeleteEmptyDirectory(string directoryPath)
+        {
+            try
+            {
+                if (Directory.Exists(directoryPath))
+                {
+                    if (Directory.GetFiles(directoryPath).Length == 0 &&
+                        Directory.GetDirectories(directoryPath).Length == 0)
+                    {
+                        Directory.Delete(directoryPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"删除空目录失败: {directoryPath}, 错误: {ex.Message}", eMsgType.Warn);
             }
         }
 
@@ -870,17 +1173,25 @@ namespace Plugin.SaveImage.ViewModels
 
                         if (!string.IsNullOrEmpty(directoryPath) && Directory.Exists(directoryPath))
                         {
-                            // 异步执行删除，避免阻塞UI线程
+                            // ========== 改进版：立即返回，不等待删除完成 ==========
+                            // 先立即提示用户删除已开始
+                            MessageBox.Show($"已在文件夹 {linkFolderName} 中启动后台删除，请稍候...", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                            // 异步执行删除，在后台线程执行
                             Task.Run(() =>
                             {
-                                lock (_deleteLock)
+                                try
                                 {
-                                    RemoveOldImages(directoryPath, SaveDay);
+                                    lock (_deleteLock)
+                                    {
+                                        RemoveOldImagesBatched(directoryPath, SaveDay);
+                                    }
+                                    Logger.AddLog($"手动删除完成，路径: {directoryPath}", eMsgType.Info);
                                 }
-                                Application.Current.Dispatcher.Invoke(() =>
+                                catch (Exception ex)
                                 {
-                                    MessageBox.Show($"已在文件夹 {linkFolderName} 中完成手动删除");
-                                });
+                                    Logger.AddLog($"手动删除失败: {ex.Message}", eMsgType.Error);
+                                }
                             });
                         }
                         else

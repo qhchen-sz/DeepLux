@@ -94,63 +94,61 @@ namespace Plugin.MPHA.ViewModels
                 {
 
 
-/*                    HObject Region1 = new HObject();
-                    HObject Region2 = new HObject();
-                    if(SelectedROIType == RoiParaType.区域)
-                    {
-                        HOperatorSet.GenEmptyObj(out HObject Region1_1);
-                        HOperatorSet.GenEmptyObj(out HObject Region1_2);
-                        HOperatorSet.GenEmptyObj(out HObject Region1_3);
-                        HOperatorSet.GenEmptyObj(out HObject Region1_4);
-                        if (GetLinkValue(TopSurfaceRegionText1) is HObject tem1)
-                        {
-                            Region1_1 = tem1;
-                        }
-                        if (GetLinkValue(TopSurfaceRegionText2) is HObject tem2)
-                        {
-                            Region1_2 = tem2;
-                        }
-                        if (GetLinkValue(TopSurfaceRegionText3) is HObject tem3)
-                        {
-                            Region1_3 = tem3;
-                        }
-                        if (GetLinkValue(TopSurfaceRegionText4) is HObject tem4)
-                        {
-                            Region1_4 = tem4;
-                        }
-                        //HObject Region1_2 = (HObject)GetLinkValue(TopSurfaceRegionText2);
-                        //HObject Region1_3 = (HObject)GetLinkValue(TopSurfaceRegionText3);
-                        //HObject Region1_4 = (HObject)GetLinkValue(TopSurfaceRegionText4);
-                        HOperatorSet.Union2(Region1_1, Region1_2, out Region1);
-                        HOperatorSet.Union2(Region1_3, Region1, out Region1);
-                        HOperatorSet.Union2(Region1_4, Region1, out Region1);
+                    /*                    HObject Region1 = new HObject();
+                                        HObject Region2 = new HObject();
+                                        if(SelectedROIType == RoiParaType.区域)
+                                        {
+                                            HOperatorSet.GenEmptyObj(out HObject Region1_1);
+                                            HOperatorSet.GenEmptyObj(out HObject Region1_2);
+                                            HOperatorSet.GenEmptyObj(out HObject Region1_3);
+                                            HOperatorSet.GenEmptyObj(out HObject Region1_4);
+                                            if (GetLinkValue(TopSurfaceRegionText1) is HObject tem1)
+                                            {
+                                                Region1_1 = tem1;
+                                            }
+                                            if (GetLinkValue(TopSurfaceRegionText2) is HObject tem2)
+                                            {
+                                                Region1_2 = tem2;
+                                            }
+                                            if (GetLinkValue(TopSurfaceRegionText3) is HObject tem3)
+                                            {
+                                                Region1_3 = tem3;
+                                            }
+                                            if (GetLinkValue(TopSurfaceRegionText4) is HObject tem4)
+                                            {
+                                                Region1_4 = tem4;
+                                            }
+                                            //HObject Region1_2 = (HObject)GetLinkValue(TopSurfaceRegionText2);
+                                            //HObject Region1_3 = (HObject)GetLinkValue(TopSurfaceRegionText3);
+                                            //HObject Region1_4 = (HObject)GetLinkValue(TopSurfaceRegionText4);
+                                            HOperatorSet.Union2(Region1_1, Region1_2, out Region1);
+                                            HOperatorSet.Union2(Region1_3, Region1, out Region1);
+                                            HOperatorSet.Union2(Region1_4, Region1, out Region1);
 
-                        Region2 = (HObject)GetLinkValue(NailSurfaceRegionText);
-                    }
-                    else if(SelectedROIType == RoiParaType.数组)
-                    {
-                        int.TryParse( GetLinkValue(TopSurfaceXText).ToString(),out int TopSurfaceX);
-                        int.TryParse(GetLinkValue(TopSurfaceYText).ToString(), out int TopSurfaceY);
-                        int.TryParse(GetLinkValue(TopSurfaceWidthText).ToString(), out int TopSurfaceWidth);
-                        int.TryParse(GetLinkValue(TopSurfaceHeightText).ToString(), out int TopSurfaceHeight);
+                                            Region2 = (HObject)GetLinkValue(NailSurfaceRegionText);
+                                        }
+                                        else if(SelectedROIType == RoiParaType.数组)
+                                        {
+                                            // [已注释] 顶盖区域 - 数组模式
+                                            // int.TryParse( GetLinkValue(TopSurfaceXText).ToString(),out int TopSurfaceX);
+                                            // int.TryParse(GetLinkValue(TopSurfaceYText).ToString(), out int TopSurfaceY);
+                                            // int.TryParse(GetLinkValue(TopSurfaceWidthText).ToString(), out int TopSurfaceWidth);
+                                            // int.TryParse(GetLinkValue(TopSurfaceHeightText).ToString(), out int TopSurfaceHeight);
 
-                        int.TryParse(GetLinkValue(NailSurfaceX1Text).ToString(), out int NailSurfaceX1);
-                        int.TryParse(GetLinkValue(NailSurfaceY1Text).ToString(), out int NailSurfaceY1);
-                        int.TryParse(GetLinkValue(NailSurfaceX2Text).ToString(), out int NailSurfaceX2);
-                        int.TryParse(GetLinkValue(NailSurfaceY2Text).ToString(), out int NailSurfaceY2);
+                                            // [已注释] 钉面区域 - 左上/右下角模式 (4参数)
+                                            // int.TryParse(GetLinkValue(NailSurfaceX1Text).ToString(), out int NailSurfaceX1);
+                                            // int.TryParse(GetLinkValue(NailSurfaceY1Text).ToString(), out int NailSurfaceY1);
+                                            // int.TryParse(GetLinkValue(NailSurfaceX2Text).ToString(), out int NailSurfaceX2);
+                                            // int.TryParse(GetLinkValue(NailSurfaceY2Text).ToString(), out int NailSurfaceY2);
 
-                        HOperatorSet.GetImageSize(DispImage,out HTuple width,out HTuple height);
-                        HOperatorSet.GenRectangle1(out HObject Region1_1, TopSurfaceY, TopSurfaceX, TopSurfaceY+TopSurfaceHeight, TopSurfaceX+TopSurfaceWidth);
-                        HOperatorSet.GenRectangle1(out HObject Region1_2, TopSurfaceY, width- TopSurfaceX- TopSurfaceWidth, TopSurfaceY + TopSurfaceHeight, width - TopSurfaceX);
-                        HOperatorSet.GenRectangle1(out HObject Region1_3, height - TopSurfaceY- TopSurfaceHeight, width - TopSurfaceX - TopSurfaceWidth, height - TopSurfaceY, width - TopSurfaceX);
-                        HOperatorSet.GenRectangle1(out HObject Region1_4, height - TopSurfaceY - TopSurfaceHeight, TopSurfaceX, height - TopSurfaceY, TopSurfaceX + TopSurfaceWidth);
+                                            // [当前] 钉面区域 - 中心点模式 (2参数)
+                                            float.TryParse(GetLinkValue(NailSurfaceXText).ToString(), out float NailSurfaceX);
+                                            float.TryParse(GetLinkValue(NailSurfaceYText).ToString(), out float NailSurfaceY);
 
-                        HOperatorSet.Union2(Region1_1, Region1_2, out Region1);
-                        HOperatorSet.Union2(Region1_3, Region1, out Region1);
-                        HOperatorSet.Union2(Region1_4, Region1, out Region1);
-                        HOperatorSet.GenRectangle1(out Region2, NailSurfaceY1, NailSurfaceX1, NailSurfaceY2, NailSurfaceX2);
-                    }
-*/
+                                            // 使用 Central_Plane_Size 作为钉面区域尺寸
+                                            HOperatorSet.GenRectangle2(out Region2, NailSurfaceY, NailSurfaceX, Central_Plane_Size, Central_Plane_Size);
+                                        }
+                    */
                     //        HOperatorSet.Connection(Region1, out HObject hObject);
                     //        HOperatorSet.AreaCenter(hObject, out HTuple area, out HTuple Y, out HTuple X);
                     //        HOperatorSet.GetGrayval(DispImage.Decompose2(out HImage temp), Y, X, out HTuple Z);
@@ -169,6 +167,10 @@ namespace Plugin.MPHA.ViewModels
                     //            ChangeModuleRunStatus(eRunStatus.NG);
                     //            return false;
                     //        }
+
+                    // [当前] 钉面区域 - 中心点模式 (2参数)
+                    float.TryParse(GetLinkValue(NailSurfaceXText).ToString(), out float NailSurfaceX);
+                    float.TryParse(GetLinkValue(NailSurfaceYText).ToString(), out float NailSurfaceY);
                     MPHA.HalconToImgPara(DispImage, out MPHA.ImgPara img_para);
 
 
@@ -183,6 +185,8 @@ namespace Plugin.MPHA.ViewModels
                         distance_threshold = MPDistance_Threshold,//噪声阈值
                         min_planar_points = MPMin_Planar_Points,//最小面需要多少点
                         down_sample_size = Down_Sample_Size,//降采样尺寸
+                        centerX = NailSurfaceX,//中心点X坐标
+                        centerY = NailSurfaceY,//中心点Y坐标
                     };
                     MPHA.ResultParaPindisk result;
                     //MPHA.TiffPara tiff_para;
@@ -258,181 +262,212 @@ namespace Plugin.MPHA.ViewModels
             }
         }
 
-        private string _TopSurfaceRegionText1;
+        // [已注释] 顶盖区域 - 区域模式
+        // private string _TopSurfaceRegionText1;
+        // /// <summary>
+        // /// 输入顶盖区域链接文本
+        // /// </summary>
+        // public string TopSurfaceRegionText1
+        // {
+        //     get { return _TopSurfaceRegionText1; }
+        //     set
+        //     {
+        //         _TopSurfaceRegionText1 = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+        // private string _TopSurfaceRegionText2;
+        // /// <summary>
+        // /// 输入顶盖区域链接文本
+        // /// </summary>
+        // public string TopSurfaceRegionText2
+        // {
+        //     get { return _TopSurfaceRegionText2; }
+        //     set
+        //     {
+        //         _TopSurfaceRegionText2 = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+        // private string _TopSurfaceRegionText3;
+        // /// <summary>
+        // /// 输入顶盖区域链接文本
+        // /// </summary>
+        // public string TopSurfaceRegionText3
+        // {
+        //     get { return _TopSurfaceRegionText3; }
+        //     set
+        //     {
+        //         _TopSurfaceRegionText3 = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+        // private string _TopSurfaceRegionText4;
+        // /// <summary>
+        // /// 输入顶盖区域链接文本
+        // /// </summary>
+        // public string TopSurfaceRegionText4
+        // {
+        //     get { return _TopSurfaceRegionText4; }
+        //     set
+        //     {
+        //         _TopSurfaceRegionText4 = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+        // private string _NailSurfaceRegionText;
+        // /// <summary>
+        // /// 输入钉面区域链接文本
+        // /// </summary>
+        // public string NailSurfaceRegionText
+        // {
+        //     get { return _NailSurfaceRegionText; }
+        //     set
+        //     {
+        //         _NailSurfaceRegionText = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // [已注释] 顶盖区域 - 数组模式
+        // private string _TopSurfaceXText="10";
+        // /// <summary>
+        // /// 输入顶盖数组链接文本
+        // /// </summary>
+        // public string TopSurfaceXText
+        // {
+        //     get { return _TopSurfaceXText; }
+        //     set
+        //     {
+        //         _TopSurfaceXText = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _TopSurfaceYText="10";
+        // /// <summary>
+        // /// 输入顶盖数组链接文本
+        // /// </summary>
+        // public string TopSurfaceYText
+        // {
+        //     get { return _TopSurfaceYText; }
+        //     set
+        //     {
+        //         _TopSurfaceYText = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _TopSurfaceWidthText = "50";
+        // /// <summary>
+        // /// 输入顶盖数组链接文本
+        // /// </summary>
+        // public string TopSurfaceWidthText
+        // {
+        //     get { return _TopSurfaceWidthText; }
+        //     set
+        //     {
+        //         _TopSurfaceWidthText = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _TopSurfaceHeightText = "50";
+        // /// <summary>
+        // /// 输入顶盖数组链接文本
+        // /// </summary>
+        // public string TopSurfaceHeightText
+        // {
+        //     get { return _TopSurfaceHeightText; }
+        //     set
+        //     {
+        //         _TopSurfaceHeightText = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // [已注释] 钉面区域 - 左上/右下角模式 (4参数)
+        // private string _NailSurfaceX1Text = "269";
+        // /// <summary>
+        // /// 输入钉面数组链接文本 - 左上角X
+        // /// </summary>
+        // public string NailSurfaceX1Text
+        // {
+        //     get { return _NailSurfaceX1Text; }
+        //     set
+        //     {
+        //         _NailSurfaceX1Text = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _NailSurfaceY1Text = "286";
+        // /// <summary>
+        // /// 输入钉面数组链接文本 - 左上角Y
+        // /// </summary>
+        // public string NailSurfaceY1Text
+        // {
+        //     get { return _NailSurfaceY1Text; }
+        //     set
+        //     {
+        //         _NailSurfaceY1Text = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _NailSurfaceX2Text = "348";
+        // /// <summary>
+        // /// 输入钉面数组链接文本 - 右下角X
+        // /// </summary>
+        // public string NailSurfaceX2Text
+        // {
+        //     get { return _NailSurfaceX2Text; }
+        //     set
+        //     {
+        //         _NailSurfaceX2Text = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // private string _NailSurfaceY2Text = "349";
+        // /// <summary>
+        // /// 输入钉面数组链接文本 - 右下角Y
+        // /// </summary>
+        // public string NailSurfaceY2Text
+        // {
+        //     get { return _NailSurfaceY2Text; }
+        //     set
+        //     {
+        //         _NailSurfaceY2Text = value;
+        //         RaisePropertyChanged();
+        //     }
+        // }
+
+        // [当前] 钉面区域 - 中心点模式 (2参数)
+        private string _NailSurfaceXText = "269";
         /// <summary>
-        /// 输入顶盖区域链接文本
+        /// 输入钉面区域链接文本 - 中心点X坐标
         /// </summary>
-        public string TopSurfaceRegionText1
+        public string NailSurfaceXText
         {
-            get { return _TopSurfaceRegionText1; }
+            get { return _NailSurfaceXText; }
             set
             {
-                _TopSurfaceRegionText1 = value;
-                RaisePropertyChanged();
-            }
-        }
-        private string _TopSurfaceRegionText2;
-        /// <summary>
-        /// 输入顶盖区域链接文本
-        /// </summary>
-        public string TopSurfaceRegionText2
-        {
-            get { return _TopSurfaceRegionText2; }
-            set
-            {
-                _TopSurfaceRegionText2 = value;
-                RaisePropertyChanged();
-            }
-        }
-        private string _TopSurfaceRegionText3;
-        /// <summary>
-        /// 输入顶盖区域链接文本
-        /// </summary>
-        public string TopSurfaceRegionText3
-        {
-            get { return _TopSurfaceRegionText3; }
-            set
-            {
-                _TopSurfaceRegionText3 = value;
-                RaisePropertyChanged();
-            }
-        }
-        private string _TopSurfaceRegionText4;
-        /// <summary>
-        /// 输入顶盖区域链接文本
-        /// </summary>
-        public string TopSurfaceRegionText4
-        {
-            get { return _TopSurfaceRegionText4; }
-            set
-            {
-                _TopSurfaceRegionText4 = value;
-                RaisePropertyChanged();
-            }
-        }
-        private string _NailSurfaceRegionText;
-        /// <summary>
-        /// 输入钉面区域链接文本
-        /// </summary>
-        public string NailSurfaceRegionText
-        {
-            get { return _NailSurfaceRegionText; }
-            set
-            {
-                _NailSurfaceRegionText = value;
+                _NailSurfaceXText = value;
                 RaisePropertyChanged();
             }
         }
 
-        private string _TopSurfaceXText="10";
+        private string _NailSurfaceYText = "286";
         /// <summary>
-        /// 输入顶盖数组链接文本
+        /// 输入钉面区域链接文本 - 中心点Y坐标
         /// </summary>
-        public string TopSurfaceXText
+        public string NailSurfaceYText
         {
-            get { return _TopSurfaceXText; }
+            get { return _NailSurfaceYText; }
             set
             {
-                _TopSurfaceXText = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _TopSurfaceYText="10";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string TopSurfaceYText
-        {
-            get { return _TopSurfaceYText; }
-            set
-            {
-                _TopSurfaceYText = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _TopSurfaceWidthText = "50";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string TopSurfaceWidthText
-        {
-            get { return _TopSurfaceWidthText; }
-            set
-            {
-                _TopSurfaceWidthText = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _TopSurfaceHeightText = "50";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string TopSurfaceHeightText
-        {
-            get { return _TopSurfaceHeightText; }
-            set
-            {
-                _TopSurfaceHeightText = value;
-                RaisePropertyChanged();
-            }
-        }
-
-
-        private string _NailSurfaceX1Text = "269";
-        /// <summary>
-        /// 输入钉面数组链接文本
-        /// </summary>
-        public string NailSurfaceX1Text
-        {
-            get { return _NailSurfaceX1Text; }
-            set
-            {
-                _NailSurfaceX1Text = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _NailSurfaceY1Text = "286";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string NailSurfaceY1Text
-        {
-            get { return _NailSurfaceY1Text; }
-            set
-            {
-                _NailSurfaceY1Text = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _NailSurfaceX2Text = "348";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string NailSurfaceX2Text
-        {
-            get { return _NailSurfaceX2Text; }
-            set
-            {
-                _NailSurfaceX2Text = value;
-                RaisePropertyChanged();
-            }
-        }
-
-        private string _NailSurfaceY2Text = "349";
-        /// <summary>
-        /// 输入顶盖数组链接文本
-        /// </summary>
-        public string NailSurfaceY2Text
-        {
-            get { return _NailSurfaceY2Text; }
-            set
-            {
-                _NailSurfaceY2Text = value;
+                _NailSurfaceYText = value;
                 RaisePropertyChanged();
             }
         }
@@ -558,7 +593,7 @@ namespace Plugin.MPHA.ViewModels
             }
         }
 
-        private RoiParaType _SelectedROIType = RoiParaType.区域;
+        private RoiParaType _SelectedROIType = RoiParaType.数组;
         public RoiParaType SelectedROIType
         {
             get { return _SelectedROIType; }
@@ -609,32 +644,54 @@ namespace Plugin.MPHA.ViewModels
                 case eLinkCommand.InputImageLink:
                     InputImageLinkText = obj.LinkName;
                     break;
-                case eLinkCommand.TopSurfaceRegionLink1:
-                    TopSurfaceRegionText1 = obj.LinkName;
+                // [已注释] 顶盖区域 - 区域模式
+                // case eLinkCommand.TopSurfaceRegionLink1:
+                //     TopSurfaceRegionText1 = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceRegionLink2:
+                //     TopSurfaceRegionText2 = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceRegionLink3:
+                //     TopSurfaceRegionText3 = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceRegionLink4:
+                //     TopSurfaceRegionText4 = obj.LinkName;
+                //     break;
+                // case eLinkCommand.NailSurfaceRegionLink:
+                //     NailSurfaceRegionText = obj.LinkName;
+                //     break;
+                // [已注释] 顶盖区域 - 数组模式
+                // case eLinkCommand.TopSurfaceXTextLink:
+                //     TopSurfaceXText = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceYTextLink:
+                //     TopSurfaceYText = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceWidthTextLink:
+                //     TopSurfaceWidthText = obj.LinkName;
+                //     break;
+                // case eLinkCommand.TopSurfaceHeightTextLink:
+                //     TopSurfaceHeightText = obj.LinkName;
+                //     break;
+                // [已注释] 钉面区域 - 左上/右下角模式 (4参数)
+                // case eLinkCommand.NailSurfaceX1TextLink:
+                //     NailSurfaceX1Text = obj.LinkName;
+                //     break;
+                // case eLinkCommand.NailSurfaceY1TextLink:
+                //     NailSurfaceY1Text = obj.LinkName;
+                //     break;
+                // case eLinkCommand.NailSurfaceX2TextLink:
+                //     NailSurfaceX2Text = obj.LinkName;
+                //     break;
+                // case eLinkCommand.NailSurfaceY2TextLink:
+                //     NailSurfaceY2Text = obj.LinkName;
+                //     break;
+                // [当前] 钉面区域 - 中心点模式 (2参数)
+                case eLinkCommand.NailSurfaceXTextLink:
+                    NailSurfaceXText = obj.LinkName;
                     break;
-                case eLinkCommand.TopSurfaceRegionLink2:
-                    TopSurfaceRegionText2 = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceRegionLink3:
-                    TopSurfaceRegionText3 = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceRegionLink4:
-                    TopSurfaceRegionText4 = obj.LinkName;
-                    break;
-                case eLinkCommand.NailSurfaceRegionLink:
-                    NailSurfaceRegionText = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceXTextLink:
-                    TopSurfaceXText = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceYTextLink:
-                    TopSurfaceYText = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceWidthTextLink:
-                    TopSurfaceWidthText = obj.LinkName;
-                    break;
-                case eLinkCommand.TopSurfaceHeightTextLink:
-                    TopSurfaceHeightText = obj.LinkName;
+                case eLinkCommand.NailSurfaceYTextLink:
+                    NailSurfaceYText = obj.LinkName;
                     break;
                 default:
                     break;
@@ -659,57 +716,69 @@ namespace Plugin.MPHA.ViewModels
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},InputImageLink");
                                 break;
-                            case eLinkCommand.TopSurfaceRegionLink1:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink1");
+                            // [已注释] 顶盖区域 - 区域模式
+                            // case eLinkCommand.TopSurfaceRegionLink1:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink1");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceRegionLink2:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink2");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceRegionLink3:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink3");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceRegionLink4:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink4");
+                            //     break;
+                            // case eLinkCommand.NailSurfaceRegionLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceRegionLink");
+                            //     break;
+                            // [已注释] 顶盖区域 - 数组模式
+                            // case eLinkCommand.TopSurfaceXTextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceXTextLink");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceYTextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceYTextLink");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceWidthTextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceWidthTextLink");
+                            //     break;
+                            // case eLinkCommand.TopSurfaceHeightTextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceHeightTextLink");
+                            //     break;
+                            // [已注释] 钉面区域 - 左上/右下角模式 (4参数)
+                            // case eLinkCommand.NailSurfaceX1TextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceX1TextLink");
+                            //     break;
+                            // case eLinkCommand.NailSurfaceY1TextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceY1TextLink");
+                            //     break;
+                            // case eLinkCommand.NailSurfaceX2TextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceX2TextLink");
+                            //     break;
+                            // case eLinkCommand.NailSurfaceY2TextLink:
+                            //     CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
+                            //     EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceY2TextLink");
+                            //     break;
+                            // [当前] 钉面区域 - 中心点模式 (2参数)
+                            case eLinkCommand.NailSurfaceXTextLink:
+                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceXTextLink");
                                 break;
-                            case eLinkCommand.TopSurfaceRegionLink2:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink2");
-                                break;
-                            case eLinkCommand.TopSurfaceRegionLink3:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink3");
-                                break;
-                            case eLinkCommand.TopSurfaceRegionLink4:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceRegionLink4");
-                                break;
-                            case eLinkCommand.NailSurfaceRegionLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HRegion");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceRegionLink");
-                                break;
-                            case eLinkCommand.TopSurfaceXTextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceXTextLink");
-                                break;
-                            case eLinkCommand.TopSurfaceYTextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceYTextLink");
-                                break;
-                            case eLinkCommand.TopSurfaceWidthTextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceWidthTextLink");
-                                break;
-                            case eLinkCommand.TopSurfaceHeightTextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},TopSurfaceHeightTextLink");
-                                break;
-                            case eLinkCommand.NailSurfaceX1TextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceX1TextLink");
-                                break;
-                            case eLinkCommand.NailSurfaceY1TextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceY1TextLink");
-                                break;
-                            case eLinkCommand.NailSurfaceX2TextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceX2TextLink");
-                                break;
-                            case eLinkCommand.NailSurfaceY2TextLink:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceY2TextLink");
+                            case eLinkCommand.NailSurfaceYTextLink:
+                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},NailSurfaceYTextLink");
                                 break;
                             default:
                                 break;

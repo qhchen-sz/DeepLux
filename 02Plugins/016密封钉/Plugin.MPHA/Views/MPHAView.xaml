@@ -69,15 +69,18 @@
                         <Border Grid.Row="1">
                             <GroupBox Header="区域类型">
                                 <StackPanel Orientation="Horizontal" Margin="5 0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <!-- [已注释] 区域模式
                                     <RadioButton Content="区域" Margin="5 0"
                                          IsChecked="{Binding SelectedROIType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:RoiParaType.区域}}"/>
-                                    <RadioButton Content="数组" Margin="35 0"
-                                         IsChecked="{Binding SelectedROIType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:RoiParaType.数组}}"/>
+                                    -->
+                                    <RadioButton Content="数组" Margin="5 0" IsChecked="True"
+                                         IsEnabled="False"/>
                                 </StackPanel>
                             </GroupBox>
                         </Border>
                         <Border Grid.Row="2">
                             <StackPanel>
+                                <!-- [已注释] 区域模式 GroupBox
                                 <GroupBox Header="区域链接" Visibility="{Binding SelectedROIType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static vm:RoiParaType.区域}}">
                                     <StackPanel>
                                         <Expander Header="顶盖区域" IsExpanded="True">
@@ -118,9 +121,9 @@
                                                      mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.TopSurfaceRegionLink4}"/>
                                                 </StackPanel>
                                             </StackPanel>
-                                            
+
                                         </Expander>
-                                        
+
                                         <StackPanel Orientation="Horizontal" Margin="5 0">
                                             <TextBlock Text="输入钉面区域" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
@@ -131,8 +134,10 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </GroupBox>
+                                -->
                                 <GroupBox Header="数组链接" Visibility="{Binding SelectedROIType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static vm:RoiParaType.数组}}">
                                     <StackPanel>
+                                        <!-- [已注释] 顶盖区域 - 数组模式
                                         <Expander Header="输入顶盖区域" IsExpanded ="True">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="5 0">
@@ -171,8 +176,10 @@
                                                      mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.TopSurfaceHeightTextLink}"/>
                                                 </StackPanel>
                                             </StackPanel>
-   
+
                                         </Expander>
+                                        -->
+                                        <!-- [已注释] 钉面区域 - 左上/右下角模式 (4参数)
                                         <Expander Header="输入钉面区域" IsExpanded ="True">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="5 0">
@@ -209,6 +216,30 @@
                                                      Text="{Binding NailSurfaceY2Text}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
                                                      mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.NailSurfaceY2TextLink}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                        </Expander>
+                                        -->
+                                        <!-- [当前] 钉面区域 - 中心点模式 (2参数) -->
+                                        <Expander Header="输入钉面区域" IsExpanded ="True">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="5 0">
+                                                    <TextBlock Text="X" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     Text="{Binding NailSurfaceXText}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.NailSurfaceXTextLink}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" Margin="5 0">
+                                                    <TextBlock Text="Y" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     Text="{Binding NailSurfaceYText}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.NailSurfaceYTextLink}"/>
                                                 </StackPanel>
                                             </StackPanel>
 
