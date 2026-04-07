@@ -77,48 +77,94 @@ namespace Plugin.Blob.ViewModels
                     InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
             }
         }
+
         public override bool ExeModule()
         {
             Stopwatch.Restart();
             try
             {
                 #region 输出数据初始化
-                ResultRegion  = new HRegion(); ResultRegion.GenEmptyObj();
-                OutPutCount=0;
-                OutPutAreaAll=0;
-                OutPutArea=new List<double>();
+                ResultRegion = new HRegion(); ResultRegion.GenEmptyObj();
+                OutPutCount = 0;
+                OutPutAreaAll = 0;
+                OutPutArea = new List<double>();
                 OutPutX = new List<double>();
                 OutPutY = new List<double>();
                 OutPutRoundness = new List<double>();
                 OutPutRectangularity = new List<double>();
-                OutPutWidth=new List<double>();
-                OutPutHeight=new List<double>();
-                OutPutPhi= new List<double>();
-                if(IsOpenWindows)
+                OutPutWidth = new List<double>();
+                OutPutHeight = new List<double>();
+                OutPutPhi = new List<double>();
+                if (IsOpenWindows)
                     RegionResultParams = new ObservableCollection<RegionResultParams>();
                 #endregion
-                if (InputImageLinkText == null)
+
+                // 1. 检查输入图像链接是否为空
+                if (string.IsNullOrEmpty(InputImageLinkText))
                 {
+                    Logger.AddLog("斑点分析模块：输入图像链接为空");
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
+
+                // 2. 获取图像
+                GetDispImage(InputImageLinkText);
+
+                // 3. 验证图像对象有效性（关键：避免 HALCON #4056 异常）
+                if (DispImage == null)
+                {
+                    Logger.AddLog($"斑点分析模块：获取到的图像对象为空，链接：{InputImageLinkText}");
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
+                try
+                {
+                    HTuple width, height;
+                    DispImage.GetImageSize(out width, out height);
+                    if (width.I <= 0 || height.I <= 0)
+                        throw new Exception("图像尺寸无效");
+                }
+                catch (Exception ex)
+                {
+                   // Logger.AddLog($"斑点分析模块：输入图像无效（无法获取尺寸），链接：{InputImageLinkText}，错误：{ex.Message}");
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
                 if (m_PretreatHelp == null)
                     m_PretreatHelp = new PretreatHelp();
-                GetDispImage(InputImageLinkText);
-                if (DispImage == null )
-                {
-                    ChangeModuleRunStatus(eRunStatus.NG);
-                    return false;
-                }
+
                 HImage TempImage;
                 HRegion region = new HRegion();
                 HRegion regionThreshold = new HRegion();
-                if (SelectedROIType == eRoiType.ROI链接 && InputRoiLinkText != "")
-                    region = (HRegion)GetLinkValue(InputRoiLinkText);
-                else
-                    region = DispImage.GetDomain();
+
+                // 获取 ROI 区域（同样需要验证 ROI 链接的有效性，但 GetLinkValue 可能返回 null，需保护）
+                try
+                {
+                    if (SelectedROIType == eRoiType.ROI链接 && !string.IsNullOrEmpty(InputRoiLinkText))
+                    {
+                        var roiObj = GetLinkValue(InputRoiLinkText);
+                        if (roiObj is HRegion roiRegion && roiRegion != null && roiRegion.IsInitialized())
+                            region = roiRegion;
+                        else
+                            region = DispImage.GetDomain();
+                    }
+                    else
+                    {
+                        region = DispImage.GetDomain();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    //Logger.AddLog($"斑点分析模块：获取图像区域失败，图像无效，链接：{InputImageLinkText}，错误：{ex.Message}");
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
                 TempImage = DispImage.ReduceDomain(region);
                 regionThreshold = TempImage.Threshold((double)ThresholdMin, (double)ThresholdMax);
+
                 if (DispImage != null && DispImage.IsInitialized())
                 {
                     int i = 0;
@@ -182,7 +228,6 @@ namespace Plugin.Blob.ViewModels
                                     break;
                                 case eOperatorType.开运算:
                                     #region
-
                                     if (item.m_StructuralElements == eStructuralElements.矩形)
                                     {
                                         if (indexRegion < 0)
@@ -213,8 +258,6 @@ namespace Plugin.Blob.ViewModels
                                             m_PretreatHelp.OpeningCircle(m_ToolList[Convert.ToInt32(item.m_OpenIndex)].ResultRegion, item.m_OpenRadius, out outRegion);
                                         }
                                     }
-
-
                                     item.ResultRegion = new HRegion(outRegion);
                                     #endregion
                                     break;
@@ -301,7 +344,7 @@ namespace Plugin.Blob.ViewModels
                                     break;
                                 case eOperatorType.腐蚀:
                                     #region
-
+                                    // 修复：原代码中错误调用了 OpeningCircle/ErosionRectangle1，现已更正
                                     if (item.m_StructuralElements == eStructuralElements.矩形)
                                     {
                                         if (indexRegion < 0)
@@ -325,21 +368,19 @@ namespace Plugin.Blob.ViewModels
                                         }
                                         else if (item.m_ErosionIndex == "上一个区域")
                                         {
-                                            m_PretreatHelp.OpeningCircle(m_ToolList[indexRegion].ResultRegion, item.m_ErosionRadius, out outRegion);
+                                            m_PretreatHelp.ErosionCircle(m_ToolList[indexRegion].ResultRegion, item.m_ErosionRadius, out outRegion);
                                         }
                                         else
                                         {
-                                            m_PretreatHelp.OpeningCircle(m_ToolList[Convert.ToInt32(item.m_ErosionIndex)].ResultRegion, item.m_ErosionRadius, out outRegion);
+                                            m_PretreatHelp.ErosionCircle(m_ToolList[Convert.ToInt32(item.m_ErosionIndex)].ResultRegion, item.m_ErosionRadius, out outRegion);
                                         }
                                     }
-
-
                                     item.ResultRegion = new HRegion(outRegion);
                                     #endregion
                                     break;
                                 case eOperatorType.膨胀:
                                     #region
-
+                                    // 修复：原代码中错误调用了 OpeningCircle/ErosionRectangle1，现已更正
                                     if (item.m_StructuralElements == eStructuralElements.矩形)
                                     {
                                         if (indexRegion < 0)
@@ -348,30 +389,28 @@ namespace Plugin.Blob.ViewModels
                                         }
                                         else if (item.m_DilationIndex == "上一个区域")
                                         {
-                                            m_PretreatHelp.ErosionRectangle1(m_ToolList[indexRegion].ResultRegion, item.m_DilationWidth, item.m_DilationHeight, out outRegion);
+                                            m_PretreatHelp.DilationRectangle1(m_ToolList[indexRegion].ResultRegion, item.m_DilationWidth, item.m_DilationHeight, out outRegion);
                                         }
                                         else
                                         {
-                                            m_PretreatHelp.ErosionRectangle1(m_ToolList[Convert.ToInt32(item.m_DilationIndex)].ResultRegion, item.m_DilationWidth, item.m_DilationHeight, out outRegion);
+                                            m_PretreatHelp.DilationRectangle1(m_ToolList[Convert.ToInt32(item.m_DilationIndex)].ResultRegion, item.m_DilationWidth, item.m_DilationHeight, out outRegion);
                                         }
                                     }
                                     else
                                     {
                                         if (indexRegion < 0)
                                         {
-                                            m_PretreatHelp.ErosionCircle(regionThreshold, item.m_DilationRadius, out outRegion);
+                                            m_PretreatHelp.DilationCircle(regionThreshold, item.m_DilationRadius, out outRegion);
                                         }
                                         else if (item.m_DilationIndex == "上一个区域")
                                         {
-                                            m_PretreatHelp.OpeningCircle(m_ToolList[indexRegion].ResultRegion, item.m_DilationRadius, out outRegion);
+                                            m_PretreatHelp.DilationCircle(m_ToolList[indexRegion].ResultRegion, item.m_DilationRadius, out outRegion);
                                         }
                                         else
                                         {
-                                            m_PretreatHelp.OpeningCircle(m_ToolList[Convert.ToInt32(item.m_DilationIndex)].ResultRegion, item.m_DilationRadius, out outRegion);
+                                            m_PretreatHelp.DilationCircle(m_ToolList[Convert.ToInt32(item.m_DilationIndex)].ResultRegion, item.m_DilationRadius, out outRegion);
                                         }
                                     }
-
-
                                     item.ResultRegion = new HRegion(outRegion);
                                     #endregion
                                     break;
@@ -428,7 +467,6 @@ namespace Plugin.Blob.ViewModels
                                     break;
                                 case eOperatorType.闭运算:
                                     #region
-
                                     if (item.m_StructuralElements == eStructuralElements.矩形)
                                     {
                                         if (indexRegion < 0)
@@ -459,32 +497,30 @@ namespace Plugin.Blob.ViewModels
                                             m_PretreatHelp.ClosingCircle(m_ToolList[Convert.ToInt32(item.m_CloseIndex)].ResultRegion, item.m_CloseRadius, out outRegion);
                                         }
                                     }
-
-
                                     item.ResultRegion = new HRegion(outRegion);
                                     #endregion
                                     break;
                             }
-
                             i++;
                         }
+
+                        // 查找最后一个启用的工具，输出其结果
                         for (int J = m_ToolList.Count - 1; J >= 0; J--)
                         {
                             if (m_ToolList[J].m_enable)
                             {
                                 HTuple hTuple = new HTuple();
                                 List<string> list = new List<string>()
-                            {
-                                "area",
-                                "row",
-                                "column",
-                                "roundness",
-                                "rectangularity",
-                                "width",
-                                "height",
-                                "phi",
-
-                            };
+                                {
+                                    "area",
+                                    "row",
+                                    "column",
+                                    "roundness",
+                                    "rectangularity",
+                                    "width",
+                                    "height",
+                                    "phi",
+                                };
                                 foreach (var item in list)
                                 {
                                     hTuple.Append(item);
@@ -497,7 +533,6 @@ namespace Plugin.Blob.ViewModels
                                 {
                                     for (int j = 0; j < index; j++)
                                     {
-
                                         OutPutArea.Add(Math.Round(doubles[0 + 8 * j], 3));
                                         OutPutX.Add(Math.Round(doubles[2 + 8 * j], 3));
                                         OutPutY.Add(Math.Round(doubles[1 + 8 * j], 3));
@@ -521,7 +556,6 @@ namespace Plugin.Blob.ViewModels
                                                 Phi = Math.Round(doubles[7 + 8 * j] * Math.PI / 180, 3),
                                             });
                                         }
-                                        
                                     }
                                     ShowHRoi(
                                     new HRoi(
@@ -536,29 +570,25 @@ namespace Plugin.Blob.ViewModels
                                     OutPutAreaAll = Math.Round(m_ToolList[J].ResultRegion.Union1().RegionFeatures("area"), 3);
                                     ResultRegion = new HRegion(m_ToolList[J].ResultRegion);
                                 }
-                                
-
-
                                 break;
                             }
-
                         }
                     }
                     else
                     {
+                        // 没有工具时直接输出阈值分割结果
                         HTuple hTuple = new HTuple();
                         List<string> list = new List<string>()
-                            {
-                                "area",
-                                "row",
-                                "column",
-                                "roundness",
-                                "rectangularity",
-                                "width",
-                                "height",
-                                "phi",
-
-                            };
+                        {
+                            "area",
+                            "row",
+                            "column",
+                            "roundness",
+                            "rectangularity",
+                            "width",
+                            "height",
+                            "phi",
+                        };
                         foreach (var item in list)
                         {
                             hTuple.Append(item);
@@ -593,7 +623,6 @@ namespace Plugin.Blob.ViewModels
                                     Phi = Math.Round(doubles[7] * Math.PI / 180, 3),
                                 });
                             }
-                            
                         }
                         ShowHRoi(
                         new HRoi(
@@ -605,7 +634,7 @@ namespace Plugin.Blob.ViewModels
                             new HObject(regionThreshold)
                         ));
                     }
-                    
+
                     ShowHRoi();
                     ChangeModuleRunStatus(eRunStatus.OK);
                     return true;
@@ -623,6 +652,7 @@ namespace Plugin.Blob.ViewModels
                 return false;
             }
         }
+
         public override void AddOutputParams()
         {
             base.AddOutputParams();
@@ -644,15 +674,10 @@ namespace Plugin.Blob.ViewModels
             {
                 if (ResultRegion != null && ResultRegion.IsInitialized() && ResultRegion.Area > 0)
                 {
-                    // 先合并所有连通区域为一个整体区域
                     HRegion unionRegion;
                     m_PretreatHelp.Union1(ResultRegion, out unionRegion);
-
-                    // 计算合并后区域的最小外接矩形
                     HTuple row1, col1, row2, col2;
-                    // ResultRegion.SmallestRectangle1(out row1, out col1, out row2, out col2);
                     unionRegion.SmallestRectangle1(out row1, out col1, out row2, out col2);
-
                     if (row1.Length > 0 && col1.Length > 0)
                     {
                         double centerRow = Math.Round((row1.D + row2.D) / 2, 3);
@@ -665,7 +690,6 @@ namespace Plugin.Blob.ViewModels
                         AddOutputParam("结果中心X", "double", 0.0);
                         AddOutputParam("结果中心Y", "double", 0.0);
                     }
-                    // 释放资源
                     if (unionRegion != null) unionRegion.Dispose();
                 }
                 else
@@ -681,18 +705,13 @@ namespace Plugin.Blob.ViewModels
                 AddOutputParam("结果中心Y", "double", 0.0);
             }
         }
+
         #region Prop
         public PretreatHelp m_PretreatHelp = new PretreatHelp();
         public HRegion ResultRegion = new HRegion();
-        /// <summary>
-        /// 数据源
-        /// </summary>
         public ObservableCollection<ModelData> m_ToolList { get; set; } = new ObservableCollection<ModelData>();
 
         private string _InputImageLinkText;
-        /// <summary>
-        /// 输入图像链接文本
-        /// </summary>
         public string InputImageLinkText
         {
             get { return _InputImageLinkText; }
@@ -705,30 +724,27 @@ namespace Plugin.Blob.ViewModels
         }
 
         private ModelData _SelectedText = new ModelData();
-        /// <summary>
-        /// 选中的文本
-        /// </summary>
         public ModelData SelectedText
         {
             get { return _SelectedText; }
             set { Set(ref _SelectedText, value); }
         }
+
         private int _SelectedIndex;
-        /// <summary>
-        /// 选中的序号
-        /// </summary>
         public int SelectedIndex
         {
             get { return _SelectedIndex; }
             set { Set(ref _SelectedIndex, value); }
         }
+
         private bool _IsDisp = false;
         public bool IsDisp
         {
             get { return _IsDisp; }
             set { Set(ref _IsDisp, value); }
         }
-        private bool _ShowSearchRegion =true, _ShowResultRegion=true;
+
+        private bool _ShowSearchRegion = true, _ShowResultRegion = true;
         public bool ShowSearchRegion
         {
             get { return _ShowSearchRegion; }
@@ -739,7 +755,8 @@ namespace Plugin.Blob.ViewModels
             get { return _ShowResultRegion; }
             set { Set(ref _ShowResultRegion, value); }
         }
-        private int _ThresholdMin = 0, _ThresholdMax =255;
+
+        private int _ThresholdMin = 0, _ThresholdMax = 255;
         public int ThresholdMin
         {
             get { return _ThresholdMin; }
@@ -751,11 +768,7 @@ namespace Plugin.Blob.ViewModels
             set { Set(ref _ThresholdMax, value); }
         }
 
-        // ========== 阈值键盘调整功能 ==========
-        private bool _IsAdjustingMinThreshold = true;  // 默认调整下限
-        /// <summary>
-        /// 是否正在调整下限阈值（True=下限，False=上限）
-        /// </summary>
+        private bool _IsAdjustingMinThreshold = true;
         public bool IsAdjustingMinThreshold
         {
             get { return _IsAdjustingMinThreshold; }
@@ -768,15 +781,14 @@ namespace Plugin.Blob.ViewModels
             get { return _RegionResultParams; }
             set { _RegionResultParams = value; RaisePropertyChanged(); }
         }
+
         private int _CurrentRow;
         public int CurrentRow
         {
             get { return _CurrentRow; }
             set { _CurrentRow = value; }
         }
-        /// <summary>
-        /// 搜索区域源
-        /// </summary>
+
         private eRoiType _SelectedROIType = eRoiType.全图;
         public eRoiType SelectedROIType
         {
@@ -785,10 +797,10 @@ namespace Plugin.Blob.ViewModels
             {
                 Set(ref _SelectedROIType, value, new Action(() =>
                 {
-                    if(value== eRoiType.ROI链接 && InputRoiLinkText != null)
+                    if (value == eRoiType.ROI链接 && InputRoiLinkText != null)
                     {
                         HRegion region = (HRegion)GetLinkValue(InputRoiLinkText);
-                        if(ShowSearchRegion)
+                        if (ShowSearchRegion)
                             ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.搜索范围, "green", new HObject(region)));
                         ShowHRoi();
                     }
@@ -796,69 +808,37 @@ namespace Plugin.Blob.ViewModels
                     {
                         var view = ModuleView as PerProcessingView;
                         view.mWindowH.HobjectToHimage(DispImage);
-                        //ClearRoiAndText();
                     }
-
                 }));
             }
         }
 
         private string _InputRoiLinkText;
-        /// <summary>
-        /// 输入ROI链接文本
-        /// </summary>
         public string InputRoiLinkText
         {
             get { return _InputRoiLinkText; }
-            set { 
+            set
+            {
                 Set(ref _InputRoiLinkText, value);
                 HRegion region = (HRegion)GetLinkValue(_InputRoiLinkText);
-                if(ShowSearchRegion)
+                if (ShowSearchRegion)
                     ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.搜索范围, "green", new HObject(region)));
                 ShowHRoi();
             }
         }
-        /// <summary>
-        /// 输出面积数组
-        /// </summary>
+
         public List<double> OutPutArea = new List<double>();
-        /// <summary>
-        /// 输出X数组
-        /// </summary>
         public List<double> OutPutX = new List<double>();
-        /// <summary>
-        /// 输出Y数组
-        /// </summary>
         public List<double> OutPutY = new List<double>();
-        /// <summary>
-        /// 输出圆度数组
-        /// </summary>
         public List<double> OutPutRoundness = new List<double>();
-        /// <summary>
-        /// 输出矩形度数组
-        /// </summary>
         public List<double> OutPutRectangularity = new List<double>();
-        /// <summary>
-        /// 输出宽数组
-        /// </summary>
         public List<double> OutPutWidth = new List<double>();
-        /// <summary>
-        /// 输出高数组
-        /// </summary>
         public List<double> OutPutHeight = new List<double>();
-        /// <summary>
-        /// 输出角度数组
-        /// </summary>
         public List<double> OutPutPhi = new List<double>();
-        /// <summary>
-        /// 输出区域个数
-        /// </summary>
         public int OutPutCount = 0;
-        /// <summary>
-        /// 输出区域总面积
-        /// </summary>
         public double OutPutAreaAll = 0;
         #endregion
+
         #region command
         public override void InitModule()
         {
@@ -867,6 +847,7 @@ namespace Plugin.Blob.ViewModels
                 item.ResultRegion = new HRegion();
             }
         }
+
         public override void Loaded()
         {
             base.Loaded();
@@ -882,18 +863,30 @@ namespace Plugin.Blob.ViewModels
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     SetDefaultLink();
-                    if (InputImageLinkText == null) return;
+                    if (string.IsNullOrEmpty(InputImageLinkText)) return;
                 }
                 GetDispImage(InputImageLinkText);
-                if (SelectedROIType == eRoiType.ROI链接 && InputRoiLinkText != null)
+                if (DispImage == null)
                 {
-                    HRegion region = (HRegion)GetLinkValue(InputRoiLinkText);
-                    if(ShowSearchRegion)
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.搜索范围, "green", new HObject(region)));
-                    ShowHRoi();
+                    Logger.AddLog("斑点分析模块加载失败：输入图像无效");
+                    return;
+                }
+                try
+                {
+                    HTuple width, height;
+                    DispImage.GetImageSize(out width, out height);
+                    if (width.I <= 0 || height.I <= 0)
+                        throw new Exception();
+                }
+                catch (Exception ex)
+                {
+                    Logger.GetExceptionMsg(ex);
+                    Logger.AddLog("斑点分析模块：输入图像无效或未初始化");
+                    return;
                 }
             }
         }
+
         [NonSerialized]
         private CommandBase _ExecuteCommand;
         public CommandBase ExecuteCommand
@@ -905,20 +898,12 @@ namespace Plugin.Blob.ViewModels
                     _ExecuteCommand = new CommandBase((obj) =>
                     {
                         ExeModule();
-                        var view = ModuleView as PerProcessingView;
-                        if (view == null) return;
-                        //if (m_outImage != null && m_outImage.IsInitialized())
-                        //{
-                        //    view.mWindowH.HobjectToHimage(m_outImage);
-                        //    if(SelectedROIType == eRoiType.ROI链接 && InputRoiLinkText != "")
-                        //        ShowHRoi();
-                        //    m_outImage = null;
-                        //}
                     });
                 }
                 return _ExecuteCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _ComposeCommand;
         public CommandBase ComposeCommand
@@ -929,19 +914,12 @@ namespace Plugin.Blob.ViewModels
                 {
                     _ComposeCommand = new CommandBase((obj) =>
                     {
-                        //ExeModule();
-                        var view = ModuleView as PerProcessingView;
-                        if (view == null) return;
-                        //if (m_InImage != null && m_InImage.IsInitialized())
-                        //{
-                        //    view.mWindowH.Image = new RImage(m_InImage);
-                        //}
+                        // 预留
                     });
                 }
                 return _ComposeCommand;
             }
         }
-
 
         [NonSerialized]
         private CommandBase _ConfirmCommand;
@@ -963,6 +941,7 @@ namespace Plugin.Blob.ViewModels
                 return _ConfirmCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _DataOperateCommand;
         public CommandBase DataOperateCommand
@@ -977,12 +956,6 @@ namespace Plugin.Blob.ViewModels
                         if (sArray.Length == 2)
                         {
                             Add((eOperatorType)Enum.Parse(typeof(eOperatorType), sArray[1]));
-                            //m_ToolList.Add(new ModelData()
-                            //{
-                            //    m_name = (eOperatorType)Enum.Parse(typeof(eOperatorType), sArray[1]),
-                            //    m_id = m_ToolList.Count()
-                            //}) ;
-                            //IsDisp = true;
                         }
                         else
                         {
@@ -991,7 +964,7 @@ namespace Plugin.Blob.ViewModels
                                 case "remove":
                                     if (SelectedText == null) return;
                                     m_ToolList.Remove(SelectedText);
-                                    if(m_ToolList.Count==0)
+                                    if (m_ToolList.Count == 0)
                                         IsDisp = false;
                                     upset();
                                     break;
@@ -1009,7 +982,6 @@ namespace Plugin.Blob.ViewModels
                                         m_ToolList.Move(j, j + 1);
                                     upset();
                                     break;
-
                                 default:
                                     break;
                             }
@@ -1024,7 +996,6 @@ namespace Plugin.Blob.ViewModels
         private void upset()
         {
             List<string> list = new List<string>() { "上一个区域" };
-
             for (int i = 0; i < m_ToolList.Count; i++)
             {
                 list = new List<string>() { "上一个区域" };
@@ -1095,8 +1066,8 @@ namespace Plugin.Blob.ViewModels
                         break;
                 }
             }
-
         }
+
         private void Add(eOperatorType type)
         {
             List<string> list = new List<string>() { "上一个区域" };
@@ -1121,7 +1092,7 @@ namespace Plugin.Blob.ViewModels
                         m_id = m_ToolList.Count(),
                         Union1Index = list.ToArray(),
                         ResultRegion = new HRegion()
-                    }) ;
+                    });
                     break;
                 case eOperatorType.补集:
                     m_ToolList.Add(new ModelData()
@@ -1236,9 +1207,9 @@ namespace Plugin.Blob.ViewModels
                 default:
                     break;
             }
-
             IsDisp = true;
         }
+
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             switch (obj.SendName.Split(',')[1])
@@ -1256,6 +1227,7 @@ namespace Plugin.Blob.ViewModels
                     break;
             }
         }
+
         [NonSerialized]
         private CommandBase _LinkCommand;
         public CommandBase LinkCommand
@@ -1264,7 +1236,6 @@ namespace Plugin.Blob.ViewModels
             {
                 if (_LinkCommand == null)
                 {
-                    //以GUID+类名作为筛选器
                     EventMgr.Ins.GetEvent<VarChangedEvent>().Subscribe(OnVarChanged, o => o.SendName.StartsWith($"{ModuleGuid}"));
                     _LinkCommand = new CommandBase((obj) =>
                     {
@@ -1282,7 +1253,6 @@ namespace Plugin.Blob.ViewModels
                             default:
                                 break;
                         }
-
                     });
                 }
                 return _LinkCommand;
@@ -1303,6 +1273,5 @@ namespace Plugin.Blob.ViewModels
         public double Width { get; set; }
         public double Height { get; set; }
         public double Phi { get; set; }
-
     }
 }

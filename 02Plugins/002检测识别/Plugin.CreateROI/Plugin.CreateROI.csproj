@@ -71,35 +71,27 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ControlzEx, Version=5.0.0.0, Culture=neutral, PublicKeyToken=69f1c32f803d307e, processorArchitecture=MSIL">
-      <HintPath>..\Dll\ControlzEx.dll</HintPath>
+      <HintPath>..\..\Dll\ControlzEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\EventMgrLib.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="EventMgrLib">
+      <HintPath>..\..\Dll\EventMgrLib.dll</HintPath>
     </Reference>
     <Reference Include="halcondotnet, Version=20.11.1.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\03_halcon\HALCON-23.11-Progress\bin\dotnet35\halcondotnet.dll</HintPath>
+      <HintPath>..\..\Dll\halcondotnet.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="HandyControl, Version=3.5.1.0, Culture=neutral, PublicKeyToken=45be8712787a1e5b, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\packages\HandyControl.3.4.0\lib\net472\HandyControl.dll</HintPath>
     </Reference>
-    <Reference Include="HV, Version=1.101.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="HV, Version=1.101.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\00Exe\HV.exe</HintPath>
+      <HintPath>..\..\Dll\HV.exe</HintPath>
     </Reference>
-    <Reference Include="MahApps.Metro, Version=2.0.0.0, Culture=neutral, PublicKeyToken=51482d6f650b2b3f, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\MahApps.Metro.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.Xaml.Behaviors, Version=1.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\DLL\Microsoft.Xaml.Behaviors.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="MahApps.Metro">
+      <HintPath>..\..\Dll\MahApps.Metro.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />

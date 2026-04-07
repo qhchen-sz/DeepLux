@@ -72,46 +72,37 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ControlzEx, Version=5.0.0.0, Culture=neutral, PublicKeyToken=69f1c32f803d307e, processorArchitecture=MSIL">
-      <HintPath>..\DLL\ControlzEx.dll</HintPath>
+      <HintPath>..\..\Dll\ControlzEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\EventMgrLib.dll</HintPath>
+      <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="halcondotnet, Version=20.11.1.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\03_halcon\HALCON-23.11-Progress\bin\dotnet35\halcondotnet.dll</HintPath>
+      <HintPath>..\..\Dll\halcondotnet.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="HandyControl, Version=3.4.0.0, Culture=neutral, PublicKeyToken=45be8712787a1e5b, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\HandyControl.3.4.0\lib\net472\HandyControl.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="HV, Version=1.101.0.0, Culture=neutral, processorArchitecture=AMD64">
+    <Reference Include="HV, Version=1.101.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\DLL\HV.exe</HintPath>
+      <HintPath>..\..\..\00Exe\HV.exe</HintPath>
     </Reference>
     <Reference Include="MahApps.Metro, Version=2.0.0.0, Culture=neutral, PublicKeyToken=51482d6f650b2b3f, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\MahApps.Metro.dll</HintPath>
+      <HintPath>..\..\..\00Exe\MahApps.Metro.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Microsoft.WindowsAPICodePack, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\DLL\Microsoft.WindowsAPICodePack.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.WindowsAPICodePack.Shell, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\DLL\Microsoft.WindowsAPICodePack.Shell.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.WindowsAPICodePack.ShellExtensions, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\DLL\Microsoft.WindowsAPICodePack.ShellExtensions.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="Microsoft.WindowsAPICodePack">
+      <HintPath>..\..\Dll\Microsoft.WindowsAPICodePack.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Xaml.Behaviors, Version=1.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\DLL\Microsoft.Xaml.Behaviors.dll</HintPath>
+      <HintPath>..\..\Dll\Microsoft.Xaml.Behaviors.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -135,7 +126,7 @@
     </Reference>
     <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\DLL\VM.Halcon.dll</HintPath>
+      <HintPath>..\..\..\Dll\VM.Halcon.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="WindowsBase" />

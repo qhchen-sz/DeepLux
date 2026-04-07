@@ -1,31 +1,14 @@
-﻿using DMSkin.Socket;
-using EventMgrLib;
-using HalconDotNet;
-using HandyControl.Controls;
-using Microsoft.Win32;
-using Microsoft.WindowsAPICodePack.Dialogs;
-using Plugin.NPointCal.Views;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Data;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web.ModelBinding;
-using System.Web.UI.WebControls.Expressions;
-using System.Windows.Controls;
-using System.Windows.Forms;
 using System.Windows.Input;
-using System.Xml.Linq;
-using VM.Halcon;
-using VM.Halcon.Config;
-using VM.Halcon.Model;
+using EventMgrLib;
+using HalconDotNet;
 using HV.Attributes;
 using HV.Common;
 using HV.Common.Enums;
@@ -39,6 +22,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views;
 using HV.Views.Dock;
+using Plugin.NPointCal.Views;
 
 namespace Plugin.NPointCal.ViewModels
 {
@@ -68,119 +52,54 @@ namespace Plugin.NPointCal.ViewModels
         // 添加一个计数器来跟踪自动执行的次数
         private int _autoExecuteCounter = 0;
 
-        // 防止重复初始化的标志（不参与序列化）
+        // 新增：当前待采集点的序号（1-最大点数，0表示已完成）
         [NonSerialized]
-        private bool _isInitialized = false;
-
-        // 默认标定数据文件路径（可配置，例如从项目配置中读取）
-        [NonSerialized]
-        private string _defaultCalibFilePath = "CalibData.txt"; // 可根据实际需求修改
+        private int _currentPointNumber = 0;
 
         /// <summary>
-        /// 构造函数：延迟到 UI 线程执行初始化，避免在构造函数中直接操作 UI 元素
+        /// 当前下一个待采集点的序号（1-最大点数），若已完成标定则返回0
         /// </summary>
-        public NPointCal()
+        public int CurrentPointNumber
         {
-            if (System.Windows.Application.Current != null)
-            {
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (!_isInitialized)
-                    {
-                        InitModule();
-                        _isInitialized = true;
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }
+            get => _currentPointNumber;
+            set => Set(ref _currentPointNumber, value);
         }
 
         /// <summary>
-        /// 反序列化完成后的回调：重置内部计数器，并允许视图加载时重新初始化
+        /// 根据当前已有点数和标定点类型，更新下一个待采集点的序号
         /// </summary>
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
+        private void UpdateCurrentPointNumber()
         {
-            // 重置自动执行计数器，保证重启后从第1个点开始
-            _autoExecuteCounter = 0;
-            // 重置旧版本遗留的计数器（如果使用）
-            mAutoCalCounter = 0;
-
-            // 重置初始化标志，让 Loaded 方法重新执行一次初始化
-            _isInitialized = false;
-
-            // 注意：不再在这里直接调用自动计算，延迟到 Loaded 中处理
-        }
-
-        /// <summary>
-        /// 尝试自动计算标定矩阵（如果点数足够）
-        /// </summary>
-        private void TryAutoCalculateMatrix()
-        {
-            try
-            {
-                int requiredPoints = GetRequiredPoints();
-                if (NPointCalParams != null && NPointCalParams.Count >= requiredPoints)
-                {
-                    // 如果点数足够，计算标定矩阵并输出参数
-                    CalculateCalibrationMatrix();
-                    AddOutputParams();
-                    Logger.AddLog($"自动完成标定矩阵计算 (点数:{NPointCalParams.Count})", eMsgType.Success);
-                }
-                else
-                {
-                    Logger.AddLog($"自动计算矩阵：当前点数 {NPointCalParams?.Count ?? 0}，需要 {requiredPoints}，暂不计算", eMsgType.Info);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.AddLog($"自动计算标定矩阵失败: {ex.Message}\n{ex.StackTrace}", eMsgType.Error);
-            }
-        }
-
-        /// <summary>
-        /// 自动加载默认标定数据文件（如果存在）
-        /// </summary>
-        private void AutoLoadDefaultDataFile()
-        {
-            try
-            {
-                // 如果集合为空且默认文件存在，则自动加载
-                if ((NPointCalParams == null || NPointCalParams.Count == 0) && File.Exists(_defaultCalibFilePath))
-                {
-                    NPointCalParams = LoadNPointCalParamsFromFile(_defaultCalibFilePath);
-                    Logger.AddLog($"已自动加载标定数据文件: {_defaultCalibFilePath}", eMsgType.Info);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.AddLog($"自动加载标定数据文件失败: {ex.Message}", eMsgType.Error);
-            }
-        }
-
-        /// <summary>
-        /// 获取当前标定类型所需的点数
-        /// </summary>
-        private int GetRequiredPoints()
-        {
+            // 获取当前所需的最大点数
+            int requiredPoints;
             switch (MPointType)
             {
                 case PointType.Three:
-                    return 3;
+                    requiredPoints = 3;
+                    break;
                 case PointType.Nine:
-                    return 9;
+                    requiredPoints = 9;
+                    break;
                 case PointType.Fourteen:
-                    return 14;
+                    requiredPoints = 14;
+                    break;
                 default:
-                    return 9;
+                    requiredPoints = 9;
+                    break;
             }
+
+            int currentCount = NPointCalParams?.Count ?? 0;
+            int nextNumber = currentCount >= requiredPoints ? 0 : currentCount + 1;
+
+            // 确保在UI线程上更新属性
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                CurrentPointNumber = nextNumber;
+            });
         }
 
         public override void SetDefaultLink()
         {
-            // 增加空值保护，避免在模块加载早期访问未初始化的 VarLinkViewModel
-            if (VarLinkViewModel.Ins?.Modules == null || VarLinkViewModel.Ins.Modules.Count == 0)
-                return;
-
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
             var moduls = VarLinkViewModel.Ins.Modules.LastOrDefault();
             if (moduls == null || moduls.VarModels.Count == 0)
@@ -194,63 +113,124 @@ namespace Plugin.NPointCal.ViewModels
         public override bool ExeModule()
         {
             Stopwatch.Restart();
+
             try
             {
-                // 1. 记录进入
-                Logger.AddLog($"ExeModule 开始执行，当前自动执行计数: {_autoExecuteCounter}", eMsgType.Info);
+                int requiredPoints = 0;
+                switch (MPointType)
+                {
+                    case PointType.Three:
+                        requiredPoints = 3;
+                        break;
+                    case PointType.Nine:
+                        requiredPoints = 9;
+                        break;
+                    case PointType.Fourteen:
+                        requiredPoints = 14;
+                        break;
+                }
 
-                int requiredPoints = GetRequiredPoints();
-                int currentCount = NPointCalParams?.Count ?? 0;
-                Logger.AddLog($"当前点数: {currentCount}, 需要点数: {requiredPoints}", eMsgType.Info);
+                // 更新当前序号显示
+                UpdateCurrentPointNumber();
 
+                if (NPointCalParams == null)
+                {
+                    // 在UI线程上初始化集合
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        NPointCalParams = new ObservableCollection<NPointCalParam>();
+                    });
+                }
+
+                // 检查是否已达到所需点数
+                int currentCount = NPointCalParams.Count;
                 if (currentCount >= requiredPoints)
                 {
-                    // 已达所需点数，计算标定矩阵并输出结果
+                    // 如果已经达到所需点数，只计算标定矩阵
                     CalculateCalibrationMatrix();
                     AddOutputParams();
                     ChangeModuleRunStatus(eRunStatus.OK);
-                    Logger.AddLog("标定矩阵计算完成并输出结果", eMsgType.Success);
                     return true;
                 }
 
-                // 2. 获取步长
-                double step = 3.0;
+                // 获取步长（从输入中解析）
+                double step = 3.0; // 默认步长
                 if (!string.IsNullOrWhiteSpace(InputRealXLinkText))
                 {
                     double parsedStep = GetDoubleFromLinkText(InputRealXLinkText);
-                    if (parsedStep != 0) step = Math.Abs(parsedStep);
-                    Logger.AddLog($"解析步长: {step}", eMsgType.Info);
-                }
-                else
-                {
-                    Logger.AddLog("未设置步长链接，使用默认步长 3.0", eMsgType.Info);
+                    if (parsedStep != 0)
+                    {
+                        step = Math.Abs(parsedStep);
+                    }
                 }
 
-                // 3. 获取图像坐标
+                // 获取当前输入的点（图像坐标）
                 double imageX = GetDoubleFromLinkText(InputPixelXLinkText);
                 double imageY = GetDoubleFromLinkText(InputPixelYLinkText);
-                Logger.AddLog($"获取到的图像坐标: ({imageX}, {imageY})", eMsgType.Info);
 
-                // 4. 根据自动执行次数计算机械坐标
-                int currentPointIndex = _autoExecuteCounter % 9;
-                double realX = 0, realY = 0;
-                // ...（原有switch逻辑）
+                // 根据自动执行次数决定机械坐标
+                double realX = 0;
+                double realY = 0;
 
-                Logger.AddLog($"当前点索引: {currentPointIndex}, 机械坐标: ({realX}, {realY})", eMsgType.Info);
+                // 根据当前执行次数计算对应的机械坐标
+                int currentPointIndex = _autoExecuteCounter % 9; // 0-8循环
 
-                // 5. 检查重复并添加
-                bool pointExists = NPointCalParams.Any(p =>
-                    Math.Abs(p.ImageX - imageX) < 0.001 &&
-                    Math.Abs(p.ImageY - imageY) < 0.001 &&
-                    Math.Abs(p.RealX - realX) < 0.001 &&
-                    Math.Abs(p.RealY - realY) < 0.001);
-
-                if (!pointExists)
+                switch (currentPointIndex)
                 {
-                    int newId = NPointCalParams.Count + 1;
-                    // 注意：此处需要确保在UI线程上操作集合
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    case 0: // 第一个点：(0, 0)
+                        realX = 0;
+                        realY = 0;
+                        break;
+                    case 1: // 第二个点：(step, 0)
+                        realX = step;
+                        realY = 0;
+                        break;
+                    case 2: // 第三个点：(step, step)
+                        realX = step;
+                        realY = step;
+                        break;
+                    case 3: // 第四个点：(0, step)
+                        realX = 0;
+                        realY = step;
+                        break;
+                    case 4: // 第五个点：(-step, step)
+                        realX = -step;
+                        realY = step;
+                        break;
+                    case 5: // 第六个点：(-step, 0)
+                        realX = -step;
+                        realY = 0;
+                        break;
+                    case 6: // 第七个点：(-step, -step)
+                        realX = -step;
+                        realY = -step;
+                        break;
+                    case 7: // 第八个点：(0, -step)
+                        realX = 0;
+                        realY = -step;
+                        break;
+                    case 8: // 第九个点：(step, -step)
+                        realX = step;
+                        realY = -step;
+                        break;
+                }
+
+                // 在UI线程上执行集合修改
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // 检查是否已经存在相同坐标的点（防止重复添加）
+                    bool pointExists = NPointCalParams.Any(p =>
+                        Math.Abs(p.ImageX - imageX) < 0.001 &&
+                        Math.Abs(p.ImageY - imageY) < 0.001 &&
+                        Math.Abs(p.RealX - realX) < 0.001 &&
+                        Math.Abs(p.RealY - realY) < 0.001);
+
+                    if (!pointExists)
                     {
+                        // 计算新ID
+                        int newId = NPointCalParams.Count + 1;
+
+                        // 添加当前点
                         NPointCalParams.Add(new NPointCalParam()
                         {
                             ID = newId,
@@ -259,38 +239,64 @@ namespace Plugin.NPointCal.ViewModels
                             RealX = realX,
                             RealY = realY
                         });
-                    });
-                    Logger.AddLog($"成功添加第 {newId} 个点", eMsgType.Info);
-                    _autoExecuteCounter++;
-                }
-                else
-                {
-                    Logger.AddLog($"点 ({imageX}, {imageY}) -> ({realX}, {realY}) 已存在，跳过添加", eMsgType.Info);
-                    _autoExecuteCounter++; // 依然递增计数器，尝试下一个点
-                }
 
-                // 再次检查点数（UI线程更新后）
+                        Logger.AddLog($"已自动添加第{newId}个点，机械坐标: ({realX:F3}, {realY:F3})", eMsgType.Info);
+                        _autoExecuteCounter++;
+                    }
+                    else
+                    {
+                        Logger.AddLog("当前点已存在，跳过添加", eMsgType.Info);
+                        // 即使点已存在，也增加计数器，以便下次获取下一个点
+                        _autoExecuteCounter++;
+                    }
+
+                    // 更新序号显示
+                    UpdateCurrentPointNumber();
+                });
+
+                // 检查是否达到所需点数（需要重新获取计数，因为集合可能在UI线程中更新）
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     if (NPointCalParams.Count >= requiredPoints)
                     {
+                        // 计算标定矩阵
                         CalculateCalibrationMatrix();
+
+                        // 测试验证（可选）
+                        if (testImagex != 0 || testImagey != 0)
+                        {
+                            if (MHomMat2DTransl.Length > 0)
+                            {
+                                HTuple X = new HTuple();
+                                HTuple Y = new HTuple();
+                                HOperatorSet.AffineTransPoint2d(MHomMat2DTransl, testImagex, testImagey, out X, out Y);
+                                testrealx = X.D;
+                                testrealy = Y.D;
+                            }
+                        }
+
                         AddOutputParams();
-                        Logger.AddLog($"点数达到 {requiredPoints}，标定矩阵已输出", eMsgType.Success);
+                        ChangeModuleRunStatus(eRunStatus.OK);
+
+                        // 如果是九点模式且达到9个点，显示完成信息
+                        if (MPointType == PointType.Nine && NPointCalParams.Count >= 9)
+                        {
+                            Logger.AddLog($"九点标定已完成，共{NPointCalParams.Count}个点", eMsgType.Success);
+                        }
                     }
                     else
                     {
-                        Logger.AddLog($"当前点数 {NPointCalParams.Count}，仍需 {requiredPoints - NPointCalParams.Count} 个点", eMsgType.Info);
+                        Logger.AddLog($"当前点数：{NPointCalParams.Count}，需要{requiredPoints}个点才能计算标定", eMsgType.Info);
+                        ChangeModuleRunStatus(eRunStatus.OK);
                     }
                 });
 
-                ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
             catch (Exception ex)
             {
-                Logger.AddLog($"ExeModule 执行异常: {ex.Message}\n{ex.StackTrace}", eMsgType.Error);
                 ChangeModuleRunStatus(eRunStatus.NG);
+                Logger.AddLog($"执行错误: {ex.Message}", eMsgType.Error);
                 return false;
             }
         }
@@ -376,29 +382,29 @@ namespace Plugin.NPointCal.ViewModels
 
         public override void InitModule()
         {
-            // 记录日志，便于追踪
-            Logger.AddLog("InitModule 被调用，重置自动执行计数器", eMsgType.Info);
-
-            // 重置自动执行计数器（用于控制自动标定的点序）
+            IsOpenWindows = true;
+            // 初始化时，重置计数器
             _autoExecuteCounter = 0;
-
-            // 重置标定矩阵和旋转中心（因为之前计算的矩阵可能已过时）
-            mHomMat2DTransl = new HTuple();
-            mRotateCenterX = 0;
-            mRotateCenterY = 0;
-            mPhiSingle = 0.0;
-            mCalibRms = 0.0;
-            testrealx = 0;
-            testrealy = 0;
-
-            // 注意：不清空 NPointCalParams，保留用户已采集的点
+            // 更新序号显示
+            UpdateCurrentPointNumber();
+            // 初始化时，如果表格为空，可以不做任何操作
+            // ExeModule();  // 注释掉这一行，因为初始化时不应该执行标定
+            IsOpenWindows = false;
         }
 
         #region 抄过来
         /// <summary>点类型：3/9/14</summary>
         private PointType mPointType = PointType.Nine;
         /// <summary>点类型：3/9/14</summary>
-        public PointType MPointType { get => mPointType; set => mPointType = value; }
+        public PointType MPointType
+        {
+            get => mPointType;
+            set
+            {
+                mPointType = value;
+                UpdateCurrentPointNumber();  // 切换点类型时更新序号
+            }
+        }
         /// <summary>标定:手动/自动 </summary>
 
         /// <summary>相机:固定/变化 </summary>
@@ -518,8 +524,9 @@ namespace Plugin.NPointCal.ViewModels
             get { return _testrealy; }
             set { _testrealy = value; RaisePropertyChanged(); }
         }
-        #endregion
 
+
+        #endregion
         #region Prop
         private string _InputImageLinkText;
         /// <summary>
@@ -530,7 +537,6 @@ namespace Plugin.NPointCal.ViewModels
             get { return _InputImageLinkText; }
             set { Set(ref _InputImageLinkText, value); }
         }
-
         private ObservableCollection<NPointCalParam> _NPointCalParams = new ObservableCollection<NPointCalParam>();
         public ObservableCollection<NPointCalParam> NPointCalParams
         {
@@ -607,39 +613,15 @@ namespace Plugin.NPointCal.ViewModels
             return result;
         }
         #endregion
-
         #region Command
         public override void Loaded()
         {
             base.Loaded();
+            UpdateCurrentPointNumber();  // 视图加载时更新序号
             var view = ModuleView as NPointCalView;
             if (view != null)
             {
                 SetDefaultLink();
-
-                // 如果尚未初始化，则执行初始化
-                if (!_isInitialized)
-                {
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        InitModule();
-                        _isInitialized = true;
-
-                        // 自动加载默认标定数据文件（如果存在）
-                        AutoLoadDefaultDataFile();
-
-                        // 自动计算标定矩阵（如果点数足够）
-                        TryAutoCalculateMatrix();
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-                }
-                else
-                {
-                    // 已经初始化过，但可能由于数据变化需要重新计算（例如手动加载了文件）
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        TryAutoCalculateMatrix();
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-                }
             }
         }
 
@@ -727,6 +709,9 @@ namespace Plugin.NPointCal.ViewModels
                             {
                                 Logger.AddLog("当前点已存在，跳过添加", eMsgType.Info);
                             }
+
+                            // 更新序号显示
+                            UpdateCurrentPointNumber();
                         }
                         catch (Exception ex)
                         {
@@ -775,13 +760,12 @@ namespace Plugin.NPointCal.ViewModels
                 {
                     _GenerateNinePointsCommand = new CommandBase((obj) =>
                     {
-                        // 此命令未实现具体功能，可根据需要添加
+
                     });
                 }
                 return _GenerateNinePointsCommand;
             }
         }
-
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             switch (obj.SendName.Split(',')[1])
@@ -875,6 +859,7 @@ namespace Plugin.NPointCal.ViewModels
                                 int newId = NPointCalParams.Count + 1;
 
                                 NPointCalParams.Add(new NPointCalParam() { ID = newId });
+                                UpdateCurrentPointNumber();
                                 break;
 
                             case "DeleteRow":
@@ -883,6 +868,7 @@ namespace Plugin.NPointCal.ViewModels
                                 NPointCalParams.RemoveAt(CurrentRow);
                                 // 重新计算ID，确保连续
                                 RecalculateIds();
+                                UpdateCurrentPointNumber();
                                 break;
 
                             case "WriteToFile":
@@ -905,9 +891,11 @@ namespace Plugin.NPointCal.ViewModels
                                     if (op.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                                     {
                                         NPointCalParams = LoadNPointCalParamsFromFile(op.FileName);
+                                        UpdateCurrentPointNumber();
                                     }
                                 }
                                 break;
+
 
                             case "Test":
                                 if (MHomMat2DTransl.Length > 0)
@@ -930,6 +918,7 @@ namespace Plugin.NPointCal.ViewModels
                                 NPointCalParams.Clear();
                                 _autoExecuteCounter = 0;
                                 Logger.AddLog("表格已清空", eMsgType.Info);
+                                UpdateCurrentPointNumber();
                                 break;
 
                             default:
@@ -1004,7 +993,6 @@ namespace Plugin.NPointCal.ViewModels
             get { return _realY; }
             set { _realY = value; OnPropertyChanged(nameof(RealY)); }
         }
-
         [field: NonSerialized]
         public event PropertyChangedEventHandler PropertyChanged;
 

@@ -132,13 +132,13 @@ namespace Plugin.While.ViewModels
             AddOutputParam("索引", "int", ModuleParam.pIndex+2);
 
             // 添加double类型的索引输出 - 使用属性而不是lambda
-            AddOutputParam("索引", "double", CurrentDoubleIndex+2);
+            AddOutputParam("索引Double", "double", CurrentDoubleIndex+2);
 
             // 添加归一化进度输出（0.0-1.0）
-            //AddOutputParam("进度", "double", Progress+2);
+            AddOutputParam("进度", "double", Progress);
 
             // 添加当前值输出（根据起始值和索引计算）
-            AddOutputParam("当前值", "double", CurrentValue+2);
+            AddOutputParam("当前值", "double", CurrentValue);
 
             base.AddOutputParams();
         }
