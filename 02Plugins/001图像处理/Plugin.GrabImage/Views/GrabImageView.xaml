@@ -115,7 +115,7 @@
                                                   EnableColumnVirtualization="True"
                                                   EnableRowVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True"
-                                                  ItemsSource="{Binding ImageNameModels}" SelectedIndex="{Binding SelectedIndex}"
+                                                  ItemsSource="{Binding ImageNameModels}" SelectedIndex="{Binding ShowIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                   FontSize="12" 
                                                   RowHeaderWidth="20"
                                                   SelectionUnit="FullRow"
@@ -132,10 +132,15 @@
                                             </b:Interaction.Triggers>
 
                                             <DataGrid.Columns>
-                                                <DataGridTemplateColumn Header="" IsReadOnly="True" Width="35">
+                                                <DataGridTemplateColumn Header="" IsReadOnly="True" Width="40">
+                                                    <DataGridTemplateColumn.HeaderTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox IsChecked="{Binding DataContext.IsSelectAll, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.HeaderTemplate>
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
-                                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="5 0 0 0"/>
+                                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5 0 0 0"/>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -157,7 +162,11 @@
                                         </DataGrid>
                                     </Grid>
                                     <Grid x:Name="gd2" Visibility="{Binding ImageSource,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static enum:eImageSource.相机采集}}">
-                                        <StackPanel Margin="0 10" HorizontalAlignment="Left">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="19*"/>
+                                            <ColumnDefinition Width="99*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,10,0,10" HorizontalAlignment="Left" Grid.ColumnSpan="2">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="30 5">
                                                 <TextBlock Text="相机选择:" VerticalAlignment="Center" Margin="0 0 5 0"/>
                                                 <ComboBox BorderThickness="0 0 0 1" Width="200" ItemsSource="{Binding CameraModels}" DisplayMemberPath="CameraNo" SelectedItem="{Binding SelectedCameraModel}"/>
@@ -178,9 +187,9 @@
                                                 <ComboBox Width="200" BorderThickness="0 0 0 1" 
                                                          ItemsSource="{Binding AcquisitionModes}" SelectedItem="{Binding AcquisitionMode}"/>
                                             </StackPanel>
-                                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="30 5">
-                                            <TextBlock Text="图像行数:" VerticalAlignment="Center" Margin="0 0 5 0"/>
-                                            <TextBox Text="{Binding ImageHeight.Text,UpdateSourceTrigger=PropertyChanged}"
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="30 5">
+                                                <TextBlock Text="图像行数:" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                                                <TextBox Text="{Binding ImageHeight.Text,UpdateSourceTrigger=PropertyChanged}"
                                                      mah:TextBoxHelper.Value="{Binding ImageHeight.Value}"
                                                      IsReadOnly="{Binding ImageHeight.IsReadOnly}"
                                                      Style="{StaticResource LinkTextBox}"
@@ -188,7 +197,7 @@
                                                      mah:TextBoxHelper.Watermark="int"
                                                      mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.ImageHeight}"
                                                      VerticalAlignment="Center" HorizontalAlignment="Center" Width="200"  Margin="5 0"/>
-                                          </StackPanel>
+                                            </StackPanel>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="30 5">
                                                 <TextBlock Text="曝光时间" VerticalAlignment="Center"/>
                                                 <TextBox Text="{Binding ExposureTime.Text,UpdateSourceTrigger=PropertyChanged}"

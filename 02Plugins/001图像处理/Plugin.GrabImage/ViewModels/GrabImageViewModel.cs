@@ -88,18 +88,54 @@ namespace Plugin.GrabImage.ViewModels
                         {
                             break;
                         }
-                        if (IsCyclicRead)
+                        if (SelectedIndex >= ImageNameModels.Count)
                         {
-                            SelectedIndex++;
-                            SelectedIndex = SelectedIndex >= ImageNameModels.Count ? 0 : SelectedIndex;
+                            // 循环模式回到0，非循环模式设为Count表示已结束
+                            SelectedIndex = IsCyclicRead ? 0 : ImageNameModels.Count;
                         }
-                        if (File.Exists(ImageNameModels[SelectedIndex].ImagePath))
+                        // 非循环模式且已遍历完所有图像，退出
+                        if (!IsCyclicRead && SelectedIndex >= ImageNameModels.Count)
                         {
-                            //DispImage.ReadImage(ImageNameModels[SelectedIndex].ImagePath);
-                            DispImage = new RImage(ImageNameModels[SelectedIndex].ImagePath);
-   
+                            SelectedIndex = 0; // 归零，等待下次外部调用时从第一张开始
+                            Logger.AddLog("当前是最后一张图像！", eMsgType.Warn);
+                            ChangeModuleRunStatus(eRunStatus.NG);
+                            return false;
+                            //break;
+                        }
+                        // 如果当前图像未选中或文件不存在，循环寻找到下一张有效图片
+                        int currentIndex = SelectedIndex;
+                        while (currentIndex < ImageNameModels.Count)
+                        {
+                            if (ImageNameModels[currentIndex] == null ||
+                                !ImageNameModels[currentIndex].IsSelected ||
+                                !File.Exists(ImageNameModels[currentIndex].ImagePath))
+                            {
+                                currentIndex++;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                        // 同步SelectedIndex到实际读取位置
+                        SelectedIndex = currentIndex;
+                        // 非循环模式且已遍历完所有图像，退出
+                        if (!IsCyclicRead && SelectedIndex >= ImageNameModels.Count)
+                        {
+                            SelectedIndex = 0; // 归零，等待下次外部调用时从第一张开始
+                            Logger.AddLog("当前是最后一张图像！", eMsgType.Warn);
+                            ChangeModuleRunStatus(eRunStatus.NG);
+                            return false;
+                            //break;
                         }
 
+                        if (SelectedIndex < ImageNameModels.Count &&
+                            File.Exists(ImageNameModels[SelectedIndex].ImagePath))
+                        {
+                            DispImage = new RImage(ImageNameModels[SelectedIndex].ImagePath);
+                        }
+                        // 索引递增，为下次读取做准备
+                        SelectedIndex++;
+                        ShowIndex = SelectedIndex - 1;
                         break;
                     case eImageSource.相机采集:
                         if (!IsInit)
@@ -336,6 +372,17 @@ namespace Plugin.GrabImage.ViewModels
             }
         }
 
+        /// <summary>图像索引</summary>
+        public int _ShowIndex = 0;
+        public int ShowIndex
+        {
+            get { return _ShowIndex; }
+            set
+            {
+                Set(ref _ShowIndex, value);
+            }
+        }
+
         private bool _IsCyclicRead = true;
         /// <summary>
         /// 循环读取
@@ -346,6 +393,26 @@ namespace Plugin.GrabImage.ViewModels
             set
             {
                 Set(ref _IsCyclicRead, value);
+            }
+        }
+
+        private bool _IsSelectAll = true;
+        /// <summary>
+        /// 全选/取消全选
+        /// </summary>
+        public bool IsSelectAll
+        {
+            get { return _IsSelectAll; }
+            set
+            {
+                Set(ref _IsSelectAll, value);
+                if (ImageNameModels != null)
+                {
+                    foreach (var item in ImageNameModels)
+                    {
+                        item.IsSelected = value;
+                    }
+                }
             }
         }
 
@@ -559,7 +626,7 @@ namespace Plugin.GrabImage.ViewModels
                     view.winFormHost.Child = view.mWindowH;
                     ModuleView.mWindowH = view.mWindowH;
                     IsInit = true;
-                    ExeModule();
+                    //ExeModule();
                     IsInit = false;
                 }
             }
@@ -702,9 +769,9 @@ namespace Plugin.GrabImage.ViewModels
                         ExeModule();
                         var view = ModuleView as GrabImageView;
                         if (view == null) return;
-                        if (DispImage!=null)
+                        if (DispImage != null && DispImage.IsInitialized())
                         {
-                                view.mWindowH.Image = DispImage;
+                            view.mWindowH.Image = DispImage;
                         }
                     });
                 }
@@ -742,9 +809,9 @@ namespace Plugin.GrabImage.ViewModels
                     _PreviewMouseDoubleClick_FilePath = new CommandBase((obj) =>
                     {
                         DispImage = new RImage(DispViewID);
-                        if (File.Exists(ImageNameModels[SelectedIndex].ImagePath))
+                        if (File.Exists(ImageNameModels[ShowIndex].ImagePath))
                         {
-                            DispImage.ReadImage(ImageNameModels[SelectedIndex].ImagePath);
+                            DispImage.ReadImage(ImageNameModels[ShowIndex].ImagePath);
                             if (DispImage != null && DispImage.IsInitialized())
                             {
                                 var view = ModuleView as GrabImageView;
