@@ -366,7 +366,8 @@ namespace HV.Common.Enums
     {
         单次执行,
         循环执行,
-        停止执行
+        停止执行,
+        停止当前
     }
     public enum eShieldRegion
     {

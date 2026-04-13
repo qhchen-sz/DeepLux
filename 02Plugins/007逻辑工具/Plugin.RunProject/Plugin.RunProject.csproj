@@ -74,12 +74,12 @@
     </Reference>
     <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
+      <HintPath>..\..\..\07Dll\EventMgrLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="halcondotnet, Version=20.11.1.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\00_课程\软件源码\01_Sourse\01_Sourse\VM\00Exe\halcondotnet.dll</HintPath>
+      <HintPath>..\..\..\07Dll\halcondotnet.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="HandyControl, Version=3.4.0.0, Culture=neutral, PublicKeyToken=45be8712787a1e5b, processorArchitecture=MSIL">

@@ -95,6 +95,9 @@ namespace Plugin.RunProject.ViewModels
                             }
                         }
                         break;
+                    case eRunProjectType.停止当前:
+                        Solution.Ins.StopRun(Solution.Ins.CurrentProject.ProjectInfo.ProjectID);
+                        break;
                     default:
                         break;
                 }

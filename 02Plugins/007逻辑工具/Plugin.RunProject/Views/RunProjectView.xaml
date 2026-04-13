@@ -50,13 +50,16 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <RadioButton Grid.Column="0" HorizontalAlignment="Center" Content="单次执行" 
+                <RadioButton Grid.Column="0" HorizontalAlignment="Center" Content="单次执行"
                              IsChecked="{Binding RunProjectType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eRunProjectType.单次执行}}"></RadioButton>
                 <RadioButton Grid.Column="1" HorizontalAlignment="Center" Content="循环执行"
                              IsChecked="{Binding RunProjectType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eRunProjectType.循环执行}}"></RadioButton>
                 <RadioButton Grid.Column="2" HorizontalAlignment="Center" Content="停止执行"
                              IsChecked="{Binding RunProjectType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eRunProjectType.停止执行}}"></RadioButton>
+                <RadioButton Grid.Column="3" HorizontalAlignment="Center" Content="停止当前"
+                             IsChecked="{Binding RunProjectType,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eRunProjectType.停止当前}}"></RadioButton>
             </Grid>
         </GroupBox >
         <GroupBox Header="项目" Grid.Row="1">
