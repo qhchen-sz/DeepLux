@@ -165,10 +165,24 @@ namespace Plugin.SaveImage.ViewModels
         /// </summary>
         private void SaveImageAsync(HImage image, string baseFolderPath, string linkFolderPath, string dateFolderPath, string imageFullPath, string saveType, List<HRoi> roiCopy)
         {
+            System.Diagnostics.Stopwatch saveStopwatch = new System.Diagnostics.Stopwatch();
             try
             {
                 // 确保目录存在
                 EnsureDirectoriesExist(baseFolderPath, linkFolderPath, dateFolderPath);
+
+                // 图像有效性检查
+                if (!ValidateImageForSave(image))
+                {
+                    Logger.AddLog($"图像无效，跳过保存: {imageFullPath}", eMsgType.Warn);
+                    return;
+                }
+
+                // 磁盘空间检查（低于100MB时跳过保存）
+                if (!HasSufficientDiskSpace(imageFullPath))
+                {
+                    return;
+                }
 
                 // 根据保存类型执行保存
                 switch (saveType)
@@ -177,7 +191,10 @@ namespace Plugin.SaveImage.ViewModels
                         // 原图保存使用独立锁，不阻塞截图操作
                         lock (_saveImageLock)
                         {
+                            saveStopwatch.Start();
                             HOperatorSet.WriteImage(image, ImageStytleList[SelectedIndex], 0, imageFullPath);
+                            saveStopwatch.Stop();
+                            Logger.AddLog($"保存原图完成，路径: {imageFullPath}，耗时: {saveStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
                         }
                         break;
                     case "截图":
@@ -210,6 +227,58 @@ namespace Plugin.SaveImage.ViewModels
         }
 
         /// <summary>
+        /// 检查磁盘剩余空间是否充足（低于100MB时跳过保存）
+        /// </summary>
+        private bool HasSufficientDiskSpace(string path, long minimumBytes = 100 * 1024 * 1024)
+        {
+            try
+            {
+                string root = Path.GetPathRoot(path);
+                if (string.IsNullOrEmpty(root))
+                    return true;
+                var drive = new DriveInfo(root);
+                if (drive.IsReady && drive.AvailableFreeSpace < minimumBytes)
+                {
+                    Logger.AddLog($"磁盘空间不足: 剩余{drive.AvailableFreeSpace / 1024 / 1024}MB < 100MB, 路径: {path}", eMsgType.Warn);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"检查磁盘空间失败: {ex.Message}", eMsgType.Warn);
+                return true; // 检查失败时不阻止保存
+            }
+        }
+
+        /// <summary>
+        /// 验证图像是否有效（非空、已初始化、尺寸合法）
+        /// </summary>
+        private bool ValidateImageForSave(HImage image)
+        {
+            try
+            {
+                if (image == null || !image.IsInitialized())
+                {
+                    Logger.AddLog("图像为空或未初始化，跳过保存", eMsgType.Warn);
+                    return false;
+                }
+                HOperatorSet.GetImageSize(image, out HTuple w, out HTuple h);
+                if (w.I <= 0 || h.I <= 0)
+                {
+                    Logger.AddLog($"图像尺寸无效: {w.I}x{h.I}，跳过保存", eMsgType.Warn);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"图像有效性检查失败: {ex.Message}", eMsgType.Warn);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 确保所有目录存在（轻量级操作）
         /// </summary>
         private void EnsureDirectoriesExist(string baseFolderPath, string linkFolderPath, string dateFolderPath)
@@ -233,6 +302,7 @@ namespace Plugin.SaveImage.ViewModels
         /// </summary>
         private void SaveScreenshotAsync(HImage image, string imageFullPath, List<HRoi> roiCopy)
         {
+            System.Diagnostics.Stopwatch saveStopwatch = new System.Diagnostics.Stopwatch();
             try
             {
                 // UI操作必须回到主线程执行
@@ -240,6 +310,7 @@ namespace Plugin.SaveImage.ViewModels
                 {
                     lock (_viewLock)
                     {
+                        saveStopwatch.Start();
                         VMHWindowControl mWindowH = ViewDic.GetView(98);
                         if (mWindowH == null) return;
 
@@ -257,6 +328,8 @@ namespace Plugin.SaveImage.ViewModels
                         {
                             HOperatorSet.DumpWindow(hWindow, "jpeg", imageFullPath);
                         }
+                        saveStopwatch.Stop();
+                        Logger.AddLog($"保存截图完成，路径: {imageFullPath}，耗时: {saveStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
                     }
                 });
             }
@@ -693,11 +766,13 @@ namespace Plugin.SaveImage.ViewModels
         /// <param name="saveDays">保留天数</param>
         private void RemoveOldImagesBatched(string baseDirectoryPath, int saveDays)
         {
+            System.Diagnostics.Stopwatch deleteStopwatch = new System.Diagnostics.Stopwatch();
             try
             {
                 if (string.IsNullOrEmpty(baseDirectoryPath) || saveDays <= 0 || !Directory.Exists(baseDirectoryPath))
                     return;
 
+                deleteStopwatch.Start();
                 DateTime currentTime = DateTime.Now;
                 DateTime cutoffDate = currentTime.AddDays(-saveDays);
 
@@ -713,6 +788,7 @@ namespace Plugin.SaveImage.ViewModels
                     return;
                 }
 
+                int deletedCount = 0;
                 foreach (var dateDir in dateDirectories)
                 {
                     // 解析日期文件夹名称，判断是否过期
@@ -720,7 +796,8 @@ namespace Plugin.SaveImage.ViewModels
                     if (IsDateFolderExpired(dirName, cutoffDate))
                     {
                         // 删除该日期文件夹下的所有过期文件
-                        DeleteExpiredFilesInDirectory(dateDir, cutoffDate);
+                        int count = DeleteExpiredFilesInDirectory(dateDir, cutoffDate);
+                        deletedCount += count;
 
                         // 删除空文件夹
                         DeleteEmptyDirectory(dateDir);
@@ -729,8 +806,9 @@ namespace Plugin.SaveImage.ViewModels
                     // 每处理完一个日期文件夹，让出CPU，避免长时间阻塞
                     Thread.Sleep(5);
                 }
+                deleteStopwatch.Stop();
 
-                Logger.AddLog($"自动清理完成，路径: {baseDirectoryPath}", eMsgType.Info);
+                Logger.AddLog($"自动清理完成，路径: {baseDirectoryPath}，删除文件数: {deletedCount}，耗时: {deleteStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
             }
             catch (Exception ex)
             {
@@ -762,9 +840,10 @@ namespace Plugin.SaveImage.ViewModels
         /// <summary>
         /// 删除目录下的过期文件（分批执行，每100个文件让出一次CPU）
         /// </summary>
-        private void DeleteExpiredFilesInDirectory(string directoryPath, DateTime cutoffDate)
+        /// <returns>实际删除的文件数量</returns>
+        private int DeleteExpiredFilesInDirectory(string directoryPath, DateTime cutoffDate)
         {
-            int processedCount = 0;
+            int deletedCount = 0;
             try
             {
                 foreach (var file in Directory.EnumerateFiles(directoryPath))
@@ -776,6 +855,7 @@ namespace Plugin.SaveImage.ViewModels
                         {
                             fileInfo.Attributes = FileAttributes.Normal;
                             File.Delete(file);
+                            deletedCount++;
                         }
                     }
                     catch (Exception ex)
@@ -784,10 +864,9 @@ namespace Plugin.SaveImage.ViewModels
                     }
 
                     // 每处理100个文件让出一次CPU
-                    processedCount++;
-                    if (processedCount % 100 == 0)
+                    if (deletedCount % 50 == 0)
                     {
-                        Thread.Sleep(10);
+                        Thread.Sleep(5);
                     }
                 }
             }
@@ -795,6 +874,7 @@ namespace Plugin.SaveImage.ViewModels
             {
                 Logger.AddLog($"访问目录失败: {directoryPath}, 错误: {ex.Message}", eMsgType.Warn);
             }
+            return deletedCount;
         }
 
         /// <summary>
