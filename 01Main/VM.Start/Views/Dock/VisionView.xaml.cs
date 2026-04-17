@@ -34,6 +34,8 @@ namespace HV.Views.Dock
         {
             InitializeComponent();
             this.DataContext = VisionViewModel.Ins;
+            this.KeyDown += VisionView_KeyDown;
+            this.Focusable = true;
             for (int i = 1; i <= 9; i++)
             {
                 GetImageBox(i);
@@ -57,6 +59,9 @@ namespace HV.Views.Dock
                 ShowCanvasAll();
             }
         }
+        private bool _isFullScreen = false;
+        private int _fullScreenWindowIndex = -1;
+        private WindowsFormsHost _fullScreenHost;
 
         #endregion
         #region Method
@@ -73,6 +78,7 @@ namespace HV.Views.Dock
             {
                 VMHWindowControl mWindowH = new VMHWindowControl();
                 mWindowH.BackgroundImageLayout = ImageLayout.Center;
+                mWindowH.WindowIndex = key;
                 ViewDic.mViewDic.Add(key, mWindowH);
             }
             ViewDic.mViewDic[key].MyDoubleClick -= VisionView_MyDoubleClick;
@@ -82,10 +88,86 @@ namespace HV.Views.Dock
 
         private void VisionView_MyDoubleClick(object sender, EventArgs e)
         {
-
+            if (sender is VMHWindowControl window)
+            {
+                if (_isFullScreen)
+                {
+                    ExitFullScreen();
+                }
+                else
+                {
+                    EnterFullScreen(window.WindowIndex);
+                }
+            }
         }
 
-        // 创建事件处理方法
+        private void VisionView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Escape && _isFullScreen)
+            {
+                ExitFullScreen();
+            }
+        }
+
+        /// <summary>
+        /// 进入全屏放大模式
+        /// </summary>
+        private void EnterFullScreen(int windowIndex)
+        {
+            if (_isFullScreen || windowIndex < 1 || windowIndex > 9)
+                return;
+
+            _isFullScreen = true;
+            _fullScreenWindowIndex = windowIndex;
+
+            // 创建全屏host并隐藏grid（不销毁grid内容）
+            _fullScreenHost = new WindowsFormsHost();
+            _fullScreenHost.Child = ViewDic.mViewDic[windowIndex];
+            gridwindow.Children.Add(_fullScreenHost);
+            grid.Visibility = Visibility.Collapsed;
+            gridwindow.Visibility = Visibility.Visible;
+
+            // 设置焦点以便接收键盘事件
+            this.Focus();
+
+            // 延迟触发图像居中，等待布局完成后再适配
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ViewDic.mViewDic[windowIndex]?.DispImageFitImage();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        /// <summary>
+        /// 退出全屏放大模式
+        /// </summary>
+        private void ExitFullScreen()
+        {
+            if (!_isFullScreen)
+                return;
+
+            int prevFullScreenIndex = _fullScreenWindowIndex;
+            _isFullScreen = false;
+            _fullScreenWindowIndex = -1;
+
+            // 先解除Child绑定，避免Halcon窗口句柄在移除过程中被意外销毁
+            if (_fullScreenHost != null)
+            {
+                _fullScreenHost.Child = null;
+                gridwindow.Children.Remove(_fullScreenHost);
+                _fullScreenHost = null;
+            }
+            gridwindow.Visibility = Visibility.Collapsed;
+
+            // 重建grid布局，将所有VMHWindowControl重新绑定到新的WindowsFormsHost
+            ShowCanvasAll();
+            grid.Visibility = Visibility.Visible;
+
+            // 延迟触发图像居中，等待布局完成后再适配
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
 
         private void ShowCanvasAll()
         {
@@ -433,19 +515,6 @@ namespace HV.Views.Dock
                 default:
                     break;
             }
-
-            WindowsFormsHost[] windowsFormsHost2 = new WindowsFormsHost[1]
-            {
-                new WindowsFormsHost()
-            };
-            gridwindow.Children.Clear();
-            gridwindow.RowDefinitions.Clear();
-            gridwindow.ColumnDefinitions.Clear();
-            windowsFormsHost2[0].Margin = new Thickness(5);
-            windowsFormsHost2[0].Child = GetImageBox(99);
-            gridwindow.Children.Add(windowsFormsHost2[0]);
-            Grid.SetRow(windowsFormsHost2[0], 0);
-            Grid.SetColumn(windowsFormsHost2[0], 0);
         }
         #endregion
     }

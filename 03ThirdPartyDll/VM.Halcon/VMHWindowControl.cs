@@ -24,7 +24,7 @@ namespace VM.Halcon
     ///      2, 有了背景图,就可以通过本控件自定义的 this.DispObj(HObject hObj)显示HObject,类似原方法
     ///      3,默认显示红色,DispObj(HObject hObj,string color)可显示其他颜色
     /// </summary>
-    public partial class VMHWindowControl : UserControl
+    public partial class VMHWindowControl : UserControl, IMessageFilter
     {
         #region 私有变量定义.
 /*        private ImageControl.VTKControl vtkcontrol;*/
@@ -54,6 +54,10 @@ namespace VM.Halcon
         private bool /**/
         drawModel = false; //绘制模式下,不允许缩放和鼠标右键菜单
         #endregion
+        /// <summary>
+        /// 窗口索引，用于标识是哪个图像窗口（1-9）
+        /// </summary>
+        public int WindowIndex { get; set; }
         public ViewWindow WindowH; /**/ //ViewWindow
         public HWindowControl hControl; /**/ // 当前halcon窗口
         public double positionX,
@@ -100,11 +104,13 @@ namespace VM.Halcon
         public VMHWindowControl()
         {
             InitializeComponent();
+            Application.AddMessageFilter(this);
             //
             WindowH = new ViewWindow(mCtrl_HWindow);
             hControl = this.mCtrl_HWindow;
             hControl.HMouseWheel += HWindowControl_MouseWheel;
             m_CtrlHStatusLabelCtrl.DoubleClick += mCtrl_HWindow_DoubleClick;
+            mCtrl_HWindow.DoubleClick += mCtrl_HWindow_DoubleClick;
             
             WindowH._hWndControl.PaintCrossEvent += PaintCross;
             if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
@@ -204,7 +210,7 @@ namespace VM.Halcon
         /// </summary>
         public RImage Image
         {
-            get { return new RImage(this.hv_image); }
+            get { return hv_image != null ? new RImage(this.hv_image) : null; }
             set
             {
                 if (value != null)
@@ -950,6 +956,21 @@ namespace VM.Halcon
         {
             // 触发自定义事件
             MyDoubleClick?.Invoke(this, e);
+        }
+
+        private const int WM_LBUTTONDBLCLK = 0x0203;
+
+        public bool PreFilterMessage(ref Message m)
+        {
+            if (m.Msg == WM_LBUTTONDBLCLK)
+            {
+                System.Drawing.Point pt = PointToClient(Control.MousePosition);
+                if (this.ClientRectangle.Contains(pt))
+                {
+                    MyDoubleClick?.Invoke(this, EventArgs.Empty);
+                }
+            }
+            return false;
         }
 
         // 获取图像的当前显示部分
