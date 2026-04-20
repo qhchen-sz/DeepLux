@@ -34,8 +34,8 @@ namespace HV.Views.Dock
         {
             InitializeComponent();
             this.DataContext = VisionViewModel.Ins;
-            this.KeyDown += VisionView_KeyDown;
-            this.Focusable = true;
+            // this.KeyDown += VisionView_KeyDown;
+            // this.Focusable = true;
             for (int i = 1; i <= 9; i++)
             {
                 GetImageBox(i);
@@ -101,13 +101,14 @@ namespace HV.Views.Dock
             }
         }
 
-        private void VisionView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (e.Key == System.Windows.Input.Key.Escape && _isFullScreen)
-            {
-                ExitFullScreen();
-            }
-        }
+        // private void VisionView_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        // {
+        //     ESC 退出全屏已禁用，改用双击退出
+        //     if (e.Key == System.Windows.Input.Key.Escape && _isFullScreen)
+        //     {
+        //        ExitFullScreen();
+        //     }
+        // }
 
         /// <summary>
         /// 进入全屏放大模式
@@ -131,10 +132,14 @@ namespace HV.Views.Dock
             this.Focus();
 
             // 延迟触发图像居中，等待布局完成后再适配
-            this.Dispatcher.BeginInvoke(new Action(() =>
+            // 双重 Invoke 确保 WPF + WinForms 布局均已完成
+            this.Dispatcher.Invoke(new Action(() =>
             {
-                ViewDic.mViewDic[windowIndex]?.DispImageFitImage();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    ViewDic.mViewDic[windowIndex]?.DispImageFitImage();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }), System.Windows.Threading.DispatcherPriority.Render);
         }
 
         /// <summary>
@@ -163,10 +168,14 @@ namespace HV.Views.Dock
             grid.Visibility = Visibility.Visible;
 
             // 延迟触发图像居中，等待布局完成后再适配
-            this.Dispatcher.BeginInvoke(new Action(() =>
+            // 双重 Invoke 确保 WPF + WinForms 布局均已完成
+            this.Dispatcher.Invoke(new Action(() =>
             {
-                ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }), System.Windows.Threading.DispatcherPriority.Render);
         }
 
         private void ShowCanvasAll()
