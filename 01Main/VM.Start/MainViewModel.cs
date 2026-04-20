@@ -584,17 +584,18 @@ namespace HV.ViewModels
                                     }
                                     break;
                                 case "Save": //保存
-                                    foreach (var item in Solution.Ins.ProjectList)
-                                    {
-                                        if (item.GetThreadStatus())
-                                        {
-                                            MessageView.Ins.MessageBoxShow(
-                                                "程序运行状态禁止保存工程！",
-                                                eMsgType.Warn
-                                            );
-                                            return;
-                                        }
-                                    }
+                                    //要求在流程运行时也能保存解决方案
+                                    // foreach (var item in Solution.Ins.ProjectList)
+                                    // {
+                                    //     if (item.GetThreadStatus())
+                                    //     {
+                                    //         MessageView.Ins.MessageBoxShow(
+                                    //             "程序运行状态禁止保存工程！",
+                                    //             eMsgType.Warn
+                                    //         );
+                                    //         return;
+                                    //     }
+                                    // }
                                     if (CurrentSolution != null && File.Exists(CurrentSolution))
                                     {
                                         SerializeHelp.BinSerializeAndSaveFile(
@@ -928,6 +929,13 @@ namespace HV.ViewModels
             // 反序列化解决方案（在后台执行）
             var solution = await Task.Run(() => SerializeHelp.BinDeserialize<Solution>(fileName));
             Solution.Ins = solution;
+
+            // 强制重置所有项目的运行状态（防止自动运行）
+            foreach (var project in Solution.Ins.ProjectList)
+            {
+                project.RunMode = eRunMode.None;
+                project.ThreadStatus = false;
+            }
 
             // UI更新操作在UI线程执行
             CameraSetView.Ins.DataContext = CameraSetViewModel.Ins;

@@ -171,18 +171,18 @@ namespace Plugin.SaveImage.ViewModels
                 // 确保目录存在
                 EnsureDirectoriesExist(baseFolderPath, linkFolderPath, dateFolderPath);
 
-                // 图像有效性检查
-                if (!ValidateImageForSave(image))
-                {
-                    Logger.AddLog($"图像无效，跳过保存: {imageFullPath}", eMsgType.Warn);
-                    return;
-                }
+                //// 图像有效性检查
+                //if (!ValidateImageForSave(image))
+                //{
+                //    Logger.AddLog($"图像无效，跳过保存: {imageFullPath}", eMsgType.Warn);
+                //    return;
+                //}
 
-                // 磁盘空间检查（低于100MB时跳过保存）
-                if (!HasSufficientDiskSpace(imageFullPath))
-                {
-                    return;
-                }
+                //// 磁盘空间检查（低于100MB时跳过保存）
+                //if (!HasSufficientDiskSpace(imageFullPath))
+                //{
+                //    return;
+                //}
 
                 // 根据保存类型执行保存
                 switch (saveType)
@@ -192,7 +192,7 @@ namespace Plugin.SaveImage.ViewModels
                         lock (_saveImageLock)
                         {
                             saveStopwatch.Start();
-                            HOperatorSet.WriteImage(image, ImageStytleList[SelectedIndex], 0, imageFullPath);
+                            HOperatorSet.WriteImage(image, ImageStytleList[SelectedIndex], 50, imageFullPath);
                             saveStopwatch.Stop();
                             Logger.AddLog($"保存原图完成，路径: {imageFullPath}，耗时: {saveStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
                         }

@@ -282,7 +282,7 @@ namespace HV.Services
                     IsEnableControl.Ins.NewSolution = false;
                     IsEnableControl.Ins.SolutionList = false;
                     IsEnableControl.Ins.Open = false;
-                    IsEnableControl.Ins.Save = false;
+                    IsEnableControl.Ins.Save = true;
                     IsEnableControl.Ins.GlobalVar = false;
                     IsEnableControl.Ins.CameraSet = false;
                     IsEnableControl.Ins.CommunicationSet = false;
