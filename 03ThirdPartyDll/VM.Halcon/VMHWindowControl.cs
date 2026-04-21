@@ -109,8 +109,8 @@ namespace VM.Halcon
             WindowH = new ViewWindow(mCtrl_HWindow);
             hControl = this.mCtrl_HWindow;
             hControl.HMouseWheel += HWindowControl_MouseWheel;
-            m_CtrlHStatusLabelCtrl.DoubleClick += mCtrl_HWindow_DoubleClick;
-            mCtrl_HWindow.DoubleClick += mCtrl_HWindow_DoubleClick;
+            //m_CtrlHStatusLabelCtrl.DoubleClick += mCtrl_HWindow_DoubleClick;
+            //mCtrl_HWindow.DoubleClick += mCtrl_HWindow_DoubleClick;
             
             WindowH._hWndControl.PaintCrossEvent += PaintCross;
             if (LicenseManager.UsageMode == LicenseUsageMode.Designtime)
@@ -952,11 +952,11 @@ namespace VM.Halcon
         private bool blnDraw = false;
         private HRegion brushRegion = new HRegion();
         public event EventHandler MyDoubleClick;
-        private void mCtrl_HWindow_DoubleClick(object sender, EventArgs e)
-        {
-            // 触发自定义事件
-            MyDoubleClick?.Invoke(this, e);
-        }
+        //private void mCtrl_HWindow_DoubleClick(object sender, EventArgs e)
+        //{
+        //    // 触发自定义事件
+        //    MyDoubleClick?.Invoke(this, e);
+        //}
 
         private const int WM_LBUTTONDBLCLK = 0x0203;
 

@@ -12,7 +12,9 @@
         <Grid x:Name="grid" >
 
         </Grid>
-        <Grid x:Name="gridwindow" Visibility="Collapsed">
+        <Grid x:Name="gridwindow" Visibility="Collapsed"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
 
         </Grid>
     </Grid>

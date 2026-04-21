@@ -63,7 +63,7 @@ namespace VM.Halcon
             this.mCtrl_HWindow.TabIndex = 0;
             this.mCtrl_HWindow.WindowSize = new System.Drawing.Size(436, 343);
             this.mCtrl_HWindow.HMouseMove += new HalconDotNet.HMouseEventHandler(this.HWindowControl_HMouseMove);
-            this.mCtrl_HWindow.DoubleClick += new System.EventHandler(this.mCtrl_HWindow_DoubleClick);
+            //this.mCtrl_HWindow.DoubleClick += new System.EventHandler(this.mCtrl_HWindow_DoubleClick);
             this.mCtrl_HWindow.MouseLeave += new System.EventHandler(this.mCtrl_HWindow_MouseLeave);
             // 
             // m_CtrlHStatusLabelCtrl

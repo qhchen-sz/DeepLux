@@ -62,6 +62,7 @@ namespace HV.Views.Dock
         private bool _isFullScreen = false;
         private int _fullScreenWindowIndex = -1;
         private WindowsFormsHost _fullScreenHost;
+        private bool _isProcessingDoubleClick = false;
 
         #endregion
         #region Method
@@ -88,16 +89,28 @@ namespace HV.Views.Dock
 
         private void VisionView_MyDoubleClick(object sender, EventArgs e)
         {
-            if (sender is VMHWindowControl window)
+            // 防重复处理：如果正在处理中，直接返回
+            if (_isProcessingDoubleClick) return;
+            _isProcessingDoubleClick = true;
+
+            try
             {
-                if (_isFullScreen)
+                if (sender is VMHWindowControl window)
                 {
-                    ExitFullScreen();
+                    if (_isFullScreen)
+                    {
+                        ExitFullScreen();
+                    }
+                    else
+                    {
+                        EnterFullScreen(window.WindowIndex);
+                    }
                 }
-                else
-                {
-                    EnterFullScreen(window.WindowIndex);
-                }
+            }
+            finally
+            {
+                // 延迟重置标志，防止快速双击时被阻塞
+                Task.Delay(200).ContinueWith(_ => _isProcessingDoubleClick = false);
             }
         }
 
@@ -122,24 +135,28 @@ namespace HV.Views.Dock
             _fullScreenWindowIndex = windowIndex;
 
             // 创建全屏host并隐藏grid（不销毁grid内容）
-            _fullScreenHost = new WindowsFormsHost();
-            _fullScreenHost.Child = ViewDic.mViewDic[windowIndex];
+            _fullScreenHost = new WindowsFormsHost
+            {
+                Child = ViewDic.mViewDic[windowIndex]
+            };
             gridwindow.Children.Add(_fullScreenHost);
             grid.Visibility = Visibility.Collapsed;
             gridwindow.Visibility = Visibility.Visible;
 
-            // 设置焦点以便接收键盘事件
-            this.Focus();
-
-            // 延迟触发图像居中，等待布局完成后再适配
-            // 双重 Invoke 确保 WPF + WinForms 布局均已完成
+            // 延迟设置 VMHWindowControl 填满 gridwindow
             this.Dispatcher.Invoke(new Action(() =>
             {
                 this.Dispatcher.Invoke(new Action(() =>
                 {
-                    ViewDic.mViewDic[windowIndex]?.DispImageFitImage();
+                    var vmControl = ViewDic.mViewDic[windowIndex];
+                    vmControl.Width = (int)gridwindow.ActualWidth;
+                    vmControl.Height = (int)gridwindow.ActualHeight;
+                    vmControl.DispImageFitImage();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }), System.Windows.Threading.DispatcherPriority.Render);
+
+            //// 设置焦点以便接收键盘事件
+            //this.Focus();
         }
 
         /// <summary>
