@@ -62,6 +62,10 @@ namespace VM.Halcon
         public HWindowControl hControl; /**/ // 当前halcon窗口
         public double positionX,
             positionY;
+        /// <summary>
+        /// 临时抑制 SizeChanged 事件触发的标志，避免在程序化设置尺寸时触发多次 DispImageFitImage
+        /// </summary>
+        private bool _suppressSizeChangedEvent = false;
 
         public void SetImageMessDisp(bool IsDisp)
         {
@@ -82,6 +86,24 @@ namespace VM.Halcon
                 mCtrl_HWindow.HMouseMove -= HWindowControl_HMouseMove;
             }
         }
+
+        /// <summary>
+        /// 临时抑制 SizeChanged 事件触发的自动适应图片
+        /// 用于在全屏切换等场景下避免多次触发导致的闪烁
+        /// </summary>
+        public void SuppressSizeChangedEvent()
+        {
+            _suppressSizeChangedEvent = true;
+        }
+
+        /// <summary>
+        /// 恢复 SizeChanged 事件触发的自动适应图片
+        /// </summary>
+        public void ResumeSizeChangedEvent()
+        {
+            _suppressSizeChangedEvent = false;
+        }
+
         public static bool IsDesignMode() //是否处于设计模式判断
         {
             bool returnFlag = false;
@@ -174,7 +196,13 @@ namespace VM.Halcon
             saveWindow_strip.Enabled = false;
 
             mCtrl_HWindow.ContextMenuStrip = hv_MenuStrip;
-            mCtrl_HWindow.SizeChanged += new EventHandler((s, e) => DispImageFitImage());
+            mCtrl_HWindow.SizeChanged += new EventHandler((s, e) =>
+            {
+                if (!_suppressSizeChangedEvent)
+                {
+                    DispImageFitImage();
+                }
+            });
         }
         private void HWindowControl_MouseWheel(object sender, HMouseEventArgs e)
         {

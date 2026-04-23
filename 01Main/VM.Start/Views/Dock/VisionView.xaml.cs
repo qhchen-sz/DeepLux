@@ -144,17 +144,28 @@ namespace HV.Views.Dock
             gridwindow.Visibility = Visibility.Visible;
 
             // 延迟设置 VMHWindowControl 填满 gridwindow
-            this.Dispatcher.Invoke(new Action(() =>
+            this.Dispatcher.BeginInvoke(new Action(() =>
             {
-                this.Dispatcher.Invoke(new Action(() =>
-                {
-                    var vmControl = ViewDic.mViewDic[windowIndex];
-                    vmControl.Width = (int)gridwindow.ActualWidth;
-                    vmControl.Height = (int)gridwindow.ActualHeight;
-                    vmControl.DispImageFitImage();
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }), System.Windows.Threading.DispatcherPriority.Render);
+                var vmControl = ViewDic.mViewDic[windowIndex];
+                int w = (int)gridwindow.ActualWidth;
+                int h = (int)gridwindow.ActualHeight;
 
+                // 抑制 SizeChanged 事件，避免在设置过程中触发多次 DispImageFitImage
+                vmControl.SuppressSizeChangedEvent();
+                vmControl.Width = w;
+                vmControl.Height = h;
+                vmControl.hControl.Size = new System.Drawing.Size(w, h);
+                vmControl.hControl.WindowSize = new System.Drawing.Size(w, h);
+                vmControl.ResumeSizeChangedEvent();
+
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+
+            // 使用 ContextIdle 优先级确保所有渲染和布局完成后再执行图片居中
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var vmControl = ViewDic.mViewDic[_fullScreenWindowIndex];
+                vmControl.DispImageFitImage();
+            }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             //// 设置焦点以便接收键盘事件
             //this.Focus();
         }

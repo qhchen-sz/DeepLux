@@ -492,6 +492,12 @@ namespace Plugin.ShowImage.ViewModels
 
                     if (DispImage != null)
                     {
+                        // 在调用 get_image_size 之前检查图像是否有效
+                        if (!DispImage.IsInitialized())
+                        {
+                            // 处理图像无效的情况
+                            return;
+                        }
                         HOperatorSet.GetImageSize(DispImage, out width, out height);
                         windowsW = mWindowH.hControl.Width;
                         windowsH = mWindowH.hControl.Height;
