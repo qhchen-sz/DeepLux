@@ -1087,6 +1087,15 @@ namespace VM.Halcon.Model
         /// </summary>
         /// <param name="hObj">�����region.xld,image</param>
         /// <param name="color">��ɫ</param>
+        private int CalcDisplaySize(HText roiText)
+        {
+            if (roiText.originalSize > 0 && ImageWidth > 0 && ViewPort.Width > 0)
+            {
+                double scale = (double)ImageWidth / ViewPort.Width;
+                return Math.Max(1, (int)Math.Ceiling(roiText.originalSize / scale));
+            }
+            return roiText.size;
+        }
         public void DispObj(HText roiText)
         {
             //source code
@@ -1094,7 +1103,8 @@ namespace VM.Halcon.Model
             lock (_displayLock)
             {
                 roiTextList.Add(roiText);
-                ShowTool.SetFont(ViewPort.HalconWindow, roiText.size, "false", "false");
+                int displaySize = CalcDisplaySize(roiText);
+                ShowTool.SetFont(ViewPort.HalconWindow, displaySize, "false", "false");
                 ShowTool.SetMsg(ViewPort.HalconWindow, roiText.text, "image", roiText.row, roiText.col, roiText.drawColor, "false");
             }
         }
@@ -1148,7 +1158,8 @@ namespace VM.Halcon.Model
 
                 foreach (HText roiText in roiTextList)
                 {
-                    ShowTool.SetFont(ViewPort.HalconWindow, roiText.size, "false", "false");
+                    int displaySize = CalcDisplaySize(roiText);
+                    ShowTool.SetFont(ViewPort.HalconWindow, displaySize, "false", "false");
                     ShowTool.SetMsg(ViewPort.HalconWindow, roiText.text, "image", roiText.row, roiText.col, roiText.drawColor, "false");
                 }
             }

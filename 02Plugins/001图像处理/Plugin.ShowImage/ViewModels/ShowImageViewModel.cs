@@ -523,9 +523,10 @@ namespace Plugin.ShowImage.ViewModels
                                     "false",
                                     "false"
                                 );
-                                //roiText.size = 1;
+/*                                //roiText.size = 1;
                                 var size = Math.Ceiling(roiText.size / scale);
-                                HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);
+                                HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);*/
+                                HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)roiText.size);
                                 mWindowH.WindowH.DispText(hText);
                             }
                             else

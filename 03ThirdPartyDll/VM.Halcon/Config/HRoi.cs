@@ -86,6 +86,8 @@ namespace VM.Halcon.Config
         public double col { get; set; }
         /// <summary>大小</summary>
         public int size { get; set; }
+        /// <summary>未缩放的原始字号</summary>
+        public int originalSize { get; set; }
         /// <summary>角度</summary>
         public int phi { get; set; }
         public HText(string _drawColor, string _text, double _row, double _col, int _size, string _font="mono")
@@ -96,6 +98,7 @@ namespace VM.Halcon.Config
             row = _row;
             col = _col;
             size = _size;
+            originalSize = _size;
         }
         /// <summary>
         /// 测量roi
@@ -122,6 +125,7 @@ namespace VM.Halcon.Config
             row = _row;
             col = _col;
             size = _size;
+            originalSize = _size;
         }
         /// <summary>
         /// 测量roi
@@ -149,6 +153,7 @@ namespace VM.Halcon.Config
             row = _row;
             col = _col;
             size = _size;
+            originalSize = _size;
             fors = _for;
         }
     }

@@ -482,6 +482,7 @@ namespace VM.Halcon
             try
             {
                 this.WindowH.ResetWindowImage(true);
+                //this.WindowH._hWndControl.Repaint();
                 PaintCross();
             }
             catch (Exception) { }

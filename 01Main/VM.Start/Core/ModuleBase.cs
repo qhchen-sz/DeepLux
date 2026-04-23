@@ -942,6 +942,7 @@ namespace HV.Core
                         //mWindowH.hControl.HalconWindow.DispText( roiText.text, "image", roiText.col, roiText.row, roiText.drawColor, "box", "false");
                         var size = Math.Ceiling(roiText.size / scale);
                         HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);
+                        hText.originalSize = roiText.size;
                         mWindowH.WindowH.DispText(hText);
                         //ShowTool.SetMsg(
                         //    mWindowH.hControl.HalconWindow,
