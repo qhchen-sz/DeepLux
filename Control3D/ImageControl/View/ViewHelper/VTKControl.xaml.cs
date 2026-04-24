@@ -2644,7 +2644,7 @@ namespace ImageControl
         /// 使用 LOD (Level of Detail) 优化的点云显示方法
         /// 通过 vtkLODActor 和 vtkMaskPoints 实现多级细节，解决大点云卡顿问题
         /// </summary>
-        public void CreatePointCloudFromTiffFastHalcon_AutoScaleFast(HObject ho_Image)
+        public void CreatePointCloudFromTiffFastHalcon_AutoScaleFast(HObject ho_Image, double zScaleAuto = 1.0)
         {
             if (ho_Image == null || !ho_Image.IsInitialized())
                 return;
@@ -2708,12 +2708,8 @@ namespace ImageControl
             float rangeX = maxXCam - minXCam;
             float rangeY = maxYCam - minYCam;
 
-            // 5) 自动 Z 尺度
-            double zRangeFactor = 0.5;
-            double targetZRange = Math.Max(rangeX, rangeY) * zRangeFactor;
-            if (targetZRange < 1e-6) targetZRange = 1.0;
-
-            double zScaleAuto = targetZRange / (zHigh - zLow);
+            // 5) 禁用自动 Z 尺度（保留原始相对高度差）
+/*            double zScaleAuto = 1.0;*/
             double zOffset = 0.0;
 
             // 6) 4096 色 LUT
