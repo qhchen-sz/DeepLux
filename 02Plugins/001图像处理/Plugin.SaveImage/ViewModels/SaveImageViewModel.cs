@@ -311,8 +311,7 @@ namespace Plugin.SaveImage.ViewModels
                     lock (_viewLock)
                     {
                         saveStopwatch.Start();
-                        VMHWindowControl mWindowH = ViewDic.GetView(98);
-                        if (mWindowH == null) return;
+                        VMHWindowControl mWindowH = VisionView.Ins.GetImageBox(99);
 
                         HWindow hWindow = mWindowH.hControl.HalconWindow;
                         HOperatorSet.GetImageSize(image, out HTuple Width, out HTuple Height);
@@ -468,7 +467,7 @@ namespace Plugin.SaveImage.ViewModels
                     // 在需要访问共享资源的地方加锁
                     lock (_viewLock)
                     {
-                        VMHWindowControl mWindowH = ViewDic.GetView(98);
+                        VMHWindowControl mWindowH = VisionView.Ins.GetImageBox(99);
                         HWindow hWindow = mWindowH.hControl.HalconWindow;
                         HOperatorSet.GetImageSize(DispImage, out HTuple Width, out HTuple Height);
                         hWindow.SetWindowExtents(0, 0, Width, Height);
@@ -906,27 +905,28 @@ namespace Plugin.SaveImage.ViewModels
                 windos.DispText.Clear();
                 List<HRoi> Temp = new List<HRoi>(hRois);
 
-                //HTuple width = new HTuple(), height = new HTuple();
-                //double scale = 1;
-                //if (DispImage != null)
-                //{
-                //    HOperatorSet.GetImageSize(DispImage, out width, out height);
-                //    int windowsW = windos.hControl.Width;
-                //    int windowsH = windos.hControl.Height;
-                //    double scaleX = width.D / windowsW;
-                //    double scaleY = height.D / windowsH;
-                //    //scale = Math.Min(scaleX, scaleY);
-                //    scale = scaleX * scaleY;
-                //}
+                // 计算文字大小补偿系数
+                // CalcDisplaySize 内部做 originalSize / (ImageWidth / ViewPort.Width)
+                // 为使全分辨率截图中文字保持 originalSize，提前乘以该系数
+                double textScale = 1.0;
+                if (windos.hv_imageWidth > 0 && windos.hControl.Width > 0)
+                {
+                    textScale = (double)windos.hv_imageWidth / windos.hControl.Width;
+                }
 
-
+                // 保存原始值，用于 DumpWindow 后还原，避免影响显示窗口
+                Dictionary<HText, int> savedOriginalSizes = new Dictionary<HText, int>();
 
                 foreach (HRoi roi in Temp)
                 {
                     if (roi.roiType == HRoiType.文字显示)
                     {
                         HText roiText = (HText)roi;
-                        roiText.size = roiText.size;
+                        if (roiText.originalSize > 0 && textScale > 1.0)
+                        {
+                            savedOriginalSizes[roiText] = roiText.originalSize;
+                            roiText.originalSize = (int)(roiText.originalSize * textScale);
+                        }
                         ShowTool.SetFont(
                             windos.hControl.HalconWindow,
                             roiText.size,
@@ -942,6 +942,12 @@ namespace Plugin.SaveImage.ViewModels
                 }
                 windos.WindowH.ResetWindowImage(false);
                 HOperatorSet.DumpWindow(windos.hControl.HalconWindow, "jpeg", ImageNames);
+
+                // 还原 originalSize，避免影响后续显示
+                foreach (var kv in savedOriginalSizes)
+                {
+                    kv.Key.originalSize = kv.Value;
+                }
                 //windos.DispText.Clear();
 
                 //foreach (HRoi roi in hRois)

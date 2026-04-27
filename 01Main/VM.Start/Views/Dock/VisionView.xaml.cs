@@ -146,6 +146,7 @@ namespace HV.Views.Dock
             // 延迟设置 VMHWindowControl 填满 gridwindow
             this.Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (!_isFullScreen) return;
                 var vmControl = ViewDic.mViewDic[windowIndex];
                 int w = (int)gridwindow.ActualWidth;
                 int h = (int)gridwindow.ActualHeight;
@@ -161,9 +162,11 @@ namespace HV.Views.Dock
             }), System.Windows.Threading.DispatcherPriority.Loaded);
 
             // 使用 ContextIdle 优先级确保所有渲染和布局完成后再执行图片居中
+            int capturedIndex = windowIndex;
             this.Dispatcher.BeginInvoke(new Action(() =>
             {
-                var vmControl = ViewDic.mViewDic[_fullScreenWindowIndex];
+                if (!_isFullScreen) return;
+                var vmControl = ViewDic.mViewDic[capturedIndex];
                 vmControl.DispImageFitImage();
             }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             //// 设置焦点以便接收键盘事件
@@ -565,9 +568,12 @@ namespace HV.Views.Dock
         public static Dictionary<int, VMHWindowControl> mViewDic = new Dictionary<int, VMHWindowControl>();
         public static VMHWindowControl GetView(int key)
         {
-            return mViewDic[key+1];
+            int actualKey = key + 1;
+            if (!mViewDic.ContainsKey(actualKey))
+                return null;
+            return mViewDic[actualKey];
         }
-        
+
     }
 
 }
