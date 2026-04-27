@@ -196,14 +196,19 @@ namespace HV.Views.Dock
             grid.Visibility = Visibility.Visible;
 
             // 延迟触发图像居中，等待布局完成后再适配
-            // 双重 Invoke 确保 WPF + WinForms 布局均已完成
-            this.Dispatcher.Invoke(new Action(() =>
+            //// 双重 Invoke 确保 WPF + WinForms 布局均已完成
+            //this.Dispatcher.Invoke(new Action(() =>
+            //{
+            //    this.Dispatcher.Invoke(new Action(() =>
+            //    {
+            //        ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
+            //    }), System.Windows.Threading.DispatcherPriority.Loaded);
+            //}), System.Windows.Threading.DispatcherPriority.Render);
+            // 使用 ContextIdle 优先级确保所有渲染和布局完成后再执行图片居中
+            this.Dispatcher.BeginInvoke(new Action(() =>
             {
-                this.Dispatcher.Invoke(new Action(() =>
-                {
-                    ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }), System.Windows.Threading.DispatcherPriority.Render);
+                ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
+            }), System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         private void ShowCanvasAll()
