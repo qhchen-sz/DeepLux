@@ -220,8 +220,6 @@ namespace HV.Core
             // 防御性初始化基类中可能为null的集合
             if (mHRoi == null)
                 mHRoi = new List<HRoi>();
-            if (ModeCoord == null)
-                ModeCoord = new Coord_Info();
             if (CanvasList == null)
                 CanvasList = new List<string>()
                 {

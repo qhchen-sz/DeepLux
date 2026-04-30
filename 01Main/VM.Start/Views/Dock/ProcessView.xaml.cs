@@ -2324,7 +2324,7 @@ namespace HV.Views.Dock
         private void moduleTree_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             var selectedModule = moduleTree.SelectedItem as ModuleNode;
-            if(selectedModule != null) 
+            if(selectedModule != null)
             {
                 var item = Solution.Ins.CurrentProject.ModuleList
      .Where(o => o.ModuleParam.ModuleName == selectedModule.DisplayName)
@@ -2342,6 +2342,26 @@ namespace HV.Views.Dock
                     temp.IsDisableIcon = "\xe8fa";
                 }
             }
+        }
+
+        /// <summary>
+        /// 删除临时方案恢复文件
+        /// </summary>
+        public void DeleteTempSolution()
+        {
+            try
+            {
+                string tempPath = System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Temp",
+                    "AutoRecovery.vm"
+                );
+                if (System.IO.File.Exists(tempPath))
+                {
+                    System.IO.File.Delete(tempPath);
+                }
+            }
+            catch { }
         }
     }
 }

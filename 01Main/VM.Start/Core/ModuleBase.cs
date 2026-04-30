@@ -222,8 +222,7 @@ namespace HV.Core
             // 防御性初始化基类中可能为null的集合
             if (mHRoi == null)
                 mHRoi = new List<HRoi>();
-            if (ModeCoord == null)
-                ModeCoord = new Coord_Info();
+            // ModeCoord 是值类型(struct)，不会为 null，无需检查
             if (CanvasList == null)
                 CanvasList = new List<string>()
                 {
