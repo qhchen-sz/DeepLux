@@ -451,8 +451,10 @@ namespace HV.ViewModels
                             //App.splashScreen.Close();
                             //【21】软件启动成功
                             Logger.AddLog(Resource.SoftwareStartupSucceeded);
-                            //【22】加载配方
-                            if (SystemConfig.Ins.SolutionAutoLoad)
+                            //【22】检测并恢复临时方案
+                            bool isRecovered = CheckAndRecoverTempSolution();
+                            //【23】加载配方（未恢复临时方案时才执行自动加载）
+                            if (!isRecovered && SystemConfig.Ins.SolutionAutoLoad)
                             {
                                 OpenSolution(SystemConfig.Ins.SolutionPathText);
                                 if (SystemConfig.Ins.SolutionAutoRun)
@@ -490,6 +492,55 @@ namespace HV.ViewModels
             IsCheckedChartVision = true;
         }
 
+        /// <summary>
+        /// 启动时检测并恢复临时方案
+        /// </summary>
+        /// <returns>是否成功恢复了临时方案</returns>
+        private bool CheckAndRecoverTempSolution()
+        {
+            string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "AutoRecovery.vm");
+            if (!File.Exists(tempPath))
+                return false;
+
+            var messageView = MessageView.Ins;
+            messageView.MessageBoxShow(
+                "检测到上次未正常保存的方案，是否恢复？",
+                eMsgType.Info,
+                MessageBoxButton.YesNo
+            );
+
+            if (messageView.DialogResult == true)
+            {
+                try
+                {
+                    var solution = SerializeHelp.BinDeserialize<Solution>(tempPath);
+                    Solution.Ins = solution;
+                    CurrentSolution = null; // 临时方案不绑定正式路径，提示用户另存为
+
+                    // 更新UI
+                    UpdateUIAfterLoading();
+
+                    Logger.AddLog(
+                        "临时方案恢复成功，建议立即另存为正式方案！",
+                        eMsgType.Success,
+                        isDispGrowl: true
+                    );
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.AddLog($"临时方案恢复失败：{ex.Message}", eMsgType.Error);
+                    ProcessView.Ins.DeleteTempSolution();
+                    return false;
+                }
+            }
+            else
+            {
+                ProcessView.Ins.DeleteTempSolution();
+                return false;
+            }
+        }
+
         private CommandBase _ClosingCommand;
         public CommandBase ClosingCommand
         {
@@ -521,6 +572,9 @@ namespace HV.ViewModels
                             }
                             else
                             {
+                                // 正常关闭时删除临时方案
+                                ProcessView.Ins.DeleteTempSolution();
+
                                 EventMgr.Ins.GetEvent<SoftwareExitEvent>().Publish();
                                 CommonMethods.Exit();
                             }

@@ -982,6 +982,14 @@ namespace Plugin.Matching.ViewModels
                                         }
                                         break;
                                     case eOperateCommand.Edit:
+
+                                        // 防呆：无有效图像时提示用户并返回，避免后续Halcon操作导致崩溃
+                                        if (ModelCutImage == null || !ModelCutImage.IsInitialized())
+                                        {
+                                            MessageView.Ins.MessageBoxShow("请先学习后，在编辑模板！", eMsgType.Warn);
+                                            return;
+                                        }
+
                                         EditView editView = new EditView();
                                         editView.DataContext = editViewModel;
                                         editViewModel.view = editView;

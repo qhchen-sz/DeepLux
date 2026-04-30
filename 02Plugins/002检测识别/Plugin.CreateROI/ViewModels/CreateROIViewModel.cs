@@ -20,6 +20,7 @@ using VM.Halcon;
 using VM.Halcon.Config;
 using VM.Halcon.Model;
 using HV.Views.Dock;
+using HV.Dialogs.Views;
 
 namespace Plugin.CreateROI.ViewModels
 {
@@ -614,7 +615,17 @@ namespace Plugin.CreateROI.ViewModels
             var view = ModuleView as CreateROIView;
             if (view == null) return;
 
-            int viewId = DispImage?.DispViewID ?? -1;
+            // 防呆：无有效图像时提示用户并返回，避免后续Halcon操作导致崩溃
+            if (DispImage == null || !DispImage.IsInitialized())
+            {
+                if (!IsLoaded_Flag)
+                {
+                    MessageView.Ins.MessageBoxShow("请先链接并选择输入图像后再绘制ROI！", eMsgType.Warn);
+                }
+                return;
+            }
+
+            int viewId = DispImage.DispViewID;
             VMHWindowControl mWindowH = (view == null || view.IsClosed) ? ViewDic.GetView(viewId) : view.mWindowH;
             if (mWindowH == null) return;
 
