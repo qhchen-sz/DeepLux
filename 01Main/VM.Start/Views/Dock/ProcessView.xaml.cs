@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -74,6 +75,10 @@ namespace HV.Views.Dock
         private string MultiSelectedEnd { get; set; } //多选下结束的模块名称
         private int MultiSelectedCount { get; set; } //多选模块总数
         public List<string> SelectedModuleNameList { get; set; } = new List<string>(); // 连续选中模式下 选择的module
+
+        //自动保存临时方案相关
+        private bool _isSavingTemp = false;
+        private readonly object _saveTempLock = new object();
 
         //之前选中的ModuleNode
         public ModuleNode SelectedNode { get; set; }
@@ -1285,6 +1290,7 @@ namespace HV.Views.Dock
                 }
             }
             SelectNode(selectedNoteName);
+            SaveTempSolution();
         }
 
         /// <summary>
@@ -1372,6 +1378,83 @@ namespace HV.Views.Dock
             }
         }
 
+        #endregion
+
+        #region 自动保存临时方案
+        /// <summary>
+        /// 保存临时方案，用于软件崩溃后自动恢复（后台线程执行，不卡UI）
+        /// </summary>
+        private void SaveTempSolution()
+        {
+            lock (_saveTempLock)
+            {
+                if (_isSavingTemp)
+                    return;
+                _isSavingTemp = true;
+            }
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    // 运行状态禁止自动保存，避免序列化冲突
+                    foreach (var item in Solution.Ins.ProjectList)
+                    {
+                        if (item.GetThreadStatus())
+                        {
+                            return;
+                        }
+                    }
+
+                    // 确保临时目录存在
+                    string tempDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+                    if (!Directory.Exists(tempDir))
+                    {
+                        Directory.CreateDirectory(tempDir);
+                    }
+
+                    // 保存到固定临时文件（深拷贝后再序列化，避免与UI线程并发冲突）
+                    string tempPath = System.IO.Path.Combine(tempDir, "AutoRecovery.vm");
+                    var solutionCopy = CloneObject.DeepCopy(Solution.Ins);
+                    SerializeHelp.BinSerializeAndSaveFile(solutionCopy, tempPath);
+                }
+                catch (Exception ex)
+                {
+                    // 自动保存失败不弹窗打扰用户，仅记录日志
+                    Logger.AddLog($"临时方案自动保存失败：{ex.Message}", eMsgType.Error);
+                }
+                finally
+                {
+                    lock (_saveTempLock)
+                    {
+                        _isSavingTemp = false;
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// 软件正常关闭时删除临时方案文件
+        /// </summary>
+        public void DeleteTempSolution()
+        {
+            try
+            {
+                string tempPath = System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Temp",
+                    "AutoRecovery.vm"
+                );
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"删除临时方案失败：{ex.Message}", eMsgType.Error);
+            }
+        }
         #endregion
 
         #region 打开模块窗体方法
@@ -1492,6 +1575,7 @@ namespace HV.Views.Dock
                 moduleObj.ModuleView.ShowDialog();
                 //moduleObj = obja;
                 moduleObj.IsOpenWindows = false;
+                SaveTempSolution();
             }
         }
         #endregion
@@ -1991,6 +2075,7 @@ namespace HV.Views.Dock
                     name
                 );
                 moduleTree.ItemsSource = TreeSoureList.ToList();
+                SaveTempSolution();
             }
         }
 
@@ -2268,6 +2353,7 @@ namespace HV.Views.Dock
                 null
             );
             moduleTree.ItemsSource = TreeSoureList.ToList();
+            SaveTempSolution();
         }
 
         public enum eModuleTreeOperateType
@@ -2342,26 +2428,6 @@ namespace HV.Views.Dock
                     temp.IsDisableIcon = "\xe8fa";
                 }
             }
-        }
-
-        /// <summary>
-        /// 删除临时方案恢复文件
-        /// </summary>
-        public void DeleteTempSolution()
-        {
-            try
-            {
-                string tempPath = System.IO.Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory,
-                    "Temp",
-                    "AutoRecovery.vm"
-                );
-                if (System.IO.File.Exists(tempPath))
-                {
-                    System.IO.File.Delete(tempPath);
-                }
-            }
-            catch { }
         }
     }
 }
