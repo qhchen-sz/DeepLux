@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
@@ -214,6 +215,141 @@ namespace HV.Core
 
         #endregion
         #region Method
+
+        [OnDeserialized]
+        private void OnDeserializedCallback(StreamingContext context)
+        {
+            // 防御性初始化基类中可能为null的集合
+            if (mHRoi == null)
+                mHRoi = new List<HRoi>();
+            if (ModeCoord == null)
+                ModeCoord = new Coord_Info();
+            if (CanvasList == null)
+                CanvasList = new List<string>()
+                {
+                    "图像窗口1", "图像窗口2", "图像窗口3",
+                    "图像窗口4", "图像窗口5", "图像窗口6",
+                    "图像窗口7", "图像窗口8", "图像窗口9",
+                };
+
+            // 自动扫描并初始化子类中新增的为null的可序列化字段
+            AutoInitializeNullFields();
+
+            // 清空所有委托字段，防止lambda方法名变化导致的序列化异常
+            ClearDelegateFields();
+
+            // 调用子类扩展初始化
+            try
+            {
+                OnAfterDeserialized();
+            }
+            catch (Exception ex)
+            {
+                Logger.GetExceptionMsg(ex);
+            }
+        }
+
+        /// <summary>
+        /// 自动初始化所有为null的可序列化字段。模块开发者新增字段后无需任何额外操作。
+        /// </summary>
+        private void AutoInitializeNullFields()
+        {
+            Type currentType = GetType();
+
+            // 只处理子类中声明的字段（基类字段上面已手动处理）
+            var fields = currentType.GetFields(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
+            );
+
+            foreach (var field in fields)
+            {
+                // 跳过标记了 [NonSerialized] 的字段
+                if (Attribute.IsDefined(field, typeof(NonSerializedAttribute)))
+                    continue;
+
+                // 跳过值类型（它们已经有默认值了）
+                Type fieldType = field.FieldType;
+                if (fieldType.IsValueType)
+                    continue;
+
+                // 跳过已经有值的字段
+                object currentValue = field.GetValue(this);
+                if (currentValue != null)
+                    continue;
+
+                // 跳过明确不应该自动初始化的类型
+                if (ShouldSkipAutoInitialization(fieldType))
+                    continue;
+
+                // 尝试用无参构造函数创建实例
+                var ctor = fieldType.GetConstructor(Type.EmptyTypes);
+                if (ctor != null)
+                {
+                    try
+                    {
+                        object instance = Activator.CreateInstance(fieldType);
+                        field.SetValue(this, instance);
+                    }
+                    catch
+                    {
+                        // 如果创建失败，静默忽略
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 清空所有委托字段，防止lambda/匿名方法因编译器生成名变化导致反序列化异常
+        /// </summary>
+        private void ClearDelegateFields()
+        {
+            Type currentType = GetType();
+            var fields = currentType.GetFields(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
+            );
+
+            foreach (var field in fields)
+            {
+                if (typeof(Delegate).IsAssignableFrom(field.FieldType))
+                {
+                    try
+                    {
+                        field.SetValue(this, null);
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 判断某个类型是否不应该被自动初始化
+        /// </summary>
+        private bool ShouldSkipAutoInitialization(Type type)
+        {
+            // string：null 是合法状态
+            if (type == typeof(string)) return true;
+
+            // Halcon 图像/区域类型：这些不能随意 new
+            if (type == typeof(HImage) || type == typeof(RImage) || type == typeof(HObject) || type == typeof(HRegion))
+                return true;
+
+            // 委托和事件（由 ClearDelegateFields 单独处理）
+            if (typeof(Delegate).IsAssignableFrom(type)) return true;
+
+            // 抽象类、接口：无法实例化
+            if (type.IsAbstract || type.IsInterface) return true;
+
+            // 数组：不自动初始化
+            if (type.IsArray) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 反序列化后的扩展初始化。子类如有特殊需求可重写。
+        /// </summary>
+        protected virtual void OnAfterDeserialized() { }
+
         /*private void InitRect1Changed()
         {
             if (InitLineChanged_Flag == true) return;
