@@ -72,6 +72,9 @@ namespace HV.Services
         [NonSerialized]
         public bool BreakpointFlag = false;
 
+        [NonSerialized]
+        private object _outputLock;
+
         /// <summary>
         /// 线程状态 true执行中 false阻塞中
         /// </summary>
@@ -179,6 +182,7 @@ namespace HV.Services
         #region Ctor
         public Project()
         {
+            _outputLock = new object();
             m_Thread = new Thread(Process);
             m_Thread.IsBackground = true;
             m_Thread.Start();
@@ -201,6 +205,7 @@ namespace HV.Services
         [OnDeserialized()] //反序列化之后
         internal void OnDeserializedMethod(StreamingContext context)
         {
+            _outputLock = new object();
             OutputMap = new Dictionary<string, Dictionary<string, VarModel>>();
             Breakpoint = new AutoResetEvent(false);
             m_Thread = new Thread(Process);
@@ -308,45 +313,48 @@ namespace HV.Services
             string note = ""
         )
         {
-            if (!this.OutputMap.ContainsKey(moduleParam.ModuleName))
+            lock (_outputLock)
             {
-                this.OutputMap[moduleParam.ModuleName] = new Dictionary<string, VarModel>();
-            }
-            Dictionary<string, VarModel> dictionary = this.OutputMap[moduleParam.ModuleName];
-            if (!dictionary.ContainsKey(varName))
-            {
-                dictionary.Add(
-                    varName,
-                    new VarModel
-                    {
-                        ModuleParam = moduleParam,
-                        DataType = varType,
-                        Name = varName,
-                        Value = obj,
-                        Note = note
-                    }
-                );
-            }
-            else
-            {
-                if (obj is RImage)
+                if (!this.OutputMap.ContainsKey(moduleParam.ModuleName))
                 {
-                    dictionary[varName].Value = (RImage)obj;
+                    this.OutputMap[moduleParam.ModuleName] = new Dictionary<string, VarModel>();
                 }
-                else if (obj is HImage)
+                Dictionary<string, VarModel> dictionary = this.OutputMap[moduleParam.ModuleName];
+                if (!dictionary.ContainsKey(varName))
                 {
-                    dictionary[varName].Value = (HImage)obj;
-                }
-                else if (obj is HRegion)
-                {
-                    dictionary[varName].Value = (HRegion)obj;
+                    dictionary.Add(
+                        varName,
+                        new VarModel
+                        {
+                            ModuleParam = moduleParam,
+                            DataType = varType,
+                            Name = varName,
+                            Value = obj,
+                            Note = note
+                        }
+                    );
                 }
                 else
                 {
-                    dictionary[varName].DataType = varType;
-                    dictionary[varName].Value = obj;
+                    if (obj is RImage)
+                    {
+                        dictionary[varName].Value = (RImage)obj;
+                    }
+                    else if (obj is HImage)
+                    {
+                        dictionary[varName].Value = (HImage)obj;
+                    }
+                    else if (obj is HRegion)
+                    {
+                        dictionary[varName].Value = (HRegion)obj;
+                    }
+                    else
+                    {
+                        dictionary[varName].DataType = varType;
+                        dictionary[varName].Value = obj;
+                    }
+                    dictionary[varName].Note = note;
                 }
-                dictionary[varName].Note = note;
             }
         }
         /// <summary>
@@ -354,11 +362,14 @@ namespace HV.Services
         /// </summary>
         public void ClearOutputParam(ModuleParam moduleParam)
         {
-            // 检查OutputMap字典中是否包含moduleParam.ModuleName作为键
-            if (this.OutputMap.ContainsKey(moduleParam.ModuleName))
+            lock (_outputLock)
             {
-                // 如果存在，清除对应的字典条目
-                this.OutputMap[moduleParam.ModuleName].Clear();
+                // 检查OutputMap字典中是否包含moduleParam.ModuleName作为键
+                if (this.OutputMap.ContainsKey(moduleParam.ModuleName))
+                {
+                    // 如果存在，清除对应的字典条目
+                    this.OutputMap[moduleParam.ModuleName].Clear();
+                }
             }
         }
         /// 
@@ -384,12 +395,15 @@ namespace HV.Services
                 }
                 else
                 {
-                    if (OutputMap.ContainsKey(moduleName))
+                    lock (_outputLock)
                     {
-                        Dictionary<string, VarModel> dic = OutputMap[moduleName];
-                        if (dic.ContainsKey(varName))
+                        if (OutputMap.ContainsKey(moduleName))
                         {
-                            return dic[varName];
+                            Dictionary<string, VarModel> dic = OutputMap[moduleName];
+                            if (dic.ContainsKey(varName))
+                            {
+                                return dic[varName];
+                            }
                         }
                     }
                 }
@@ -420,14 +434,18 @@ namespace HV.Services
                 }
                 else
                 {
-                    if (OutputMap.ContainsKey(moduleName))
+                    lock (_outputLock)
                     {
-                        Dictionary<string, VarModel> dic = OutputMap[moduleName];
-
-                        if (dic.ContainsKey(varName))
+                        if (OutputMap.ContainsKey(moduleName))
                         {
-                            //return dic[varName];
-                            dic[varName].Value = data.Value;
+                            Dictionary<string, VarModel> dic = OutputMap[moduleName];
+
+                            if (dic.ContainsKey(varName))
+                            {
+                                //return dic[varName];
+                                dic[varName].Value = data.Value;
+                                return true;
+                            }
                         }
                     }
                 }
@@ -719,6 +737,110 @@ namespace HV.Services
                     IsNextModuleUpdate = true; //从 结束循环  跳转到 开始循环
                 }
             }
+            else if (moduleParam.PluginName == "并行处理")
+            {
+                List<string> childlist = ModuleTreeNodeMap[ExeModuleName].Parent.ChildList;
+
+                if (ExeModuleName.StartsWith("并行处理开始"))
+                {
+                    int curIndex = childlist.IndexOf(ExeModuleName);
+
+                    string parallelNum = Regex.Match(ExeModuleName, @"\d+").Value;
+                    string endMarker = $"并行处理结束{parallelNum}";
+
+                    List<string> branchModules = new List<string>();
+                    int endIndex = -1;
+
+                    for (int i = curIndex + 1; i < childlist.Count; i++)
+                    {
+                        string childName = childlist[i];
+
+                        if (childName == endMarker)
+                        {
+                            endIndex = i;
+                            break;
+                        }
+
+                        if (childName.StartsWith("并行处理开始") && !childName.StartsWith("并行处理结束"))
+                        {
+                            string nestedNum = Regex.Match(childName, @"\d+").Value;
+                            string nestedEnd = $"并行处理结束{nestedNum}";
+                            while (i < childlist.Count && childlist[i] != nestedEnd)
+                            {
+                                i++;
+                            }
+                            continue;
+                        }
+
+                        if (!childName.EndsWith("结束") &&
+                            !childName.StartsWith("否则") &&
+                            !childName.StartsWith("结束"))
+                        {
+                            branchModules.Add(childName);
+                        }
+                    }
+
+                    bool allSuccess = true;
+
+                    if (branchModules.Count > 0)
+                    {
+                        var tasks = new List<Task<bool>>();
+
+                        foreach (var branchName in branchModules)
+                        {
+                            string branch = branchName;
+
+                            var task = Task.Run(() =>
+                            {
+                                try
+                                {
+                                    bool bRet = ModuleDic[branch].ExeModule();
+
+                                    Console.WriteLine("ExeModuleName==={0}", ModuleDic[branch].ModuleParam.ModuleName);
+                                    return bRet;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"并行分支 [{branch}] 异常: {ex.Message}");
+                                    return false;
+                                }
+                            });
+
+                            tasks.Add(task);
+                        }
+
+                        try
+                        {
+                            Task.WaitAll(tasks.ToArray());
+
+                            foreach (var task in tasks)
+                            {
+                                if (!task.Result)
+                                {
+                                    allSuccess = false;
+                                    break;
+                                }
+                            }
+                        }
+                        catch (AggregateException)
+                        {
+                            allSuccess = false;
+                        }
+                    }
+
+                    flag = allSuccess;
+
+                    if (endIndex != -1)
+                    {
+                        ExeModuleName = childlist[endIndex];
+                        IsNextModuleUpdate = true;
+                    }
+                    else
+                    {
+                        ExeModuleName = "";
+                    }
+                }
+            }
             else if (moduleParam.PluginName == "停止循环" && moduleParam.IsUse == true)
             {
                 //判断是是否有父类 没有父类 则是不和要求的停止循环,
@@ -825,6 +947,7 @@ namespace HV.Services
                     || moduleName.StartsWith("坐标补正结束")
                     || moduleName.StartsWith("点云补正结束")
                     || moduleName.StartsWith("循环结束")
+                    || moduleName.StartsWith("并行处理结束")
                 ) //
                 {
                     if (stack.Count > 0)
@@ -856,6 +979,7 @@ namespace HV.Services
                     || Regex.IsMatch(moduleName, "文件夹[0-9]*$")
                     || Regex.IsMatch(moduleName, "执行片段[0-9]*$")
                     || Regex.IsMatch(moduleName, "循环开始[0-9]*$")
+                    || Regex.IsMatch(moduleName, "并行处理[0-9]*$")
                 )
                 {
                     stack.Push(node);
@@ -900,6 +1024,11 @@ namespace HV.Services
             }
             return true;
         }
+
+        /// <summary>
+        /// 处理并行分支
+        /// </summary>
+
         #endregion
     }
 
