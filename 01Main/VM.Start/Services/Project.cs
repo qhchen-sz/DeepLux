@@ -206,6 +206,7 @@ namespace HV.Services
         internal void OnDeserializedMethod(StreamingContext context)
         {
             _outputLock = new object();
+            _ThreadStatus = false;
             OutputMap = new Dictionary<string, Dictionary<string, VarModel>>();
             Breakpoint = new AutoResetEvent(false);
             m_Thread = new Thread(Process);
