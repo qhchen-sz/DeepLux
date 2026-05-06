@@ -143,6 +143,11 @@ namespace HV.ViewModels
                                                 eCommunicationType.XinJETcpNet
                                             );
                                             break;
+                                        case eCommunicationType.BeckhoffAds:
+                                            name = EComManageer.CreateECom(
+                                                eCommunicationType.BeckhoffAds
+                                            );
+                                            break;
                                         default:
                                             break;
                                     }

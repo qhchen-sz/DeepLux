@@ -139,6 +139,11 @@ namespace HV.ViewModels
                                                 eCommunicationType.Opc
                                             );
                                             break;
+                                        case eCommunicationType.BeckhoffAds:
+                                            name = EComManageer.CreateECom(
+                                                eCommunicationType.BeckhoffAds
+                                            );
+                                            break;
                                         default:
                                             break;
                                     }

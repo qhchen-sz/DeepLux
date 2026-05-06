@@ -25,6 +25,7 @@ using OpcUaHelper;
 using Opc.Ua;
 using ICSharpCode.NRefactory.TypeSystem;
 using HslCommunication.Profinet.Melsec;
+using HslCommunication.Profinet.Beckhoff;
 
 namespace HV.Communacation
 {
@@ -273,6 +274,8 @@ namespace HV.Communacation
         [NonSerialized]
         private MelsecMcNet m_MelsecMcNet;//Mc客户端
         [NonSerialized]
+        private BeckhoffAdsNet m_BeckhoffAdsNet;//倍福ADS客户端
+        [NonSerialized]
         private OmronCipNet m_OmronCipNet;//Cip客户端
         [NonSerialized]
         private OpcUaClient m_OpcUaNet;//OpcUa客户端
@@ -493,6 +496,27 @@ namespace HV.Communacation
                         Logger.AddLog("MC连接失败！");
                     }
                     break;
+                case eCommunicationType.BeckhoffAds:
+                    if (m_BeckhoffAdsNet == null)
+                    {
+                        m_BeckhoffAdsNet = new BeckhoffAdsNet();
+                    }
+                    m_BeckhoffAdsNet.IpAddress = RemoteIP;
+                    m_BeckhoffAdsNet.Port = RemotePort > 0 ? RemotePort : 48898;
+                    OperateResult connect3 = m_BeckhoffAdsNet.ConnectServer();
+                    if (connect3.IsSuccess)
+                        IsConnected = true;
+                    else
+                        IsConnected = false;
+                    if (IsConnected)
+                    {
+                        Logger.AddLog("Beckhoff ADS连接成功！");
+                    }
+                    else
+                    {
+                        Logger.AddLog("Beckhoff ADS连接失败！");
+                    }
+                    break;
                 case eCommunicationType.Opc:
 
                     if (m_OpcUaNet == null)
@@ -630,6 +654,46 @@ namespace HV.Communacation
                         isSuccess = true;
                     }
 
+                    break;
+                case eCommunicationType.BeckhoffAds:
+                    readWriteNet = m_BeckhoffAdsNet as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            if (!bool.TryParse(data, out bool databool))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Boolean.");
+                            }
+                            write = readWriteNet.Write(address, databool);
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            if (!short.TryParse(data, out short parsedNumber))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Int16.");
+                            }
+                            var send = new short[] { parsedNumber };
+                            write = readWriteNet.Write(address, send);
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            if (!float.TryParse(data, out float parsedNumber2))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Float.");
+                            }
+                            var send2 = new float[] { parsedNumber2 };
+                            write = readWriteNet.Write(address, send2);
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            write = readWriteNet.Write(address, data);
+                            break;
+                    }
+                    if (!write.IsSuccess)
+                    {
+                        isSuccess = false;
+                    }
+                    else
+                    {
+                        isSuccess = true;
+                    }
                     break;
                 case eCommunicationType.Opc:
                     string NoteID = "ns=4;s=|var|Inovance-PLC.Application." + RemoteNote+"."+address;
@@ -838,6 +902,40 @@ namespace HV.Communacation
                             {
                                 data = readfloat.Content.ToString();
 
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            OperateResult<string> readstr = readWriteNet.ReadString(address, 100, Encoding.UTF8);
+                            if (readstr.IsSuccess)
+                            {
+                                data = readstr.Content.ToString();
+                            }
+                            break;
+                    }
+                    break;
+                case eCommunicationType.BeckhoffAds:
+                    readWriteNet = m_BeckhoffAdsNet as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            OperateResult<bool> readbool = readWriteNet.ReadBool(address);
+                            if (readbool.IsSuccess)
+                            {
+                                data = readbool.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            OperateResult<short> readshort = readWriteNet.ReadInt16(address);
+                            if (readshort.IsSuccess)
+                            {
+                                data = readshort.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            OperateResult<float> readfloat = readWriteNet.ReadFloat(address);
+                            if (readfloat.IsSuccess)
+                            {
+                                data = readfloat.Content.ToString();
                             }
                             break;
                         case PLCDataWriteReadTypeEnum.字符串:
@@ -1133,6 +1231,11 @@ namespace HV.Communacation
                     case eCommunicationType.Mc:
                         if (m_MelsecMcNet != null)
                             m_MelsecMcNet.ConnectClose();
+                        IsHasObjectConnected = false;
+                        break;
+                    case eCommunicationType.BeckhoffAds:
+                        if (m_BeckhoffAdsNet != null)
+                            m_BeckhoffAdsNet.ConnectClose();
                         IsHasObjectConnected = false;
                         break;
                     case eCommunicationType.Opc:
@@ -1463,3 +1566,4 @@ namespace HV.Communacation
         }
     }
 }
+

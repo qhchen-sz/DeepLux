@@ -222,6 +222,7 @@ namespace HV.Common.Enums
         Fins = 5,//Fins协议
         Opc = 6,//Opcua协议
         Mc = 7,//Opcua协议
+        BeckhoffAds = 8,//倍福ADS协议
     }
 
     public enum eTypes

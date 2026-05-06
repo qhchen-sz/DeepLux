@@ -155,6 +155,10 @@ namespace HV.Communacation
                     key = "XinJETcpNet";
                     ec.IsPLC = true;
                     break;
+                case eCommunicationType.BeckhoffAds:
+                    key = "Beckhoff";
+                    ec.IsPLC = true;
+                    break;
                 default:
                     break;
             }

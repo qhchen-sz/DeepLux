@@ -151,6 +151,10 @@ namespace HV.Communacation
                     key = "Opc";
                     ec.IsPLC = true;
                     break;
+                case eCommunicationType.BeckhoffAds:
+                    key = "Beckhoff";
+                    ec.IsPLC = true;
+                    break;
                 default:
                     break;
             }
