@@ -63,5 +63,10 @@ namespace HV.Views
         private void window_Loaded(object sender, RoutedEventArgs e)
         {
         }
+
+        public void RefreshDataGrid()
+        {
+            dg.ItemsSource = CommunicationSetViewModel.Ins.CommunicationModels;
+        }
     }
 }

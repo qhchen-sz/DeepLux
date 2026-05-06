@@ -742,6 +742,7 @@ namespace HV.ViewModels
                                     break;
                                 case "CommunicationSet": //通讯设置
                                     CommunicationSetView.Ins.DataContext = CommunicationSetViewModel.Ins;
+                                    CommunicationSetView.Ins.RefreshDataGrid();
                                     CommunicationSetView.Ins.ShowDialog();
                                     break;
                                 case "HardwareConfig": //硬件配置
