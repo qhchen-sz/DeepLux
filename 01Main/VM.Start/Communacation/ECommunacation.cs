@@ -610,7 +610,11 @@ namespace HV.Communacation
                     switch (type)
                     {
                         case PLCDataWriteReadTypeEnum.布尔:
-
+                            if (!bool.TryParse(data, out bool databool))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Boolean.");
+                            }
+                            write = readWriteNet.Write(address, databool);
                             break;
                         case PLCDataWriteReadTypeEnum.整型:
                             if (!short.TryParse(data, out short parsedNumber))
@@ -621,10 +625,15 @@ namespace HV.Communacation
                             write = readWriteNet.Write(address, send);
                             break;
                         case PLCDataWriteReadTypeEnum.浮点:
-
+                            if (!float.TryParse(data, out float parsedNumber2))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Float.");
+                            }
+                            var send2 = new float[] { parsedNumber2 };
+                            write = readWriteNet.Write(address, send2);
                             break;
                         case PLCDataWriteReadTypeEnum.字符串:
-                            
+                            write = readWriteNet.Write(address, data);
                             break;
                     }
                     if (!write.IsSuccess)
@@ -935,7 +944,11 @@ namespace HV.Communacation
                     switch (type)
                     {
                         case PLCDataWriteReadTypeEnum.布尔:
-
+                            OperateResult<bool> readbool = readWriteNet.ReadBool(address);
+                            if (readbool.IsSuccess)
+                            {
+                                data = readbool.Content.ToString();
+                            }
                             break;
                         case PLCDataWriteReadTypeEnum.整型:
                             OperateResult<byte[]> readshort = readWriteNet.Read(address, 1);
@@ -945,7 +958,11 @@ namespace HV.Communacation
                             }
                             break;
                         case PLCDataWriteReadTypeEnum.浮点:
-
+                            OperateResult<float> readfloat = readWriteNet.ReadFloat(address);
+                            if (readfloat.IsSuccess)
+                            {
+                                data = readfloat.Content.ToString();
+                            }
                             break;
                         case PLCDataWriteReadTypeEnum.字符串:
                             OperateResult<string> readstr = readWriteNet.ReadString(address, 1,Encoding.UTF8);
