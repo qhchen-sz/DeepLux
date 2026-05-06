@@ -79,6 +79,8 @@ namespace HV.Views.Dock
         //自动保存临时方案相关
         private bool _isSavingTemp = false;
         private readonly object _saveTempLock = new object();
+        /// <summary>打开方案时抑制临时方案保存，避免覆盖之前的恢复文件</summary>
+        public bool SuppressTempSave { get; set; } = false;
 
         //之前选中的ModuleNode
         public ModuleNode SelectedNode { get; set; }
@@ -1386,6 +1388,9 @@ namespace HV.Views.Dock
         /// </summary>
         private void SaveTempSolution()
         {
+            if (SuppressTempSave)
+                return;
+
             lock (_saveTempLock)
             {
                 if (_isSavingTemp)
@@ -1412,6 +1417,9 @@ namespace HV.Views.Dock
                     {
                         Directory.CreateDirectory(tempDir);
                     }
+
+                    // 保存前同步通讯设置（EComManageer → Solution.Ins.eCommunacations）
+                    Solution.Ins.UpdataCommunacation();
 
                     // 保存到固定临时文件（深拷贝后再序列化，避免与UI线程并发冲突）
                     string tempPath = System.IO.Path.Combine(tempDir, "AutoRecovery.vm");
@@ -1790,7 +1798,7 @@ namespace HV.Views.Dock
             UpdateTree();
         }
 
-        private void miCopy_Click(object sender, RoutedEventArgs e) 
+        private void miCopy_Click(object sender, RoutedEventArgs e)
         {
             //var Temp = SelectedNode;
             //var Temp1 = ModuleNodeList;

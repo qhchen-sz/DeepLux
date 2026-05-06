@@ -638,6 +638,9 @@ namespace HV.ViewModels
                                     }
                                     break;
                                 case "Save": //保存
+                                    //保存前同步通讯设置（EComManageer → Solution.Ins.eCommunacations）
+                                    Solution.Ins.UpdataCommunacation();
+
                                     //要求在流程运行时也能保存解决方案
                                     // foreach (var item in Solution.Ins.ProjectList)
                                     // {
@@ -1003,6 +1006,9 @@ namespace HV.ViewModels
 
         private void UpdateUIAfterLoading()
         {
+            // 打开方案时不保存临时方案，避免覆盖之前的恢复文件
+            ProcessView.Ins.SuppressTempSave = true;
+
             // UI相关的更新放在UI线程
             if (Solution.Ins.QuickMode)
             {
@@ -1031,6 +1037,8 @@ namespace HV.ViewModels
             UIDesignView.UpdateUIDesign(true);
             DeviceStateView.Ins.OpenFileInit();
             Solution.Ins.ModuleLoad();
+
+            ProcessView.Ins.SuppressTempSave = false;
         }
         //public void OpenSolution(string fileName)
         //{
