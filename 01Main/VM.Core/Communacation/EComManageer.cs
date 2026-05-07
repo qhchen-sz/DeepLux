@@ -155,6 +155,10 @@ namespace HV.Communacation
                     key = "Beckhoff";
                     ec.IsPLC = true;
                     break;
+                case eCommunicationType.Fins:
+                    key = "Fins";
+                    ec.IsPLC = true;
+                    break;
                 default:
                     break;
             }

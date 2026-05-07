@@ -36,6 +36,10 @@ namespace Plugin.ReceiveStr.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
+                if (IsClearCache)
+                {
+                    EComManageer.ClearEcomRecStr(CurKey);
+                }
                 bool result;
                 if (IsEnableTimeOut)
                 {
@@ -128,7 +132,16 @@ namespace Plugin.ReceiveStr.ViewModels
         public bool ReceiveAsHex
         {
             get { return _ReceiveAsHex; }
-            set { _ReceiveAsHex = value; } 
+            set { _ReceiveAsHex = value; }
+        }
+        private bool _IsClearCache = false;
+        /// <summary>
+        /// 运行前清除缓存
+        /// </summary>
+        public bool IsClearCache
+        {
+            get { return _IsClearCache; }
+            set { _IsClearCache = value; RaisePropertyChanged(); }
         }
         #endregion
 

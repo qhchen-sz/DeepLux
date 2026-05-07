@@ -280,6 +280,9 @@ namespace HV.Communacation
         private BeckhoffAdsNet m_BeckhoffAdsNet;//倍福ADS客户端
         [NonSerialized]
         private OmronCipNet m_OmronCipNet;//Cip客户端
+
+        [NonSerialized]
+        private OmronFinsNet m_OmronFinsNet;//Fins客户端
         [NonSerialized]
         private OpcUaClient m_OpcUaNet;//OpcUa客户端
         [NonSerialized]
@@ -472,6 +475,29 @@ namespace HV.Communacation
                             Logger.AddLog("Cip连接失败！");
                         }
                         break;
+                case eCommunicationType.Fins:
+
+                        if (m_OmronFinsNet == null)
+                        {
+                            m_OmronFinsNet = new OmronFinsNet();
+                        }
+                        m_OmronFinsNet.IpAddress = RemoteIP;
+                        m_OmronFinsNet.Port = RemotePort;
+
+                        OperateResult connectFins = m_OmronFinsNet.ConnectServer();
+                        if (connectFins.IsSuccess)
+                            IsConnected = true;
+                            else
+                            IsConnected = false;
+                        if (IsConnected)
+                        {
+                            Logger.AddLog("Fins连接成功！");
+                        }
+                        else
+                        {
+                            Logger.AddLog("Fins连接失败！");
+                        }
+                        break;
                 case eCommunicationType.Mc:
 
                     if (m_MelsecMcNet == null)
@@ -649,6 +675,46 @@ namespace HV.Communacation
                         isSuccess = true;
                     }
 
+                    break;
+                case eCommunicationType.Fins:
+                    readWriteNet = m_OmronFinsNet as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            if (!bool.TryParse(data, out bool databool))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Boolean.");
+                            }
+                            write = readWriteNet.Write(address, databool);
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            if (!short.TryParse(data, out short parsedNumber))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Int16.");
+                            }
+                            var send = new short[] { parsedNumber };
+                            write = readWriteNet.Write(address, send);
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            if (!float.TryParse(data, out float parsedNumber2))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Float.");
+                            }
+                            var send2 = new float[] { parsedNumber2 };
+                            write = readWriteNet.Write(address, send2);
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            write = readWriteNet.Write(address, data);
+                            break;
+                    }
+                    if (!write.IsSuccess)
+                    {
+                        isSuccess = false;
+                    }
+                    else
+                    {
+                        isSuccess = true;
+                    }
                     break;
                 case eCommunicationType.Mc:
                     readWriteNet = m_MelsecMcNet as HslCommunication.Core.IReadWriteNet;
@@ -969,6 +1035,40 @@ namespace HV.Communacation
                             if (readstr.IsSuccess)
                             {
                                 data = readstr.Content.ToString();
+                            }
+                            break;
+                    }
+                    break;
+                case eCommunicationType.Fins:
+                    readWriteNet = m_OmronFinsNet as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            OperateResult<bool> readbool_fins = readWriteNet.ReadBool(address);
+                            if (readbool_fins.IsSuccess)
+                            {
+                                data = readbool_fins.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            OperateResult<byte[]> readshort_fins = readWriteNet.Read(address, 1);
+                            if (readshort_fins.IsSuccess)
+                            {
+                                data = BitConverter.ToInt16(readshort_fins.Content, 0).ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            OperateResult<float> readfloat_fins = readWriteNet.ReadFloat(address);
+                            if (readfloat_fins.IsSuccess)
+                            {
+                                data = readfloat_fins.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            OperateResult<string> readstr_fins = readWriteNet.ReadString(address, 100, Encoding.UTF8);
+                            if (readstr_fins.IsSuccess)
+                            {
+                                data = readstr_fins.Content.ToString();
                             }
                             break;
                     }
@@ -1356,6 +1456,11 @@ namespace HV.Communacation
                     case eCommunicationType.Cip:
                         if (m_OmronCipNet != null)
                             m_OmronCipNet.ConnectClose();
+                        IsHasObjectConnected = false;
+                        break;
+                    case eCommunicationType.Fins:
+                        if (m_OmronFinsNet != null)
+                            m_OmronFinsNet.ConnectClose();
                         IsHasObjectConnected = false;
                         break;
                     case eCommunicationType.Mc:
