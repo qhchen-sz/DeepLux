@@ -224,6 +224,7 @@ namespace HV.Common.Enums
         Mc = 7,//Opcua协议
         XinJETcpNet =8,//信捷网口通讯
         BeckhoffAds =9,//倍福ADS协议
+        Siemens =10,//西门子S7协议
     }
 
     public enum eTypes

@@ -153,6 +153,11 @@ namespace HV.ViewModels
                                                 eCommunicationType.Fins
                                             );
                                             break;
+                                        case eCommunicationType.Siemens:
+                                            name = EComManageer.CreateECom(
+                                                eCommunicationType.Siemens
+                                            );
+                                            break;
                                         default:
                                             break;
                                     }

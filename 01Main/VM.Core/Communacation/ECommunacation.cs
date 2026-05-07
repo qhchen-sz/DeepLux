@@ -26,6 +26,7 @@ using Opc.Ua;
 using ICSharpCode.NRefactory.TypeSystem;
 using HslCommunication.Profinet.Melsec;
 using HslCommunication.Profinet.Beckhoff;
+using HslCommunication.Profinet.Siemens;
 
 namespace HV.Communacation
 {
@@ -123,6 +124,8 @@ namespace HV.Communacation
 
         #region "PLC参数"
         public string m_connectKey { get; set; } //PLC链接模块Key
+        public SiemensPLCS SiemensPlcType { get; set; } = SiemensPLCS.S1200; //西门子PLC型号
+        public List<SiemensPLCS> SiemensPlcTypes { get; set; } = Enum.GetValues(typeof(SiemensPLCS)).Cast<SiemensPLCS>().ToList(); //西门子PLC型号列表
         public PLCType m_PLCType { get; set; } = PLCType.ModbusTCP; //PLC类型
         public PLCDataType m_PLCDataType { get; set; } = PLCDataType.CDAB; //数据解析格式
         public int m_StationCode { get; set; } = 1; //站号
@@ -275,6 +278,8 @@ namespace HV.Communacation
         private MelsecMcNet m_MelsecMcNet;//Mc客户端
         [NonSerialized]
         private BeckhoffAdsNet m_BeckhoffAdsNet;//倍福ADS客户端
+        [NonSerialized]
+        private SiemensS7Net m_SiemensS7Net;//西门子S7客户端
         [NonSerialized]
         private OmronCipNet m_OmronCipNet;//Cip客户端
 
@@ -543,6 +548,27 @@ namespace HV.Communacation
                         Logger.AddLog("Beckhoff ADS连接失败！");
                     }
                     break;
+                case eCommunicationType.Siemens:
+                    if (m_SiemensS7Net == null)
+                    {
+                        m_SiemensS7Net = new SiemensS7Net(SiemensPlcType);
+                    }
+                    m_SiemensS7Net.IpAddress = RemoteIP;
+                    m_SiemensS7Net.Port = RemotePort > 0 ? RemotePort : 102;
+                    OperateResult connectSiemens = m_SiemensS7Net.ConnectServer();
+                    if (connectSiemens.IsSuccess)
+                        IsConnected = true;
+                    else
+                        IsConnected = false;
+                    if (IsConnected)
+                    {
+                        Logger.AddLog("Siemens连接成功！");
+                    }
+                    else
+                    {
+                        Logger.AddLog("Siemens连接失败！");
+                    }
+                    break;
                 case eCommunicationType.Opc:
 
                     if (m_OpcUaNet == null)
@@ -732,6 +758,46 @@ namespace HV.Communacation
                     break;
                 case eCommunicationType.BeckhoffAds:
                     readWriteNet = m_BeckhoffAdsNet as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            if (!bool.TryParse(data, out bool databool))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Boolean.");
+                            }
+                            write = readWriteNet.Write(address, databool);
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            if (!short.TryParse(data, out short parsedNumber))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Int16.");
+                            }
+                            var send = new short[] { parsedNumber };
+                            write = readWriteNet.Write(address, send);
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            if (!float.TryParse(data, out float parsedNumber2))
+                            {
+                                throw new FormatException($"'{data}' 无法转换为 Float.");
+                            }
+                            var send2 = new float[] { parsedNumber2 };
+                            write = readWriteNet.Write(address, send2);
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            write = readWriteNet.Write(address, data);
+                            break;
+                    }
+                    if (!write.IsSuccess)
+                    {
+                        isSuccess = false;
+                    }
+                    else
+                    {
+                        isSuccess = true;
+                    }
+                    break;
+                case eCommunicationType.Siemens:
+                    readWriteNet = m_SiemensS7Net as HslCommunication.Core.IReadWriteNet;
                     switch (type)
                     {
                         case PLCDataWriteReadTypeEnum.布尔:
@@ -1064,6 +1130,40 @@ namespace HV.Communacation
                             break;
                     }
                     break;
+                case eCommunicationType.Siemens:
+                    readWriteNet = m_SiemensS7Net as HslCommunication.Core.IReadWriteNet;
+                    switch (type)
+                    {
+                        case PLCDataWriteReadTypeEnum.布尔:
+                            OperateResult<bool> readbool_siemens = readWriteNet.ReadBool(address);
+                            if (readbool_siemens.IsSuccess)
+                            {
+                                data = readbool_siemens.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.整型:
+                            OperateResult<short> readshort_siemens = readWriteNet.ReadInt16(address);
+                            if (readshort_siemens.IsSuccess)
+                            {
+                                data = readshort_siemens.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.浮点:
+                            OperateResult<float> readfloat_siemens = readWriteNet.ReadFloat(address);
+                            if (readfloat_siemens.IsSuccess)
+                            {
+                                data = readfloat_siemens.Content.ToString();
+                            }
+                            break;
+                        case PLCDataWriteReadTypeEnum.字符串:
+                            OperateResult<string> readstr_siemens = readWriteNet.ReadString(address, 100, Encoding.UTF8);
+                            if (readstr_siemens.IsSuccess)
+                            {
+                                data = readstr_siemens.Content.ToString();
+                            }
+                            break;
+                    }
+                    break;
                 case eCommunicationType.Opc:
                     //readWriteNet = m_OmronCipNet as HslCommunication.Core.IReadWriteNet;
                     string NoteID = "ns=4;s=|var|Inovance-PLC.Application." + RemoteNote + "." + address;
@@ -1358,6 +1458,11 @@ namespace HV.Communacation
                     case eCommunicationType.BeckhoffAds:
                         if (m_BeckhoffAdsNet != null)
                             m_BeckhoffAdsNet.ConnectClose();
+                        IsHasObjectConnected = false;
+                        break;
+                    case eCommunicationType.Siemens:
+                        if (m_SiemensS7Net != null)
+                            m_SiemensS7Net.ConnectClose();
                         IsHasObjectConnected = false;
                         break;
                     case eCommunicationType.Opc:

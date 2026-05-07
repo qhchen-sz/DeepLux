@@ -223,6 +223,7 @@ namespace HV.Common.Enums
         Opc = 6,//Opcua协议
         Mc = 7,//Opcua协议
         BeckhoffAds = 8,//倍福ADS协议
+        Siemens = 9,//西门子S7协议
     }
 
     public enum eTypes

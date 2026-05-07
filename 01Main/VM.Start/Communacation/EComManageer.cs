@@ -163,6 +163,10 @@ namespace HV.Communacation
                     key = "Fins";
                     ec.IsPLC = true;
                     break;
+                case eCommunicationType.Siemens:
+                    key = "Siemens";
+                    ec.IsPLC = true;
+                    break;
                 default:
                     break;
             }
