@@ -1361,7 +1361,7 @@ namespace HV.Communacation
             }
         }
 
-        public void GetStr(out string pReturnStr)
+        public bool GetStr(out string pReturnStr, int timeOut = -1)
         {
             string str = "";
 
@@ -1379,7 +1379,12 @@ namespace HV.Communacation
             {
                 if (m_RecStrSignal == null)
                     m_RecStrSignal = new AutoResetEvent(false);
-                m_RecStrSignal.WaitOne();
+                bool received = timeOut > 0 ? m_RecStrSignal.WaitOne(timeOut) : m_RecStrSignal.WaitOne();
+                if (!received)
+                {
+                    pReturnStr = "";
+                    return false; // 超时
+                }
 
                 if (m_RecStrQueue.Count > 0)
                 {
@@ -1388,6 +1393,7 @@ namespace HV.Communacation
             }
 
             pReturnStr = str.Trim(); //最终赋值
+            return true;
         }
 
         public void StopRecStrSignal()

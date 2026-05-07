@@ -36,7 +36,20 @@ namespace Plugin.ReceiveStr.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex);
+                bool result;
+                if (IsEnableTimeOut)
+                {
+                    result = EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex, TimeOut);
+                }
+                else
+                {
+                    result = EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex);
+                }
+                if (!result)
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -63,6 +76,15 @@ namespace Plugin.ReceiveStr.ViewModels
         {
             get { return _IsEnableTimeOut; }
             set { _IsEnableTimeOut = value; RaisePropertyChanged(); }
+        }
+        private int _TimeOut = 1000;
+        /// <summary>
+        /// 超时时间(ms)
+        /// </summary>
+        public int TimeOut
+        {
+            get { return _TimeOut; }
+            set { _TimeOut = value; RaisePropertyChanged(); }
         }
         private string _CurKey = "";
         /// <summary>
