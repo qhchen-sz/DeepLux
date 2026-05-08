@@ -167,8 +167,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.SaveData", "02Plugin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.Yolo", "02Plugins\012深度学习\Plugin.Yolo\Plugin.Yolo.csproj", "{AF9596EC-75F9-4CA9-9200-1902E1F440EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VM.Core", "01Main\VM.Core\VM.Core.csproj", "{926E2E21-DC3F-4C22-BB01-8A3D4252949C}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "015包膜机", "015包膜机", "{59EC5A1C-6B52-4C5A-A379-31CEC4AEA21B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugin.Envelope", "02Plugins\015包膜机\Plugin.Envelope\Plugin.Envelope.csproj", "{C4DD9DEF-488B-480A-842A-FF9E4496D0C4}"
