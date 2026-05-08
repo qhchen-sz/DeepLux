@@ -201,6 +201,7 @@ namespace HV.Services
         [OnDeserialized()] //反序列化之后
         internal void OnDeserializedMethod(StreamingContext context)
         {
+            _ThreadStatus = false;
             OutputMap = new Dictionary<string, Dictionary<string, VarModel>>();
             Breakpoint = new AutoResetEvent(false);
             m_Thread = new Thread(Process);
