@@ -553,6 +553,112 @@ namespace Plugin.Envelope.ViewModels
             }
         }
 
+        /// <summary>
+        /// 计算图像中每个蓝膜区域（灰度值2）的面积
+        /// </summary>
+        /// <param name="ho_Image">AI 分割结果图像（已 ScaleImage 放大）</param>
+        /// <param name="hv_Areas">每个蓝膜区域的面积数组</param>
+        /// <param name="hv_Rows">每个蓝膜区域的行坐标</param>
+        /// <param name="hv_Columns">每个蓝膜区域的列坐标</param>
+        public static void CalcBlueMembraneAreas(HObject ho_Image, out HTuple hv_Areas,
+            out HTuple hv_Rows, out HTuple hv_Columns)
+        {
+            HObject ho_BlueRegion = null, ho_ConnectedRegions = null;
+
+            HOperatorSet.GenEmptyObj(out ho_BlueRegion);
+            HOperatorSet.GenEmptyObj(out ho_ConnectedRegions);
+            hv_Areas = new HTuple();
+            hv_Rows = new HTuple();
+            hv_Columns = new HTuple();
+
+            try
+            {
+                ho_BlueRegion.Dispose();
+                HOperatorSet.Threshold(ho_Image, out ho_BlueRegion, 120, 120);
+
+                ho_ConnectedRegions.Dispose();
+                HOperatorSet.Connection(ho_BlueRegion, out ho_ConnectedRegions);
+
+                hv_Areas.Dispose();
+                HOperatorSet.RegionFeatures(ho_ConnectedRegions, "area", out hv_Areas);
+                hv_Rows.Dispose();
+                HOperatorSet.RegionFeatures(ho_ConnectedRegions, "row", out hv_Rows);
+                hv_Columns.Dispose();
+                HOperatorSet.RegionFeatures(ho_ConnectedRegions, "column", out hv_Columns);
+
+                ho_BlueRegion.Dispose();
+                ho_ConnectedRegions.Dispose();
+            }
+            catch (HalconException)
+            {
+                ho_BlueRegion.Dispose();
+                ho_ConnectedRegions.Dispose();
+                hv_Areas = new HTuple();
+                hv_Rows = new HTuple();
+                hv_Columns = new HTuple();
+            }
+        }
+
+        /// <summary>
+        /// 过滤掉面积过小的蓝膜区域（灰度值2），返回清理后的标签图
+        /// </summary>
+        /// <param name="ho_Image">AI 分割结果标签图（未 ScaleImage）</param>
+        /// <param name="minArea">最小面积阈值，小于此值的区域将被抹除</param>
+        /// <param name="ho_FilteredImage">过滤后的标签图</param>
+        public static void FilterSmallBlueMembrane(HImage ho_Image, HTuple hv_MinArea,
+            out HImage ho_FilteredImage)
+        {
+            HObject ho_AllRegion2 = null, ho_ConnectedRegions = null;
+            HObject ho_LargeRegions = null, ho_SmallRegions = null;
+
+            HOperatorSet.GenEmptyObj(out ho_AllRegion2);
+            HOperatorSet.GenEmptyObj(out ho_ConnectedRegions);
+            HOperatorSet.GenEmptyObj(out ho_LargeRegions);
+            HOperatorSet.GenEmptyObj(out ho_SmallRegions);
+            ho_FilteredImage = null;
+
+            try
+            {
+                // 1. 提取所有灰度=2的区域
+                ho_AllRegion2.Dispose();
+                HOperatorSet.Threshold(ho_Image, out ho_AllRegion2, 2.0, 2.0);
+
+                // 2. 拆分为独立连通域
+                ho_ConnectedRegions.Dispose();
+                HOperatorSet.Connection(ho_AllRegion2, out ho_ConnectedRegions);
+
+                // 3. 按面积筛选，保留大面积区域
+                ho_LargeRegions.Dispose();
+                HOperatorSet.SelectShape(ho_ConnectedRegions, out ho_LargeRegions,
+                    "area", "and", hv_MinArea, 99999999);
+
+                // 4. 取差集得到小面积区域
+                ho_SmallRegions.Dispose();
+                HOperatorSet.Difference(ho_AllRegion2, ho_LargeRegions, out ho_SmallRegions);
+
+                // 5. 用 PaintRegion 把小区域像素抹为 0
+                HObject tempObj = new HImage(ho_Image);
+                HOperatorSet.PaintRegion(ho_SmallRegions, tempObj,
+                    out HObject resultObj, 0.0, "fill");
+                ho_FilteredImage = new HImage(resultObj);
+                tempObj.Dispose();
+                resultObj.Dispose();
+
+                ho_AllRegion2.Dispose();
+                ho_ConnectedRegions.Dispose();
+                ho_LargeRegions.Dispose();
+                ho_SmallRegions.Dispose();
+            }
+            catch (HalconException)
+            {
+                ho_AllRegion2.Dispose();
+                ho_ConnectedRegions.Dispose();
+                ho_LargeRegions.Dispose();
+                ho_SmallRegions.Dispose();
+                ho_FilteredImage = new HImage(ho_Image);
+            }
+        }
+
         public static void gen_arrow_contour_xld(out HObject ho_Arrow, HTuple hv_Row1, HTuple hv_Column1,
     HTuple hv_Row2, HTuple hv_Column2, HTuple hv_HeadLength, HTuple hv_HeadWidth)
         {

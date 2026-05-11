@@ -105,7 +105,12 @@
                                             mah:TextBoxHelper.Watermark="string"
                                             VerticalAlignment="Center" HorizontalAlignment="Center" Width="200"  Margin="5 0"/>
                                         </StackPanel>
-                                        
+
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <CheckBox Content="过滤小面积蓝膜:" IsChecked="{Binding IsFilterBlueMembrane, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                            <mah:NumericUpDown Width="150" Margin="5 0" BorderThickness="0 0 0 1" Value="{Binding BlueMembraneMinArea, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay, StringFormat=F0}" Minimum="0" Maximum="999999" Interval="1" IsEnabled="{Binding IsFilterBlueMembrane}"/>
+                                        </StackPanel>
+
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <CheckBox Content="是否开机启动:" IsChecked ="{Binding IsOpen}"/>
                                             <CheckBox Content="是否显示AI结果区域" IsChecked ="{Binding IsDispAiRegion, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Margin=" 80,0,0,0"/>
