@@ -61,7 +61,11 @@ namespace HV.Views.Dock
         }
         private bool _isFullScreen = false;
         private int _fullScreenWindowIndex = -1;
-        private WindowsFormsHost _fullScreenHost;
+        // 全屏时被移到 gridwindow 的原始 host（WinForms child 始终不动）
+        private WindowsFormsHost _fullscreenHost;
+        // 退出全屏时恢复 grid 布局所需的快照
+        private int _savedGridRow, _savedGridColumn, _savedGridRowSpan, _savedGridColumnSpan;
+        private Thickness _savedHostMargin;
         private bool _isProcessingDoubleClick = false;
 
         #endregion
@@ -124,7 +128,26 @@ namespace HV.Views.Dock
         // }
 
         /// <summary>
+        /// 在 grid 的 Children 中查找包含指定 windowIndex 的 WindowsFormsHost
+        /// </summary>
+        private WindowsFormsHost FindHostInGrid(int windowIndex)
+        {
+            var targetControl = ViewDic.mViewDic[windowIndex];
+            foreach (System.Windows.UIElement child in grid.Children)
+            {
+                if (child is WindowsFormsHost host && host.Child == targetControl)
+                {
+                    return host;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 进入全屏放大模式
+        /// Hidden 预布局 + 防呆定时器方案：
+        /// 同步阶段仅做最轻量操作（移动 host、设尺寸、切换可见性），
+        /// 不做 UpdateLayout/DoEvents，由 20ms 防呆定时器兜底纠正。
         /// </summary>
         private void EnterFullScreen(int windowIndex)
         {
@@ -134,47 +157,86 @@ namespace HV.Views.Dock
             _isFullScreen = true;
             _fullScreenWindowIndex = windowIndex;
 
-            // 创建全屏host并隐藏grid（不销毁grid内容）
-            _fullScreenHost = new WindowsFormsHost
+            _fullscreenHost = FindHostInGrid(windowIndex);
+            if (_fullscreenHost == null)
             {
-                Child = ViewDic.mViewDic[windowIndex]
-            };
-            gridwindow.Children.Add(_fullScreenHost);
+                _isFullScreen = false;
+                _fullScreenWindowIndex = -1;
+                return;
+            }
+
+            // 保存 grid 布局快照
+            _savedGridRow = Grid.GetRow(_fullscreenHost);
+            _savedGridColumn = Grid.GetColumn(_fullscreenHost);
+            _savedGridRowSpan = Grid.GetRowSpan(_fullscreenHost);
+            _savedGridColumnSpan = Grid.GetColumnSpan(_fullscreenHost);
+            _savedHostMargin = _fullscreenHost.Margin;
+
+            // 从已稳定布局的 grid 读取目标尺寸
+            int targetW = (int)grid.ActualWidth;
+            int targetH = (int)grid.ActualHeight;
+
+            var vmControl = ViewDic.mViewDic[windowIndex];
+            vmControl.SuppressSizeChangedEvent();
+
+            // 移动 host 到 gridwindow（Hidden 状态，参与布局但不渲染）
+            grid.Children.Remove(_fullscreenHost);
+            _fullscreenHost.Margin = new Thickness(0);
+            Grid.SetRow(_fullscreenHost, 0);
+            Grid.SetColumn(_fullscreenHost, 0);
+            Grid.SetRowSpan(_fullscreenHost, 1);
+            Grid.SetColumnSpan(_fullscreenHost, 1);
+            gridwindow.Visibility = Visibility.Hidden;
+            gridwindow.Children.Add(_fullscreenHost);
+
+            // 直接设置尺寸和居中（不做 UpdateLayout/DoEvents，由定时器兜底）
+            if (targetW > 0 && targetH > 0)
+            {
+                vmControl.hControl.Size = new System.Drawing.Size(targetW, targetH);
+                vmControl.hControl.WindowSize = new System.Drawing.Size(targetW, targetH);
+            }
+            //vmControl.DispImageFitImage();
+
+            // 居中完成后切换可见性，用户直接看到最终画面
             grid.Visibility = Visibility.Collapsed;
             gridwindow.Visibility = Visibility.Visible;
 
-            // 延迟设置 VMHWindowControl 填满 gridwindow
-            this.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (!_isFullScreen) return;
-                var vmControl = ViewDic.mViewDic[windowIndex];
-                int w = (int)gridwindow.ActualWidth;
-                int h = (int)gridwindow.ActualHeight;
-
-                // 抑制 SizeChanged 事件，避免在设置过程中触发多次 DispImageFitImage
-                vmControl.SuppressSizeChangedEvent();
-                vmControl.Width = w;
-                vmControl.Height = h;
-                vmControl.hControl.Size = new System.Drawing.Size(w, h);
-                vmControl.hControl.WindowSize = new System.Drawing.Size(w, h);
-                vmControl.ResumeSizeChangedEvent();
-
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
-
-            // 使用 ContextIdle 优先级确保所有渲染和布局完成后再执行图片居中
+            // ★ 防呆定时器：20ms 后兜底纠正居中并恢复 SizeChanged
             int capturedIndex = windowIndex;
-            this.Dispatcher.BeginInvoke(new Action(() =>
+            var safetyTimer = new System.Windows.Threading.DispatcherTimer
             {
-                if (!_isFullScreen) return;
-                var vmControl = ViewDic.mViewDic[capturedIndex];
-                vmControl.DispImageFitImage();
-            }), System.Windows.Threading.DispatcherPriority.ContextIdle);
-            //// 设置焦点以便接收键盘事件
-            //this.Focus();
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            safetyTimer.Tick += (s, e) =>
+            {
+                safetyTimer.Stop();
+                if (!_isFullScreen || _fullScreenWindowIndex != capturedIndex) return;
+                var ctrl = ViewDic.mViewDic[capturedIndex];
+                if (ctrl != null)
+                {
+                    ctrl.ResumeSizeChangedEvent();
+                    ctrl.DispImageFitImage();
+                }
+            };
+            safetyTimer.Start();
+        }
+
+        /// <summary>
+        /// 检查 Halcon 控件是否已完成尺寸更新。
+        /// WinForms 控件嵌在 Hidden 的 WPF 容器中时，显式设置的 WindowSize
+        /// 可能尚未生效，通过对比实际 WindowSize 判断布局是否完成。
+        /// </summary>
+        private bool IsWindowSizeReady(VMHWindowControl vmControl, int expectedW, int expectedH)
+        {
+            return vmControl.hControl.WindowSize.Width == expectedW
+                && vmControl.hControl.WindowSize.Height == expectedH;
         }
 
         /// <summary>
         /// 退出全屏放大模式
+        /// Hidden 预布局 + 防呆定时器方案（与 EnterFullScreen 对称）：
+        /// 同步阶段仅做最轻量操作（移动 host、恢复布局属性、切换可见性），
+        /// 由防呆定时器兜底读取稳定后的 ActualWidth/Height 并居中。
         /// </summary>
         private void ExitFullScreen()
         {
@@ -185,33 +247,53 @@ namespace HV.Views.Dock
             _isFullScreen = false;
             _fullScreenWindowIndex = -1;
 
-            // 先解除Child绑定，避免Halcon窗口句柄在移除过程中被意外销毁
-            if (_fullScreenHost != null)
+            var capturedHost = _fullscreenHost;
+            _fullscreenHost = null;
+
+            if (capturedHost != null)
             {
-                _fullScreenHost.Child = null;
-                gridwindow.Children.Remove(_fullScreenHost);
-                _fullScreenHost = null;
+                ViewDic.mViewDic[prevFullScreenIndex]?.SuppressSizeChangedEvent();
+
+                // 把 host 从 gridwindow 移回 grid，恢复原始布局属性
+                gridwindow.Children.Remove(capturedHost);
+                capturedHost.Margin = _savedHostMargin;
+                grid.Children.Add(capturedHost);
+                Grid.SetRow(capturedHost, _savedGridRow);
+                Grid.SetColumn(capturedHost, _savedGridColumn);
+                Grid.SetRowSpan(capturedHost, _savedGridRowSpan);
+                Grid.SetColumnSpan(capturedHost, _savedGridColumnSpan);
             }
             gridwindow.Visibility = Visibility.Collapsed;
-
-            // 重建grid布局，将所有VMHWindowControl重新绑定到新的WindowsFormsHost
-            ShowCanvasAll();
             grid.Visibility = Visibility.Visible;
 
-            // 延迟触发图像居中，等待布局完成后再适配
-            //// 双重 Invoke 确保 WPF + WinForms 布局均已完成
-            //this.Dispatcher.Invoke(new Action(() =>
-            //{
-            //    this.Dispatcher.Invoke(new Action(() =>
-            //    {
-            //        ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
-            //    }), System.Windows.Threading.DispatcherPriority.Loaded);
-            //}), System.Windows.Threading.DispatcherPriority.Render);
-            // 使用 ContextIdle 优先级确保所有渲染和布局完成后再执行图片居中
-            this.Dispatcher.BeginInvoke(new Action(() =>
+            // ★ 防呆定时器：50ms 后兜底读取稳定尺寸并居中（与 EnterFullScreen 策略对称）
+            var safetyTimer = new System.Windows.Threading.DispatcherTimer
             {
-                ViewDic.mViewDic[prevFullScreenIndex]?.DispImageFitImage();
-            }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            safetyTimer.Tick += (s, e) =>
+            {
+                safetyTimer.Stop();
+                var ctrl = ViewDic.mViewDic[prevFullScreenIndex];
+                if (ctrl != null && capturedHost != null)
+                {
+                    int w = (int)capturedHost.ActualWidth;
+                    int h = (int)capturedHost.ActualHeight;
+                    if (w > 0 && h > 0)
+                    {
+                        ctrl.hControl.Size = new System.Drawing.Size(w, h);
+                        ctrl.hControl.WindowSize = new System.Drawing.Size(w, h);
+                    }
+                    ctrl.ResumeSizeChangedEvent();
+                    ctrl.DispImageFitImage();
+                }
+                else if (ctrl != null)
+                {
+                    // 极端情况：host 为 null，至少确保事件不被永久抑制
+                    ctrl.ResumeSizeChangedEvent();
+                }
+            };
+            safetyTimer.Start();
         }
 
         private void ShowCanvasAll()

@@ -156,7 +156,7 @@ namespace Plugin.SaveImage.ViewModels
                 }
 
                 // 路径间休息30秒，让出IO给其他业务
-                Thread.Sleep(TimeSpan.FromSeconds(30));
+                Thread.Sleep(TimeSpan.FromSeconds(15));
             }
         }
 
@@ -180,7 +180,7 @@ namespace Plugin.SaveImage.ViewModels
 
             int deletedCount = 0;
             int dirProcessed = 0;
-            const int IO_DELAY_MS = 50;           //间隔50ms
+            const int IO_DELAY_MS = 10;           //间隔50ms
 
             foreach (var folderName in checkRange)
             {
@@ -206,6 +206,8 @@ namespace Plugin.SaveImage.ViewModels
                         File.Delete(file);
                         deletedCount++;
                         batchCount++;
+
+                        Logger.AddLog($"-----------删除文件夹 [{folderPath}] 下的{file}----------",eMsgType.Info);
 
                         //限速：每个文件暂停50ms，控制IO速率
                         Thread.Sleep(IO_DELAY_MS);
