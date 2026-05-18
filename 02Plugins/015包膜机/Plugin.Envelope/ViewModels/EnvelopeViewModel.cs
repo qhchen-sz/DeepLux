@@ -128,6 +128,10 @@ namespace Plugin.Envelope.ViewModels
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":"+this.ModuleParam.ModuleName+ "进入推理：", eMsgType.Warn);
                     Result = ClassAi.AiRun(Temp, ref erro, this.CONF_THRESHOLD, this.NMS_THRESHOLD);
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "推理结束：", eMsgType.Warn);
+
+                    if (IsFilterBlueMembrane)
+                        Algorithm.FilterSmallBlueMembrane(Result, BlueMembraneMinArea, out Result);
+
                     //面积
                     //像素当量换算
 
@@ -420,6 +424,20 @@ namespace Plugin.Envelope.ViewModels
         {
             get { return _IsDiaphragm; }
             set { _IsDiaphragm = value; RaisePropertyChanged(); }
+        }
+
+        private bool _IsFilterBlueMembrane;
+        public bool IsFilterBlueMembrane
+        {
+            get { return _IsFilterBlueMembrane; }
+            set { Set(ref _IsFilterBlueMembrane, value); }
+        }
+
+        private double _BlueMembraneMinArea = 100;
+        public double BlueMembraneMinArea
+        {
+            get { return _BlueMembraneMinArea; }
+            set { Set(ref _BlueMembraneMinArea, value); }
         }
 
 

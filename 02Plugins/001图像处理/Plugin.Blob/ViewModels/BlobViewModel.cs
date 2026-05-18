@@ -63,6 +63,14 @@ namespace Plugin.Blob.ViewModels
     [Serializable]
     public class BlobViewModel : ModuleBase
     {
+
+        public BlobViewModel()
+        {
+            //确保 ResultRegion 底层有效
+            ResultRegion = new HRegion();
+            ResultRegion.GenEmptyObj();
+        }
+
         public override void SetDefaultLink()
         {
             if (InputImageLinkText == null)
