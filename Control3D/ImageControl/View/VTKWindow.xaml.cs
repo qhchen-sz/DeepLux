@@ -42,19 +42,32 @@ namespace ImageControl
             vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
         }
 
-        public void ShowPointCloudHalcon(HObject img, double zScaleAuto = 1.0)
+        public void ShowPointCloudHalcon(HObject img,
+            double zScaleAuto = 1.0,
+            double xScale = 1.0,
+            double yScale = 1.0)
         {
             _lastImage = img;
-            vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(img, zScaleAuto);
+            vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(img, zScaleAuto, xScale, yScale);
             vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
         }
 
-        private void BtnApplyZScale_Click(object sender, RoutedEventArgs e)
+        private void BtnApplyScale_Click(object sender, RoutedEventArgs e)
         {
+            if (!double.TryParse(tbXScale.Text, out double xScale)) xScale = 1.0;
+            if (!double.TryParse(tbYScale.Text, out double yScale)) yScale = 1.0;
             if (!double.TryParse(tbZScale.Text, out double zScale)) zScale = 1.0;
+
+            if (xScale == 0.0 || yScale == 0.0 || zScale == 0.0)
+            {
+                System.Windows.MessageBox.Show("缩放系数不能为0，请输入一个非零值。", "无效输入",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (_lastImage != null && _lastImage.IsInitialized())
             {
-                vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(_lastImage, zScale);
+                vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(_lastImage, zScale, xScale, yScale);
                 vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
             }
         }

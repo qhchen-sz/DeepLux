@@ -2644,10 +2644,37 @@ namespace ImageControl
         /// 使用 LOD (Level of Detail) 优化的点云显示方法
         /// 通过 vtkLODActor 和 vtkMaskPoints 实现多级细节，解决大点云卡顿问题
         /// </summary>
-        public void CreatePointCloudFromTiffFastHalcon_AutoScaleFast(HObject ho_Image, double zScaleAuto = 1.0)
+        public void CreatePointCloudFromTiffFastHalcon_AutoScaleFast(HObject ho_Image,
+            double zScaleAuto = 1.0,
+            double xScale = 1.0,
+            double yScale = 1.0)
         {
             if (ho_Image == null || !ho_Image.IsInitialized())
                 return;
+
+            // 0) 清理旧的 VTK 对象，防止反复调用时内存堆积导致 AccessViolation
+            vtkRenderer renderer = vtkRenderWindow2.RenderWindow.GetRenderers().GetFirstRenderer();
+            renderer.RemoveAllViewProps();
+
+            if (actor != null)
+            {
+                actor.Dispose();
+                actor = null;
+            }
+
+            if (axesWidget != null)
+            {
+                axesWidget.SetEnabled(0);
+                axesWidget.SetInteractor(null);
+                axesWidget.Dispose();
+                axesWidget = null;
+            }
+
+            if (axesActor != null)
+            {
+                axesActor.Dispose();
+                axesActor = null;
+            }
 
             // 1) 统一转成 real（double）
             HOperatorSet.ConvertImageType(ho_Image, out HObject imgReal, "real");
@@ -2690,14 +2717,14 @@ namespace ImageControl
             if (Math.Abs(zHigh - zLow) < 1e-12)
                 zHigh = zLow + 1.0;
 
-            // 4) 先统计 XY 包围盒
+            // 4) 先统计 XY 包围盒（已应用 xScale/yScale）
             float minXCam = float.MaxValue, maxXCam = float.MinValue;
             float minYCam = float.MaxValue, maxYCam = float.MinValue;
 
             for (int i = 0; i < numPoints; i++)
             {
-                float x = (float)cols[i].D;
-                float y = (float)rows[i].D;
+                float x = (float)cols[i].D * (float)xScale;
+                float y = (float)rows[i].D * (float)yScale;
 
                 if (x < minXCam) minXCam = x;
                 if (x > maxXCam) maxXCam = x;
@@ -2740,8 +2767,8 @@ namespace ImageControl
 
             for (int i = 0; i < numPoints; i++)
             {
-                float x = (float)cols[i].D;
-                float y = (float)rows[i].D;
+                float x = (float)cols[i].D * (float)xScale;
+                float y = (float)rows[i].D * (float)yScale;
 
                 double gRaw = grayVals[i].D;
                 double gClamped = gRaw;
@@ -2835,9 +2862,6 @@ namespace ImageControl
 
             vtkPolyDataMapper mapperLow = vtkPolyDataMapper.New();
             mapperLow.SetInputConnection(maskPointsLow.GetOutputPort());
-
-            vtkRenderer renderer = vtkRenderWindow2.RenderWindow.GetRenderers().GetFirstRenderer();
-            renderer.RemoveAllViewProps();
 
             // 使用 vtkLODActor 自动根据帧率切换细节级别
             vtkLODActor lodActor = vtkLODActor.New();

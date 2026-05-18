@@ -10,11 +10,17 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="5,4"
                     Background="#F0F0F0" Height="30">
-            <TextBlock Text="Z轴缩放系数:" VerticalAlignment="Center" Margin="5,0"/>
-            <TextBox x:Name="tbZScale" Width="80" VerticalAlignment="Center"
+            <TextBlock Text="X轴缩放系数:" VerticalAlignment="Center" Margin="5,0"/>
+            <TextBox x:Name="tbXScale" Width="70" VerticalAlignment="Center"
                      Text="1.0" VerticalContentAlignment="Center" Margin="5,0"/>
-            <Button x:Name="btnApplyZScale" Content="应用" Width="60"
-                    VerticalAlignment="Center" Margin="5,0" Click="BtnApplyZScale_Click"/>
+            <TextBlock Text="Y轴缩放系数:" VerticalAlignment="Center" Margin="5,0"/>
+            <TextBox x:Name="tbYScale" Width="70" VerticalAlignment="Center"
+                     Text="1.0" VerticalContentAlignment="Center" Margin="5,0"/>
+            <TextBlock Text="Z轴缩放系数:" VerticalAlignment="Center" Margin="5,0"/>
+            <TextBox x:Name="tbZScale" Width="70" VerticalAlignment="Center"
+                     Text="1.0" VerticalContentAlignment="Center" Margin="5,0"/>
+            <Button x:Name="btnApplyScale" Content="应用" Width="60"
+                    VerticalAlignment="Center" Margin="5,0" Click="BtnApplyScale_Click"/>
         </StackPanel>
         <local:VTKControl x:Name="vtkControl"/>
     </DockPanel>
