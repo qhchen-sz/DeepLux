@@ -1,0 +1,165 @@
+<vb:ModuleViewBase x:Class="Plugin.BlobFilter.Views.BlobFilterView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                   xmlns:local="clr-namespace:Plugin.BlobFilter.Views"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+                   xmlns:helper="clr-namespace:HV.Common.Helper;assembly=HV"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:vm="clr-namespace:Plugin.BlobFilter.ViewModels"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   xmlns:hw="clr-namespace:VM.Halcon;assembly=VM.Halcon"
+                   Icon="/Plugin.BlobFilter;component/Assets/Images/Tool/BlobFilter.png"
+                   Height="680" Width="980"
+                   Loaded="ModuleViewBase_Loaded">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <cvt:EnumConverter x:Key="EnumConverter"/>
+                    <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+                    <cvt:StatusConverter x:Key="StatusConverter"/>
+                </ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl Style="{StaticResource VerTabControl}">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                <TabItem Header="基本参数">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+                        <Grid x:Name="gd">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="43*"/>
+                                <ColumnDefinition Width="114*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.ColumnSpan="2">
+                                <GroupBox Header="图像链接">
+                                    <StackPanel Orientation="Horizontal" Margin="5 0">
+                                        <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                         Style="{StaticResource LinkTextBox}"
+                                         Text="{Binding InputImageLinkText}"
+                                         mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                         mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"
+                                         mah:TextBoxHelper.Watermark="HImage"/>
+                                    </StackPanel>
+                                </GroupBox>
+                            </Border>
+                            <Border Grid.Row="1" Grid.ColumnSpan="2">
+                                <GroupBox Header="参数设置">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="面积下限:" VerticalAlignment="Center" Width="70"/>
+                                            <mah:NumericUpDown Width="200" Margin="5 0"
+                                                              Value="{Binding MinArea}"
+                                                              Minimum="0" Maximum="999999999" Interval="10"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="面积上限:" VerticalAlignment="Center" Width="70"/>
+                                            <mah:NumericUpDown Width="200" Margin="5 0"
+                                                              Value="{Binding MaxArea}"
+                                                              Minimum="0" Maximum="999999999" Interval="10"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="过滤模式:" VerticalAlignment="Center" Width="70"/>
+                                            <ComboBox Width="200" Margin="5 0"
+                                                      ItemsSource="{Binding Source={enum:EnumBindingSource {x:Type vm:eFilterMode}}}"
+                                                      SelectedItem="{Binding FilterMode}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </GroupBox>
+                            </Border>
+                            <Border Grid.Row="2" Grid.ColumnSpan="2">
+                                <GroupBox Header="输出数据">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="连通域数:" VerticalAlignment="Center" Width="70"/>
+                                            <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding BlobCount}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="面积列表:" VerticalAlignment="Center" Width="70"/>
+                                            <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding AreasText}" IsReadOnly="True"
+                                                     TextWrapping="Wrap" Height="60" VerticalScrollBarVisibility="Auto"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </GroupBox>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="显示设置">
+                    <Grid x:Name="gd2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}">
+                            <GroupBox Header="显示设置" Height="{Binding ElementName=gd2,Path=ActualHeight}" Grid.Row="1" VerticalAlignment="Top" Width="{Binding ElementName=dp,Path=ActualWidth}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <CheckBox Content="显示过滤后图像" IsChecked="{Binding ShowFilteredImage}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <CheckBox Content="显示区域" IsChecked="{Binding ShowRegion}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <CheckBox Content="显示面积文字" IsChecked="{Binding ShowAreaText}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
+            </WinFormHost:WindowsFormsHost>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>
