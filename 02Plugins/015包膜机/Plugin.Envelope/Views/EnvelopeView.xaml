@@ -37,10 +37,11 @@
             <ColumnDefinition Width="617*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition/>
+            <RowDefinition Height="12*"/>
+            <RowDefinition Height="293*"/>
             <RowDefinition Height="55"/>
         </Grid.RowDefinitions>
-        <Grid Grid.ColumnSpan="3" Margin="0,0,0,55" Grid.RowSpan="2">
+        <Grid Grid.ColumnSpan="3" Margin="0,0,0,55" Grid.RowSpan="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="370"/>
                 <ColumnDefinition Width="4"/>
@@ -116,8 +117,22 @@
                                             <CheckBox Content="是否显示AI结果区域" IsChecked ="{Binding IsDispAiRegion, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Margin=" 80,0,0,0"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="5" HorizontalAlignment="Center">
-                                            <Button Content="打开AI" Command="{Binding AiInit}" Visibility="{Binding DeviceStatic, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}"/>
-                                            <Button Content="关闭AI" Command="{Binding AiInit}" Visibility="{Binding DeviceStatic, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            <Button Command="{Binding AiInit}" Width="80">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Content" Value="打开AI"/>
+                                                        <Setter Property="Background" Value="#FF4CAF50"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Setter Property="BorderThickness" Value="0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding DeviceStatic}" Value="True">
+                                                                <Setter Property="Content" Value="关闭AI"/>
+                                                                <Setter Property="Background" Value="#FFF44336"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
                                         </StackPanel>
 
 
@@ -160,23 +175,23 @@
                 <TabItem Header="输出筛选">
                     <Border BorderThickness="3">
                         <StackPanel >
-                            
+
                             <StackPanel Margin="20" Orientation="Horizontal">
-                                <CheckBox Content="是否显示顶盖区域" IsChecked ="{Binding IsHeatFusionJoint,UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Margin=" 0,0,0,0" />
+                                <CheckBox Content="是否显示热熔点:" IsChecked ="{Binding IsHeatFusionJoint,UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Margin=" 0,0,0,0" />
                             </StackPanel>
 
                             <StackPanel Margin="20" Orientation="Horizontal">
-                                <CheckBox Content="是否显示蓝膜区域:" IsChecked ="{Binding IsTopCover}"/>
+                                <CheckBox Content="是否显示顶盖区域:" IsChecked ="{Binding IsTopCover,UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
                             </StackPanel>
 
                             <StackPanel Margin="20" Orientation="Horizontal">
-                                <CheckBox Content="是否显示热熔点:" IsChecked ="{Binding IsBlueMembrane}"/>
+                                <CheckBox Content="是否显示蓝膜区域:" IsChecked ="{Binding IsBlueMembrane,UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
                             </StackPanel>
-                            
+
                             <StackPanel Margin="20" Orientation="Horizontal">
-                                <CheckBox Content="是否显示隔膜区域:" IsChecked ="{Binding IsDiaphragm}"/>
+                                <CheckBox Content="是否显示测距线条:" IsChecked ="{Binding IsDistanceLine,UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
                             </StackPanel>
-                            
+
                         </StackPanel>
 
                     </Border>
@@ -186,7 +201,7 @@
             <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
             </WinFormHost:WindowsFormsHost>
         </Grid>
-        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0" Grid.ColumnSpan="3">
+        <Border Grid.Row="2" BorderBrush="White" BorderThickness="0 0.5 0 0" Grid.ColumnSpan="3">
             <DockPanel LastChildFill="True">
                 <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock>

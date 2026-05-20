@@ -161,15 +161,39 @@ namespace Plugin.Envelope.ViewModels
                         region4.Dispose();
                     }
                     //新增判断显示
+                    if (IsHeatFusionJoint)
+                    {
+                        HRegion region1_1 = new HRegion();
+                        region1_1 = Result.Threshold(3.0, 3.0);
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai1_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)2).ToString(), new HObject(region1_1), false));
+                        region1_1.Dispose();
+                    }
+                    if (IsTopCover)
+                    {
+                        HRegion region2_1 = new HRegion();
+                        region2_1 = Result.Threshold(1.0, 1.0);
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai2_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)3).ToString(), new HObject(region2_1), false));
+                        region2_1.Dispose();
+                    }
                     if (IsBlueMembrane)
                     {
                         HRegion region3_1 = new HRegion();
-                        region3_1 = Result.Threshold(3.0, 3.0);
+                        region3_1 = Result.Threshold(2.0, 2.0);
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3_1), false));
                         region3_1.Dispose();
                     }
+                    //if (IsDistanceLine)
+                    //{
+                    //    HRegion region4_1 = new HRegion();
+                    //    region4_1 = Result.Threshold(4.0, 4.0);
+                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai4_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)5).ToString(), new HObject(region4_1), false));
+                    //    region4_1.Dispose();
+                    //}
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "进入传统寻边算法：", eMsgType.Warn);
-                    Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject Line, out HObject Arrow, out HObject Cross, SelectLocation.ToString(), out HTuple Distance1, out HTuple Distance2);
+                    Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject Line, 
+                        out HObject Arrow, out HObject Cross, SelectLocation.ToString(), 
+                        out HTuple Distance1, out HTuple Distance2, out HObject TopCoverArrow, 
+                        out HTuple DistanceTopCover, out HObject RongDianArrow);
                     //HOperatorSet.WriteImage(Result.ScaleImage(60.0, 0), "bmp", 0, @"C:\Users\Administrator\Desktop\ai\rongdian\1.bmp");
                     Result.Dispose();
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "传统寻边算法结束：", eMsgType.Warn);
@@ -178,45 +202,53 @@ namespace Plugin.Envelope.ViewModels
                     ResultValue3 = 0;
                     //ResultValue4 = 0;
                     //ResultValue5 = 0;
+                    //if (SelectLocation.ToString() == "Left")
+                    //{
+                    //    ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
+                    //}
+                    //else if (SelectLocation.ToString() == "Right")
+                    //{
+                    //    ResultValue3 = Math.Round((double)(Distance2[1] * SS), 2);
+                    //}
+                    //else
+                    //{
+                    //    ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
+                    //    ResultValue3 = Math.Round((double)(Distance2[1] * SS), 2);
+
+
+                    //}
+
+                    //蓝膜到顶盖距离
                     if (SelectLocation.ToString() == "Left")
                     {
-                        ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
+                        ResultValue2 = Math.Round(DistanceTopCover.TupleLength() > 0 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
                     }
                     else if (SelectLocation.ToString() == "Right")
                     {
-                        ResultValue3 = Math.Round((double)(Distance2[0] * SS), 2);
+                        ResultValue3 = Math.Round(DistanceTopCover.TupleLength() > 0 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
                     }
                     else
                     {
-                        ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
-                        ResultValue3 = Math.Round((double)(Distance2[1] * SS), 2);
-                        
+                        ResultValue2 = Math.Round(DistanceTopCover.TupleLength() > 1 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
+                        ResultValue3 = Math.Round(DistanceTopCover.TupleLength() > 1 ? 
+                            (double)(DistanceTopCover[DistanceTopCover.TupleLength()-1] * SS) : 0.0, 2);
+
 
                     }
-                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 1, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(Line)));
-                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 2, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Arrow)));
+
+                    //是否显示传统测距线条（传统寻边算法结果）
+                    if (IsDistanceLine) {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "DingGaiLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(Line)));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 2, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Arrow)));
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "LanMoArrow", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.green.ToString(), new HObject(TopCoverArrow)));
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "RongDianArrow", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(RongDianArrow)));
+                    }
                     Line.Dispose();
                     Arrow.Dispose();
-                    //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 3, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Line3)));
-                    //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 4, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(DispLine)));
+                    TopCoverArrow.Dispose();
+                    RongDianArrow.Dispose();
 
-                    //if (IsTopCover)
-                    //{
-                    //    HRegion region2 = new HRegion();
-                    //    region2 = Result.Threshold(2.0, 3.0);
-                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai2", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)3).ToString(), new HObject(region2), false));
-                    //}
 
-                    /*                    HRegion region3 = new HRegion();
-                                        region3 = Result.Threshold(3.0, 3.0);
-                                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3), false));
-                                        region3.Dispose();*/
-                    //if (IsDiaphragm)
-                    //{
-                    //    HRegion region4 = new HRegion();
-                    //    region4 = Result.Threshold(4.0, 4.0);
-                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai4", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)5).ToString(), new HObject(region4), false));
-                    //}
                     ShowHRoi();
                     ChangeModuleRunStatus(eRunStatus.OK);
                 }
@@ -326,7 +358,7 @@ namespace Plugin.Envelope.ViewModels
         private double cONF_THRESHOLD = 0.5, nMS_THRESHOLD = 0.5;
         private int _DefectNum = 4;
         private eLocationClass _SelectLocation = eLocationClass.Center;
-        private double _ResultValue1, _ResultValue2, _ResultValue3, _ResultValue4, _ResultValue5,_ResultValue6;
+        private double _ResultValue1, _ResultValue2, _ResultValue3, _ResultValue4, _ResultValue5,_ResultValue6, _ResultValue7, _ResultValue8;
         public double ResultValue1
         {
             get { return _ResultValue1; }
@@ -403,7 +435,7 @@ namespace Plugin.Envelope.ViewModels
 
         }
         //新增判断显示
-        private bool _IsHeatFusionJoint, _IsTopCover, _IsBlueMembrane, _IsDiaphragm = false;
+        private bool _IsHeatFusionJoint, _IsTopCover, _IsBlueMembrane, _IsDistanceLine = false;
 
         public bool IsHeatFusionJoint
         {
@@ -420,10 +452,10 @@ namespace Plugin.Envelope.ViewModels
             get { return _IsBlueMembrane; }
             set { _IsBlueMembrane = value; RaisePropertyChanged(); }
         }
-        public bool IsDiaphragm
+        public bool IsDistanceLine
         {
-            get { return _IsDiaphragm; }
-            set { _IsDiaphragm = value; RaisePropertyChanged(); }
+            get { return _IsDistanceLine; }
+            set { _IsDistanceLine = value; RaisePropertyChanged(); }
         }
 
         private bool _IsFilterBlueMembrane;

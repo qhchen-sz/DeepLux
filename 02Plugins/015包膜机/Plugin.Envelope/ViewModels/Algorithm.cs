@@ -10,7 +10,8 @@ namespace Plugin.Envelope.ViewModels
     public static  class Algorithm
     {
         public static void Find_RongDian(HObject ho_Image, out HObject ho_Line1, out HObject ho_Arrow,
-            out HObject ho_Cross, HTuple hv_Location, out HTuple hv_DistanceRongDian, out HTuple hv_DistanceMo)
+            out HObject ho_Cross, HTuple hv_Location, out HTuple hv_DistanceRongDian, out HTuple hv_DistanceMo,
+            out HObject ho_TopCoverArrow, out HTuple hv_DistanceTopCover, out HObject ho_RongDianArrow)
         {
 
 
@@ -68,8 +69,11 @@ namespace Plugin.Envelope.ViewModels
             HOperatorSet.GenEmptyObj(out ho_Cross2);
             HOperatorSet.GenEmptyObj(out ho_MeeasureRegion);
             HOperatorSet.GenEmptyObj(out ho_ArrowRongDian);
+            HOperatorSet.GenEmptyObj(out ho_TopCoverArrow);
+            HOperatorSet.GenEmptyObj(out ho_RongDianArrow);
             hv_DistanceRongDian = new HTuple();
             hv_DistanceMo = new HTuple();
+            hv_DistanceTopCover = new HTuple();
             try
             {
                 try
@@ -130,9 +134,13 @@ namespace Plugin.Envelope.ViewModels
                     if ((int)(new HTuple(hv_Location.TupleEqual("Left"))) != 0)
                     {
                         {
+                            // 选最左侧区域（列坐标最小）
+                            HObject sortedRegions;
+                            HOperatorSet.SortRegion(ho_Region2, out sortedRegions, "first_point",
+                                "true", "column");
                             HObject ExpTmpOutVar_0;
-                            HOperatorSet.SelectShapeStd(ho_Region2, out ExpTmpOutVar_0, "max_area",
-                                70);
+                            HOperatorSet.SelectObj(sortedRegions, out ExpTmpOutVar_0, 1);
+                            sortedRegions.Dispose();
                             ho_Region2.Dispose();
                             ho_Region2 = ExpTmpOutVar_0;
                         }
@@ -176,9 +184,13 @@ namespace Plugin.Envelope.ViewModels
                     else if ((int)(new HTuple(hv_Location.TupleEqual("Right"))) != 0)
                     {
                         {
+                            // 选最右侧区域（列坐标最大）
+                            HObject sortedRegions;
+                            HOperatorSet.SortRegion(ho_Region2, out sortedRegions, "first_point",
+                                "false", "column");
                             HObject ExpTmpOutVar_0;
-                            HOperatorSet.SelectShapeStd(ho_Region2, out ExpTmpOutVar_0, "max_area",
-                                70);
+                            HOperatorSet.SelectObj(sortedRegions, out ExpTmpOutVar_0, 1);
+                            sortedRegions.Dispose();
                             ho_Region2.Dispose();
                             ho_Region2 = ExpTmpOutVar_0;
                         }
@@ -396,17 +408,70 @@ namespace Plugin.Envelope.ViewModels
                     HOperatorSet.IntersectionLines(0, hv_Column3, hv_Height, hv_Column3, hv_RowBegin,
                         hv_ColBegin, hv_RowEnd, hv_ColEnd, out hv_RowOver, out hv_ColumnOver,
                         out hv_IsOverlapping);
-                    ho_ArrowRongDian.Dispose();
-                    gen_arrow_contour_xld(out ho_ArrowRongDian, hv_Row4, hv_Column3, hv_RowOver,
+                    ho_RongDianArrow.Dispose();
+                    gen_arrow_contour_xld(out ho_RongDianArrow, hv_Row4, hv_Column3, hv_RowOver,
                         hv_ColumnOver, 5, 5);
                     hv_DistanceRongDian.Dispose();
                     HOperatorSet.DistancePl(hv_Row4, hv_Column3, hv_RowBegin, hv_ColBegin, hv_RowEnd,
                         hv_ColEnd, out hv_DistanceRongDian);
+
+                    // ---- 灰度120区域(Region2)顶边 → ho_Line1 的箭头和距离 ----
                     {
-                        HObject ExpTmpOutVar_0;
-                        HOperatorSet.ConcatObj(ho_ArrowRongDian, ho_Arrow, out ExpTmpOutVar_0);
-                        ho_Arrow.Dispose();
-                        ho_Arrow = ExpTmpOutVar_0;
+                        HObject ho_Region2Conn, ho_SingleRegion, ho_TempArrow;
+                        HTuple hv_NumRegions, hv_RR, hv_CC, hv_Phi2, hv_LL1, hv_LL2;
+                        HTuple hv_TopRow, hv_TopCol, hv_RowO, hv_ColO, hv_IsO, hv_Dist2;
+
+                        ho_TopCoverArrow.Dispose();
+                        HOperatorSet.GenEmptyObj(out ho_TopCoverArrow);
+                        //ho_RongDianArrow.Dispose();
+                        //HOperatorSet.GenEmptyObj(out ho_RongDianArrow);
+                        hv_DistanceTopCover.Dispose();
+                        hv_DistanceTopCover = new HTuple();
+
+                        HOperatorSet.Connection(ho_Region2, out ho_Region2Conn);
+                        HOperatorSet.CountObj(ho_Region2Conn, out hv_NumRegions);
+
+                        HTuple end = hv_NumRegions + 1;
+                        for (int i = 1; i < end.I; i++)
+                        {
+                            HOperatorSet.SelectObj(ho_Region2Conn, out ho_SingleRegion, i);
+
+                            HOperatorSet.SmallestRectangle2(ho_SingleRegion, out hv_RR, out hv_CC,
+                                out hv_Phi2, out hv_LL1, out hv_LL2);
+                            // 顶边中点
+                            hv_TopRow = hv_RR - hv_LL2;
+                            hv_TopCol = hv_CC;
+
+                            // 过顶边中点的竖直线与 ho_Line1 求交
+                            HOperatorSet.IntersectionLines(0, hv_TopCol, hv_Height, hv_TopCol,
+                                hv_RowBegin, hv_ColBegin, hv_RowEnd, hv_ColEnd,
+                                out hv_RowO, out hv_ColO, out hv_IsO);
+
+                            gen_arrow_contour_xld(out ho_TempArrow, hv_TopRow, hv_TopCol,
+                                hv_RowO, hv_ColO, 5, 5);
+
+                            HOperatorSet.DistancePl(hv_TopRow, hv_TopCol,
+                                hv_RowBegin, hv_ColBegin, hv_RowEnd, hv_ColEnd, out hv_Dist2);
+
+                            {
+                                HObject ExpTmpOutVar_0;
+                                HOperatorSet.ConcatObj(ho_TopCoverArrow, ho_TempArrow,
+                                    out ExpTmpOutVar_0);
+                                ho_TopCoverArrow.Dispose();
+                                ho_TopCoverArrow = ExpTmpOutVar_0;
+                            }
+                            hv_DistanceTopCover = hv_DistanceTopCover.TupleConcat(hv_Dist2);
+
+                            ho_SingleRegion.Dispose();
+                            ho_TempArrow.Dispose();
+                            hv_RR.Dispose(); hv_CC.Dispose(); hv_Phi2.Dispose();
+                            hv_LL1.Dispose(); hv_LL2.Dispose();
+                            hv_TopRow.Dispose(); hv_TopCol.Dispose();
+                            hv_RowO.Dispose(); hv_ColO.Dispose(); hv_IsO.Dispose();
+                            hv_Dist2.Dispose();
+                        }
+                        ho_Region2Conn.Dispose();
+                        hv_NumRegions.Dispose();
                     }
                 }
                 // catch (Exception) 
@@ -425,6 +490,12 @@ namespace Plugin.Envelope.ViewModels
                     hv_DistanceMo = new HTuple();
                     hv_DistanceMo[0] = 0;
                     hv_DistanceMo[1] = 0;
+                    ho_TopCoverArrow.Dispose();
+                    HOperatorSet.GenEmptyObj(out ho_TopCoverArrow);
+                    ho_RongDianArrow.Dispose();
+                    HOperatorSet.GenEmptyObj(out ho_RongDianArrow);
+                    hv_DistanceTopCover.Dispose();
+                    hv_DistanceTopCover = new HTuple();
 
                 }
 
@@ -442,7 +513,6 @@ namespace Plugin.Envelope.ViewModels
                 ho_Arrow2.Dispose();
                 ho_Cross2.Dispose();
                 ho_MeeasureRegion.Dispose();
-                ho_ArrowRongDian.Dispose();
 
                 hv_Value.Dispose();
                 hv_Width.Dispose();
@@ -504,7 +574,8 @@ namespace Plugin.Envelope.ViewModels
                 ho_Arrow2.Dispose();
                 ho_Cross2.Dispose();
                 ho_MeeasureRegion.Dispose();
-                ho_ArrowRongDian.Dispose();
+                ho_TopCoverArrow.Dispose();
+                ho_RongDianArrow.Dispose();
 
                 hv_Value.Dispose();
                 hv_Width.Dispose();
@@ -548,6 +619,7 @@ namespace Plugin.Envelope.ViewModels
                 hv_ColumnOver.Dispose();
                 hv_IsOverlapping.Dispose();
                 hv_Exception.Dispose();
+                hv_DistanceTopCover.Dispose();
 
                 throw HDevExpDefaultException;
             }
