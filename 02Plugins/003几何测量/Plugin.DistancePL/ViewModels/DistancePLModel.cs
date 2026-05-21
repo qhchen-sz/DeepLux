@@ -94,6 +94,12 @@ namespace Plugin.DistancePL.ViewModels
                     // 根据模式获取直线参数
                     ROILine line = null;
                     line = (ROILine)Prj.GetParamByName(Line1LinkText).Value;
+
+                    // 从链接变量解析点坐标值
+                    if (!string.IsNullOrEmpty(PXLinkText))
+                        PXLinkValue = Convert.ToDouble(Prj.GetParamByName(PXLinkText).Value);
+                    if (!string.IsNullOrEmpty(PYLinkText))
+                        PYLinkValue = Convert.ToDouble(Prj.GetParamByName(PYLinkText).Value);
                     
 
                     // 计算垂足和距离
@@ -293,7 +299,7 @@ namespace Plugin.DistancePL.ViewModels
         public double PXLinkValue
         {
             get { return _PXLinkValue; }
-            set { _PXLinkValue = value; }
+            set { Set(ref _PXLinkValue, value); }
         }
 
         private string _PYLinkText;
