@@ -1,12 +1,10 @@
 using EventMgrLib;
 using HalconDotNet;
-using Plugin.Flatness.Views;
+using Plugin.FitPlane.Views;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using VM.Halcon;
 using VM.Halcon.Config;
@@ -23,7 +21,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 
-namespace Plugin.Flatness.ViewModels
+namespace Plugin.FitPlane.ViewModels
 {
     #region enum
     public enum eLinkCommand
@@ -48,10 +46,10 @@ namespace Plugin.Flatness.ViewModels
     #endregion
 
     [Category("3D")]
-    [DisplayName("平面度")]
-    [ModuleImageName("Flatness")]
+    [DisplayName("拟合平面")]
+    [ModuleImageName("FitPlane")]
     [Serializable]
-    public class FlatnessModel : ModuleBase
+    public class FitPlaneViewModel : ModuleBase
     {
         public override void SetDefaultLink()
         {
@@ -135,7 +133,7 @@ namespace Plugin.Flatness.ViewModels
                 HOperatorSet.CountChannels(DispImage, out HTuple channelCount);
                 int nChannels = channelCount.I;
 
-                // ✅ 基恩士轮廓仪：固定用通道1（高度数据）
+                // 固定用通道1（高度数据）
                 int targetChannel = 1;
                 if (targetChannel > nChannels)
                 {
@@ -147,7 +145,7 @@ namespace Plugin.Flatness.ViewModels
                 // 提取高度通道（Ch1）
                 HOperatorSet.AccessChannel(DispImage, out HObject chObj, targetChannel);
 
-                // 高度数据转 real 类型，确保数学运算精度
+                // 高度数据转 real 类型
                 HOperatorSet.ConvertImageType(chObj, out HObject chRealObj, "real");
 
                 // 获取图像尺寸
@@ -170,6 +168,18 @@ namespace Plugin.Flatness.ViewModels
                 Beta = Math.Round(beta.D, 6);
                 Gamma = Math.Round(gamma.D, 6);
 
+                // 计算平面法向量 n = (-Beta, -Alpha, 1) / ||n||
+                // 平面方程: z = Alpha*y + Beta*x + Gamma  ... wait
+                // Halcon convention: z = Alpha*y + Beta*x + Gamma
+                // Plane normal: (-Alpha, -Beta, 1) or (-dB/dx, -dB/dy, 1)
+                // Actually: surface(r,c), Alpha = derivative in row direction, Beta = derivative in col direction
+                // surface(r,c) = Alpha*(r - r0) + Beta*(c - c0) + Gamma
+                // The plane normal in (row, col, value) space is (-Alpha, -Beta, 1)
+                double norm = Math.Sqrt(Alpha * Alpha + Beta * Beta + 1.0);
+                NormalNx = Math.Round(-Beta / norm, 6);
+                NormalNy = Math.Round(-Alpha / norm, 6);
+                NormalNz = Math.Round(1.0 / norm, 6);
+
                 // 生成拟合平面图像
                 HOperatorSet.GenImageSurfaceFirstOrder(
                     out planeImageObj,
@@ -183,7 +193,10 @@ namespace Plugin.Flatness.ViewModels
                     height
                 );
 
-                // 相减得差分图像（原始高度 - 拟合平面）= 偏差
+                // 保存平面图像（供外部使用）
+                FittedPlaneImage = new RImage(new HImage(planeImageObj));
+
+                // 计算拟合优度：偏差图像 = 原始高度 - 拟合平面
                 HOperatorSet.SubImage(
                     chRealObj,
                     planeImageObj,
@@ -193,7 +206,7 @@ namespace Plugin.Flatness.ViewModels
                 );
                 diffImage = new HImage(diffObj);
 
-                // 统计偏差：最小、最大、范围
+                // 统计偏差
                 HOperatorSet.MinMaxGray(
                     domain,
                     diffImage,
@@ -203,32 +216,18 @@ namespace Plugin.Flatness.ViewModels
                     out HTuple range
                 );
 
-                // 计算平面度 = 最大偏差 - 最小偏差
-                Flatness = Math.Round(maxDev.D - minDev.D, 6);
                 MaxDeviation = Math.Round(maxDev.D, 6);
                 MinDeviation = Math.Round(minDev.D, 6);
+                Flatness = Math.Round(maxDev.D - minDev.D, 6);
 
-                // 计算 RMS 误差（标准差）
+                // RMS 误差（拟合残差标准差）
                 HOperatorSet.Intensity(
                     domain,
                     diffImage,
                     out HTuple meanDiff,
                     out HTuple deviation
                 );
-                FitError = Math.Round(deviation.D, 6);
-
-                // 可选：Ch2 亮度通道做信号质量检查
-                if (nChannels >= 2)
-                {
-                    HOperatorSet.AccessChannel(DispImage, out HObject ch2Obj, 2);
-                    HOperatorSet.Intensity(domain, new HImage(ch2Obj), out HTuple meanIntensity, out _);
-                    double avgBrightness = meanIntensity.D;
-                    if (avgBrightness < 50)
-                    {
-                        Logger.GetExceptionMsg(new Exception($"Ch2 亮度偏低 ({avgBrightness:F1})，信号质量可能不佳"));
-                    }
-                    ch2Obj.Dispose();
-                }
+                RmsError = Math.Round(deviation.D, 6);
 
                 // 显示偏差图（伪彩色）
                 if (ShowDeviationMap && diffImage != null && diffImage.IsInitialized())
@@ -244,6 +243,26 @@ namespace Plugin.Flatness.ViewModels
                     }
                 }
 
+                // 显示拟合平面图
+                if (ShowPlaneMap && planeImageObj != null && planeImageObj.IsInitialized())
+                {
+                    if (!ShowDeviationMap)
+                    {
+                        HImage planeImage = new HImage(planeImageObj);
+                        HOperatorSet.MinMaxGray(planeImage.GetDomain(), planeImage, 0.0, out HTuple planeMin, out HTuple planeMax, out HTuple _);
+                        double planeRange = planeMax.D - planeMin.D;
+                        if (planeRange > 0)
+                        {
+                            HImage planeScaled = planeImage.ScaleImage(
+                                255.0 / planeRange,
+                                -128.0 * planeMin.D / planeRange
+                            );
+                            DispImage = new RImage(planeScaled);
+                        }
+                        planeImage.Dispose();
+                    }
+                }
+
                 // 显示结果文字
                 if (ShowResultPoint)
                 {
@@ -253,7 +272,7 @@ namespace Plugin.Flatness.ViewModels
                         out HTuple centerR,
                         out HTuple centerC
                     );
-                    string text = $"平面度:{Flatness:F4}";
+                    string text = $"平面: z={Alpha:F4}*y+{Beta:F4}*x+{Gamma:F4}";
                     ShowHRoi(new HText(
                         ModuleParam.ModuleEncode,
                         ModuleParam.ModuleName,
@@ -262,8 +281,21 @@ namespace Plugin.Flatness.ViewModels
                         "green",
                         text,
                         centerC.D,
-                        centerR.D - 30,
-                        16
+                        centerR.D - 50,
+                        14
+                    ));
+
+                    string text2 = $"平面度:{Flatness:F4}  RMS:{RmsError:F4}";
+                    ShowHRoi(new HText(
+                        ModuleParam.ModuleEncode,
+                        ModuleParam.ModuleName,
+                        ModuleParam.Remarks,
+                        HRoiType.文字显示,
+                        "green",
+                        text2,
+                        centerC.D,
+                        centerR.D - 25,
+                        14
                     ));
                 }
 
@@ -283,7 +315,6 @@ namespace Plugin.Flatness.ViewModels
                 ShowHRoi();
                 InitRoiMethod();
 
-                // 释放临时对象
                 chObj.Dispose();
                 chRealObj.Dispose();
 
@@ -309,13 +340,17 @@ namespace Plugin.Flatness.ViewModels
 
         public override void AddOutputParams()
         {
-            AddOutputParam("平面度", "double", Flatness);
-            AddOutputParam("最大偏差", "double", MaxDeviation);
-            AddOutputParam("最小偏差", "double", MinDeviation);
-            AddOutputParam("RMS", "double", FitError);
             AddOutputParam("Alpha", "double", Alpha);
             AddOutputParam("Beta", "double", Beta);
             AddOutputParam("Gamma", "double", Gamma);
+            AddOutputParam("法向量Nx", "double", NormalNx);
+            AddOutputParam("法向量Ny", "double", NormalNy);
+            AddOutputParam("法向量Nz", "double", NormalNz);
+            AddOutputParam("平面度", "double", Flatness);
+            AddOutputParam("最大偏差", "double", MaxDeviation);
+            AddOutputParam("最小偏差", "double", MinDeviation);
+            AddOutputParam("RMS", "double", RmsError);
+            AddOutputParam("拟合平面图像", "object", FittedPlaneImage);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
@@ -332,19 +367,14 @@ namespace Plugin.Flatness.ViewModels
             return DispImage.GetDomain();
         }
 
-        public override void ShowHRoi()
-        {
-            base.ShowHRoi();
-        }
-
         public void InitRoiMethod()
         {
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as FitPlaneView;
             if (view == null) return;
 
             if (!UseRoi) return;
 
-            string roiName = ModuleParam.ModuleName + "FlatnessROI";
+            string roiName = ModuleParam.ModuleName + "FitPlaneROI";
 
             if (_RoiList == null)
                 _RoiList = new Dictionary<string, ROI>();
@@ -468,6 +498,13 @@ namespace Plugin.Flatness.ViewModels
             set { Set(ref _ShowDeviationMap, value); }
         }
 
+        private bool _ShowPlaneMap = false;
+        public bool ShowPlaneMap
+        {
+            get { return _ShowPlaneMap; }
+            set { Set(ref _ShowPlaneMap, value); }
+        }
+
         private bool _ShowRegion = true;
         public bool ShowRegion
         {
@@ -503,11 +540,11 @@ namespace Plugin.Flatness.ViewModels
             set { Set(ref _MinDeviation, value); }
         }
 
-        private double _FitError;
-        public double FitError
+        private double _RmsError;
+        public double RmsError
         {
-            get { return _FitError; }
-            set { Set(ref _FitError, value); }
+            get { return _RmsError; }
+            set { Set(ref _RmsError, value); }
         }
 
         private double _Alpha;
@@ -529,6 +566,35 @@ namespace Plugin.Flatness.ViewModels
         {
             get { return _Gamma; }
             set { Set(ref _Gamma, value); }
+        }
+
+        private double _NormalNx;
+        public double NormalNx
+        {
+            get { return _NormalNx; }
+            set { Set(ref _NormalNx, value); }
+        }
+
+        private double _NormalNy;
+        public double NormalNy
+        {
+            get { return _NormalNy; }
+            set { Set(ref _NormalNy, value); }
+        }
+
+        private double _NormalNz;
+        public double NormalNz
+        {
+            get { return _NormalNz; }
+            set { Set(ref _NormalNz, value); }
+        }
+
+        [NonSerialized]
+        private RImage _FittedPlaneImage;
+        public RImage FittedPlaneImage
+        {
+            get { return _FittedPlaneImage; }
+            set { Set(ref _FittedPlaneImage, value); }
         }
 
         // ROI 原始坐标输入（可链接变量）
@@ -555,7 +621,7 @@ namespace Plugin.Flatness.ViewModels
         public override void Loaded()
         {
             base.Loaded();
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as FitPlaneView;
             ClosedView = true;
             if (view.mWindowH == null)
             {
@@ -606,7 +672,7 @@ namespace Plugin.Flatness.ViewModels
                 {
                     _ConfirmCommand = new CommandBase((obj) =>
                     {
-                        var view = ModuleView as FlatnessView;
+                        var view = ModuleView as FitPlaneView;
                         if (view != null)
                         {
                             view.mWindowH.hControl.MouseUp -= HControl_MouseUp;
@@ -665,7 +731,7 @@ namespace Plugin.Flatness.ViewModels
 
         private void HControl_MouseUp(object sender, MouseEventArgs e)
         {
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as FitPlaneView;
             if (view == null || view.mWindowH == null) return;
 
             ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);

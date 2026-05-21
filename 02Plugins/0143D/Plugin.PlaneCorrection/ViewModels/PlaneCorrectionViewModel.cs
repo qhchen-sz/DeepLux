@@ -1,12 +1,10 @@
 using EventMgrLib;
 using HalconDotNet;
-using Plugin.Flatness.Views;
+using Plugin.PlaneCorrection.Views;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using VM.Halcon;
 using VM.Halcon.Config;
@@ -23,12 +21,16 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 
-namespace Plugin.Flatness.ViewModels
+namespace Plugin.PlaneCorrection.ViewModels
 {
     #region enum
     public enum eLinkCommand
     {
         InputImageLink,
+        PlaneImageLink,
+        InitAlpha,
+        InitBeta,
+        InitGamma,
         InitRoiCenterX,
         InitRoiCenterY,
         InitRoiLength1,
@@ -36,22 +38,18 @@ namespace Plugin.Flatness.ViewModels
         InitRoiAngel,
     }
 
-    public enum eFitMethod
+    public enum ePlaneMode
     {
-        [EnumDescription("标准回归")]
-        regression,
-        [EnumDescription("加权最小二乘")]
-        least_squares,
-        [EnumDescription("Tukey鲁棒估计")]
-        tukey,
+        PlaneImage,
+        Manual,
     }
     #endregion
 
     [Category("3D")]
-    [DisplayName("平面度")]
-    [ModuleImageName("Flatness")]
+    [DisplayName("平面校正")]
+    [ModuleImageName("PlaneCorrection")]
     [Serializable]
-    public class FlatnessModel : ModuleBase
+    public class PlaneCorrectionViewModel : ModuleBase
     {
         public override void SetDefaultLink()
         {
@@ -69,7 +67,7 @@ namespace Plugin.Flatness.ViewModels
         {
             Stopwatch.Restart();
             HRegion domain = null;
-            HImage diffImage = null;
+            HTuple om3D = null;
             HObject planeImageObj = null;
 
             try
@@ -90,7 +88,59 @@ namespace Plugin.Flatness.ViewModels
                     return false;
                 }
 
-                // 逆变换：拖动 ROI 后把图像坐标转回原始坐标
+                // 获取基准平面参数
+                double refAlpha, refBeta, refGamma;
+                HImage linkedPlaneImg = null;
+
+                if (PlaneMode == ePlaneMode.Manual)
+                {
+                    refAlpha = Convert.ToDouble(GetLinkValue(InitAlpha));
+                    refBeta = Convert.ToDouble(GetLinkValue(InitBeta));
+                    refGamma = Convert.ToDouble(GetLinkValue(InitGamma));
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(PlaneImageLinkText))
+                    {
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+
+                    var savedDisp = DispImage;
+                    GetDispImage(PlaneImageLinkText, true);
+                    if (DispImage == null || !DispImage.IsInitialized())
+                    {
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+                    linkedPlaneImg = new HImage(DispImage);
+                    DispImage = savedDisp;
+                    // 同步恢复窗口显示图像
+                    if (ModuleView != null && ModuleView.mWindowH != null)
+                        ModuleView.mWindowH.HobjectToHimage(DispImage);
+
+                    HOperatorSet.CountChannels(linkedPlaneImg, out HTuple pc);
+                    int pCh = pc.I >= 1 ? 1 : 1;
+                    HOperatorSet.AccessChannel(linkedPlaneImg, out HObject pChObj, pCh);
+                    HOperatorSet.ConvertImageType(pChObj, out HObject pRealObj, "real");
+                    HOperatorSet.FitSurfaceFirstOrder(
+                        linkedPlaneImg.GetDomain(),
+                        pRealObj,
+                        "regression",
+                        5,
+                        0.1,
+                        out HTuple pAlpha,
+                        out HTuple pBeta,
+                        out HTuple pGamma
+                    );
+                    refAlpha = pAlpha.D;
+                    refBeta = pBeta.D;
+                    refGamma = pGamma.D;
+                    pChObj.Dispose();
+                    pRealObj.Dispose();
+                }
+
+                // 逆变换 ROI
                 if (DisenableAffine2d && HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                 {
                     DisenableAffine2d = false;
@@ -105,7 +155,7 @@ namespace Plugin.Flatness.ViewModels
                     }
                 }
 
-                // 正变换：原始坐标 → 图像坐标
+                // 正变换 ROI
                 if (HomMat2D != null && HomMat2D.Length > 0)
                 {
                     InitRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
@@ -131,11 +181,14 @@ namespace Plugin.Flatness.ViewModels
                     return false;
                 }
 
-                // 获取图像通道数
+                // 获取图像尺寸
+                DispImage.GetImageSize(out int width, out int height);
+
+                // 获取通道数
                 HOperatorSet.CountChannels(DispImage, out HTuple channelCount);
                 int nChannels = channelCount.I;
 
-                // ✅ 基恩士轮廓仪：固定用通道1（高度数据）
+                // 提取高度通道（Ch1）
                 int targetChannel = 1;
                 if (targetChannel > nChannels)
                 {
@@ -144,105 +197,121 @@ namespace Plugin.Flatness.ViewModels
                     return false;
                 }
 
-                // 提取高度通道（Ch1）
                 HOperatorSet.AccessChannel(DispImage, out HObject chObj, targetChannel);
-
-                // 高度数据转 real 类型，确保数学运算精度
                 HOperatorSet.ConvertImageType(chObj, out HObject chRealObj, "real");
 
-                // 获取图像尺寸
-                HOperatorSet.GetImageSize(chRealObj, out HTuple width, out HTuple height);
+                double cx = width / 2.0;
+                double cy = height / 2.0;
 
-                // 拟合最佳平面（一阶）
-                HOperatorSet.FitSurfaceFirstOrder(
-                    domain,
-                    chRealObj,
-                    FitMethod.ToString(),
-                    NumIterations,
-                    ClippingFactor,
-                    out HTuple alpha,
-                    out HTuple beta,
-                    out HTuple gamma
-                );
+                // 生成 X、Y 坐标图（像素斜坡），用于构建 3D 点云
+                HOperatorSet.GenImageSurfaceFirstOrder(out HObject xImage, "real", 0, 1, 0, cy, cx, width, height);
+                HOperatorSet.GenImageSurfaceFirstOrder(out HObject yImage, "real", 1, 0, 0, cy, cx, width, height);
 
-                // 保存拟合参数
-                Alpha = Math.Round(alpha.D, 6);
-                Beta = Math.Round(beta.D, 6);
-                Gamma = Math.Round(gamma.D, 6);
+                // 参考平面法向量: n = (-β, -α, 1) / sqrt(α² + β² + 1)
+                double normVal = Math.Sqrt(refAlpha * refAlpha + refBeta * refBeta + 1.0);
+                double nx = -refBeta / normVal;
+                double ny = -refAlpha / normVal;
+                double nz = 1.0 / normVal;
 
-                // 生成拟合平面图像
-                HOperatorSet.GenImageSurfaceFirstOrder(
-                    out planeImageObj,
-                    "real",
-                    alpha,
-                    beta,
-                    gamma,
-                    height / 2,
-                    width / 2,
-                    width,
-                    height
-                );
+                // 旋转轴: k = n × (0,0,1) = (ny, -nx, 0)
+                // 旋转角: θ = acos(n·(0,0,1)) = acos(nz)
+                double rx = ny;
+                double ry = -nx;
+                double angle = Math.Acos(nz);
 
-                // 相减得差分图像（原始高度 - 拟合平面）= 偏差
-                HOperatorSet.SubImage(
-                    chRealObj,
-                    planeImageObj,
-                    out HObject diffObj,
-                    1.0,
-                    0.0
-                );
-                diffImage = new HImage(diffObj);
+                // 转为 3D 对象模型
+                HOperatorSet.XyzToObjectModel3d(xImage, yImage, chRealObj, out om3D);
 
-                // 统计偏差：最小、最大、范围
+                if (Math.Abs(angle) > 1e-10)
+                {
+                    // 轴角 → 四元数 → 旋转矩阵
+                    HOperatorSet.AxisAngleToQuat(rx, ry, 0, angle, out HTuple quat);
+                    HOperatorSet.QuatToHomMat3d(quat, out HTuple rotMat);
+
+                    // 组合变换：先平移到图像中心，旋转，再平移回来
+                    HOperatorSet.HomMat3dIdentity(out HTuple homMat3D);
+                    HOperatorSet.HomMat3dTranslate(homMat3D, -cx, -cy, 0, out HTuple toOrigin);
+                    HOperatorSet.HomMat3dCompose(rotMat, toOrigin, out HTuple afterRot);
+                    HOperatorSet.HomMat3dIdentity(out HTuple id2);
+                    HOperatorSet.HomMat3dTranslate(id2, cx, cy, 0, out HTuple toCenter);
+                    HOperatorSet.HomMat3dCompose(toCenter, afterRot, out HTuple transform);
+
+                    HOperatorSet.RigidTransObjectModel3d(om3D, transform, out HTuple transformedOM);
+                    om3D = transformedOM;
+                }
+
+                // 转回 XYZ 图像，其中 Z 图是校正后的高度
+                HOperatorSet.ObjectModel3dToXyz(out HObject xTr, out HObject yTr, out HObject zTrans, om3D, "area", 0, -1);
+
+                // 基准平面图像：优先用链接的，否则从参数生成
+                if (linkedPlaneImg != null && linkedPlaneImg.IsInitialized())
+                {
+                    planeImageObj = linkedPlaneImg;
+                }
+                else
+                {
+                    HOperatorSet.GenImageSurfaceFirstOrder(
+                        out planeImageObj,
+                        "real",
+                        refAlpha,
+                        refBeta,
+                        refGamma,
+                        cy,
+                        cx,
+                        width,
+                        height
+                    );
+                }
+
+                // 旋转后基准面在中心处的高度
+                double planeCenterHeight = refAlpha * cy + refBeta * cx + refGamma;
+                HOperatorSet.ScaleImage(zTrans, out HObject zCorrected, 1.0, -planeCenterHeight);
+
+                var correctedImage = new HImage(zCorrected);
+                CorrectedImage = new RImage(correctedImage);
+
+                // 统计校正后的偏差
                 HOperatorSet.MinMaxGray(
                     domain,
-                    diffImage,
+                    correctedImage,
                     0.0,
                     out HTuple minDev,
                     out HTuple maxDev,
                     out HTuple range
                 );
 
-                // 计算平面度 = 最大偏差 - 最小偏差
-                Flatness = Math.Round(maxDev.D - minDev.D, 6);
                 MaxDeviation = Math.Round(maxDev.D, 6);
                 MinDeviation = Math.Round(minDev.D, 6);
+                Flatness = Math.Round(maxDev.D - minDev.D, 6);
 
-                // 计算 RMS 误差（标准差）
+                // RMS 误差
                 HOperatorSet.Intensity(
                     domain,
-                    diffImage,
+                    correctedImage,
                     out HTuple meanDiff,
                     out HTuple deviation
                 );
-                FitError = Math.Round(deviation.D, 6);
+                RmsError = Math.Round(deviation.D, 6);
 
-                // 可选：Ch2 亮度通道做信号质量检查
-                if (nChannels >= 2)
-                {
-                    HOperatorSet.AccessChannel(DispImage, out HObject ch2Obj, 2);
-                    HOperatorSet.Intensity(domain, new HImage(ch2Obj), out HTuple meanIntensity, out _);
-                    double avgBrightness = meanIntensity.D;
-                    if (avgBrightness < 50)
-                    {
-                        Logger.GetExceptionMsg(new Exception($"Ch2 亮度偏低 ({avgBrightness:F1})，信号质量可能不佳"));
-                    }
-                    ch2Obj.Dispose();
-                }
-
-                // 显示偏差图（伪彩色）
-                if (ShowDeviationMap && diffImage != null && diffImage.IsInitialized())
+                // 显示
+                if (ShowCorrectedImage)
                 {
                     double rangeVal = range.D;
                     if (rangeVal > 0)
                     {
-                        HImage dispScaled = diffImage.ScaleImage(
+                        HImage dispScaled = correctedImage.ScaleImage(
                             255.0 / rangeVal,
                             128.0 - 128.0 * maxDev.D / rangeVal
                         );
                         DispImage = new RImage(dispScaled);
                     }
                 }
+
+                // 释放临时图像
+                xImage.Dispose();
+                yImage.Dispose();
+                xTr.Dispose();
+                yTr.Dispose();
 
                 // 显示结果文字
                 if (ShowResultPoint)
@@ -253,7 +322,7 @@ namespace Plugin.Flatness.ViewModels
                         out HTuple centerR,
                         out HTuple centerC
                     );
-                    string text = $"平面度:{Flatness:F4}";
+                    string text = $"校正后平面度:{Flatness:F4}  RMS:{RmsError:F4}";
                     ShowHRoi(new HText(
                         ModuleParam.ModuleEncode,
                         ModuleParam.ModuleName,
@@ -262,8 +331,8 @@ namespace Plugin.Flatness.ViewModels
                         "green",
                         text,
                         centerC.D,
-                        centerR.D - 30,
-                        16
+                        centerR.D - 25,
+                        14
                     ));
                 }
 
@@ -283,7 +352,6 @@ namespace Plugin.Flatness.ViewModels
                 ShowHRoi();
                 InitRoiMethod();
 
-                // 释放临时对象
                 chObj.Dispose();
                 chRealObj.Dispose();
 
@@ -299,7 +367,10 @@ namespace Plugin.Flatness.ViewModels
             finally
             {
                 domain?.Dispose();
-                diffImage?.Dispose();
+                if (om3D != null)
+                {
+                    HOperatorSet.ClearObjectModel3d(om3D);
+                }
                 if (planeImageObj != null)
                 {
                     planeImageObj.Dispose();
@@ -309,18 +380,15 @@ namespace Plugin.Flatness.ViewModels
 
         public override void AddOutputParams()
         {
+            AddOutputParam("校正后图像", "object", CorrectedImage);
             AddOutputParam("平面度", "double", Flatness);
             AddOutputParam("最大偏差", "double", MaxDeviation);
             AddOutputParam("最小偏差", "double", MinDeviation);
-            AddOutputParam("RMS", "double", FitError);
-            AddOutputParam("Alpha", "double", Alpha);
-            AddOutputParam("Beta", "double", Beta);
-            AddOutputParam("Gamma", "double", Gamma);
+            AddOutputParam("RMS", "double", RmsError);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
 
-        /// <summary>获取ROI区域，若无效则返回图像完整domain</summary>
         private HRegion GetRoiRegion()
         {
             if (UseRoi && TranRoi.Length1 > 0 && TranRoi.Length2 > 0)
@@ -332,19 +400,14 @@ namespace Plugin.Flatness.ViewModels
             return DispImage.GetDomain();
         }
 
-        public override void ShowHRoi()
-        {
-            base.ShowHRoi();
-        }
-
         public void InitRoiMethod()
         {
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as PlaneCorrectionView;
             if (view == null) return;
 
             if (!UseRoi) return;
 
-            string roiName = ModuleParam.ModuleName + "FlatnessROI";
+            string roiName = ModuleParam.ModuleName + "PlaneCorrectionROI";
 
             if (_RoiList == null)
                 _RoiList = new Dictionary<string, ROI>();
@@ -410,11 +473,18 @@ namespace Plugin.Flatness.ViewModels
             set { Set(ref _InputImageLinkText, value); }
         }
 
-        private eFitMethod _FitMethod = eFitMethod.regression;
-        public eFitMethod FitMethod
+        private string _PlaneImageLinkText;
+        public string PlaneImageLinkText
         {
-            get { return _FitMethod; }
-            set { Set(ref _FitMethod, value); }
+            get { return _PlaneImageLinkText; }
+            set { Set(ref _PlaneImageLinkText, value); }
+        }
+
+        private ePlaneMode _PlaneMode = ePlaneMode.PlaneImage;
+        public ePlaneMode PlaneMode
+        {
+            get { return _PlaneMode; }
+            set { Set(ref _PlaneMode, value); }
         }
 
         private bool _UseRoi = false;
@@ -427,45 +497,16 @@ namespace Plugin.Flatness.ViewModels
                 Set(ref _UseRoi, value);
                 if (changed)
                 {
-                    if (value && DispImage != null && DispImage.IsInitialized())
-                    {
-                        double len1 = 0, len2 = 0;
-                        double.TryParse(InitRoiLength1.Text, out len1);
-                        double.TryParse(InitRoiLength2.Text, out len2);
-                        if (len1 <= 0 || len2 <= 0)
-                        {
-                            DispImage.GetImageSize(out int width, out int height);
-                            InitRoiCenterX.Text = (width / 2.0).ToString();
-                            InitRoiCenterY.Text = (height / 2.0).ToString();
-                            InitRoiAngel.Text = "0";
-                            InitRoiLength1.Text = (width / 4.0).ToString();
-                            InitRoiLength2.Text = (height / 4.0).ToString();
-                        }
-                    }
                     InitRoiMethod();
                 }
             }
         }
 
-        private int _NumIterations = 5;
-        public int NumIterations
+        private bool _ShowCorrectedImage = true;
+        public bool ShowCorrectedImage
         {
-            get { return _NumIterations; }
-            set { Set(ref _NumIterations, value); }
-        }
-
-        private double _ClippingFactor = 0.1;
-        public double ClippingFactor
-        {
-            get { return _ClippingFactor; }
-            set { Set(ref _ClippingFactor, value); }
-        }
-
-        private bool _ShowDeviationMap = false;
-        public bool ShowDeviationMap
-        {
-            get { return _ShowDeviationMap; }
-            set { Set(ref _ShowDeviationMap, value); }
+            get { return _ShowCorrectedImage; }
+            set { Set(ref _ShowCorrectedImage, value); }
         }
 
         private bool _ShowRegion = true;
@@ -503,35 +544,25 @@ namespace Plugin.Flatness.ViewModels
             set { Set(ref _MinDeviation, value); }
         }
 
-        private double _FitError;
-        public double FitError
+        private double _RmsError;
+        public double RmsError
         {
-            get { return _FitError; }
-            set { Set(ref _FitError, value); }
+            get { return _RmsError; }
+            set { Set(ref _RmsError, value); }
         }
 
-        private double _Alpha;
-        public double Alpha
+        [NonSerialized]
+        private RImage _CorrectedImage;
+        public RImage CorrectedImage
         {
-            get { return _Alpha; }
-            set { Set(ref _Alpha, value); }
+            get { return _CorrectedImage; }
+            set { Set(ref _CorrectedImage, value); }
         }
 
-        private double _Beta;
-        public double Beta
-        {
-            get { return _Beta; }
-            set { Set(ref _Beta, value); }
-        }
-
-        private double _Gamma;
-        public double Gamma
-        {
-            get { return _Gamma; }
-            set { Set(ref _Gamma, value); }
-        }
-
-        // ROI 原始坐标输入（可链接变量）
+        // ROI 原始坐标输入
+        public LinkVarModel InitAlpha { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitBeta { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitGamma { get; set; } = new LinkVarModel() { Text = "0" };
         public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "10" };
@@ -555,7 +586,7 @@ namespace Plugin.Flatness.ViewModels
         public override void Loaded()
         {
             base.Loaded();
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as PlaneCorrectionView;
             ClosedView = true;
             if (view.mWindowH == null)
             {
@@ -569,6 +600,9 @@ namespace Plugin.Flatness.ViewModels
             InitRoiLength1.TextChanged = new Action(() => { InitRoiChanged(); });
             InitRoiLength2.TextChanged = new Action(() => { InitRoiChanged(); });
             InitRoiAngel.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitAlpha.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitBeta.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitGamma.TextChanged = new Action(() => { InitRoiChanged(); });
 
             if (DispImage == null || !DispImage.IsInitialized())
             {
@@ -606,7 +640,7 @@ namespace Plugin.Flatness.ViewModels
                 {
                     _ConfirmCommand = new CommandBase((obj) =>
                     {
-                        var view = ModuleView as FlatnessView;
+                        var view = ModuleView as PlaneCorrectionView;
                         if (view != null)
                         {
                             view.mWindowH.hControl.MouseUp -= HControl_MouseUp;
@@ -665,7 +699,7 @@ namespace Plugin.Flatness.ViewModels
 
         private void HControl_MouseUp(object sender, MouseEventArgs e)
         {
-            var view = ModuleView as FlatnessView;
+            var view = ModuleView as PlaneCorrectionView;
             if (view == null || view.mWindowH == null) return;
 
             ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
@@ -694,6 +728,18 @@ namespace Plugin.Flatness.ViewModels
             {
                 case eLinkCommand.InputImageLink:
                     InputImageLinkText = obj.LinkName;
+                    break;
+                case eLinkCommand.PlaneImageLink:
+                    PlaneImageLinkText = obj.LinkName;
+                    break;
+                case eLinkCommand.InitAlpha:
+                    InitAlpha.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitBeta:
+                    InitBeta.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitGamma:
+                    InitGamma.Text = obj.LinkName;
                     break;
                 case eLinkCommand.InitRoiCenterX:
                     InitRoiCenterX.Text = obj.LinkName;
@@ -733,6 +779,30 @@ namespace Plugin.Flatness.ViewModels
                                     VarLinkViewModel.Ins.Modules, "HImage");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
                                     .Publish($"{ModuleGuid},InputImageLink");
+                                break;
+                            case eLinkCommand.PlaneImageLink:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "HImage");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},PlaneImageLink");
+                                break;
+                            case eLinkCommand.InitAlpha:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitAlpha");
+                                break;
+                            case eLinkCommand.InitBeta:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitBeta");
+                                break;
+                            case eLinkCommand.InitGamma:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitGamma");
                                 break;
                             case eLinkCommand.InitRoiCenterX:
                                 CommonMethods.GetModuleList(ModuleParam,

@@ -1,0 +1,664 @@
+using EventMgrLib;
+using HalconDotNet;
+using Plugin.GrayMeasure.Views;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows.Forms;
+using VM.Halcon;
+using VM.Halcon.Config;
+using VM.Halcon.Model;
+using HV.Attributes;
+using HV.Common;
+using HV.Common.Enums;
+using HV.Common.Helper;
+using HV.Common.Provide;
+using HV.Core;
+using HV.Events;
+using HV.Models;
+using HV.ViewModels;
+
+namespace Plugin.GrayMeasure.ViewModels
+{
+    public enum eLinkCommand
+    {
+        InputImageLink,
+    }
+
+    [Category("检测识别")]
+    [DisplayName("灰度测量")]
+    [ModuleImageName("GrayMeasure")]
+    [Serializable]
+    public class GrayMeasureViewModel : ModuleBase
+    {
+        public override void SetDefaultLink()
+        {
+            CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
+            var moduls = VarLinkViewModel.Ins.Modules.LastOrDefault();
+            if (moduls == null || moduls.VarModels.Count == 0)
+                return;
+            if (InputImageLinkText == null)
+                InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
+        }
+
+        public override bool ExeModule()
+        {
+            Stopwatch.Restart();
+            try
+            {
+                ClearRoiAndText();
+                if (InputImageLinkText == null)
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+                GetDispImage(InputImageLinkText);
+                if (DispImage == null || !DispImage.IsInitialized())
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
+                HImage grayImage = DispImage;
+                HOperatorSet.CountChannels(DispImage, out HTuple channels);
+                if (channels.I > 1)
+                {
+                    HOperatorSet.Rgb1ToGray(DispImage, out HObject grayObj);
+                    grayImage = new HImage(grayObj);
+                }
+
+                List<double> grayValues = new List<double>();
+                HObject displayCircles = null;
+                HObject scopeRegion = null;
+
+                if (RoiMode == eRoiMode.Circle)
+                {
+                    // ========== 环形ROI模式：单圆 + 圆周卡尺 ==========
+                    HTuple metrologyHandle = null;
+
+                    try
+                    {
+                        HOperatorSet.CreateMetrologyModel(out metrologyHandle);
+                        HOperatorSet.GetImageSize(grayImage, out HTuple imgWidth, out HTuple imgHeight);
+                        HOperatorSet.SetMetrologyModelImageSize(metrologyHandle, imgWidth, imgHeight);
+
+                        HOperatorSet.AddMetrologyObjectCircleMeasure(metrologyHandle,
+                            CenterY, CenterX, Radius,
+                            Length1, Length2, 1.0, 30.0,
+                            (new HTuple("start_phi")).TupleConcat("end_phi"),
+                            (new HTuple(0.0)).TupleConcat(new HTuple(360).TupleRad()),
+                            out HTuple metrologyIndex);
+
+                        HOperatorSet.SetMetrologyObjectParam(metrologyHandle, "all", "num_measures", MeasNum);
+
+                        HOperatorSet.GetMetrologyObjectMeasures(out scopeRegion, metrologyHandle,
+                            "all", "all", out HTuple measureRows, out HTuple measureCols);
+
+                        HOperatorSet.CountObj(scopeRegion, out HTuple numMeasures);
+
+                        for (int i = 1; i <= numMeasures; i++)
+                        {
+                            HOperatorSet.SelectObj(scopeRegion, out HObject singleXld, i);
+                            HOperatorSet.GenRegionContourXld(singleXld, out HObject singleRegion, "filled");
+
+                            HOperatorSet.Intensity(singleRegion, grayImage, out HTuple meanGray, out HTuple deviation);
+                            double grayVal = Math.Round(meanGray.D, 2);
+                            grayValues.Add(grayVal);
+
+                            if (ShowGrayValue)
+                            {
+                                HOperatorSet.AreaCenter(singleRegion, out HTuple area, out HTuple row, out HTuple col);
+                                string text = grayVal.ToString("F1");
+                                ShowHRoi(new HText(
+                                    ModuleParam.ModuleEncode,
+                                    ModuleParam.ModuleName,
+                                    ModuleParam.Remarks,
+                                    HRoiType.文字显示,
+                                    "green",
+                                    text,
+                                    col.D,
+                                    row.D - Length1 - 5,
+                                    12
+                                ));
+                            }
+
+                            singleXld.Dispose();
+                            singleRegion.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        if (metrologyHandle != null)
+                            HOperatorSet.ClearMetrologyModel(metrologyHandle);
+                    }
+
+                    if (ShowMeasContour && scopeRegion != null && scopeRegion.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(
+                            ModuleParam.ModuleEncode,
+                            ModuleParam.ModuleName,
+                            ModuleParam.Remarks,
+                            HRoiType.检测范围,
+                            "blue",
+                            new HObject(scopeRegion)
+                        ));
+                    }
+                    if (ShowCirclePath)
+                    {
+                        HOperatorSet.GenCircleContourXld(out displayCircles,
+                            CenterY, CenterX, Radius, 0, 6.28318, "positive", 1);
+                        ShowHRoi(new HRoi(
+                            ModuleParam.ModuleEncode,
+                            ModuleParam.ModuleName,
+                            ModuleParam.Remarks,
+                            HRoiType.检测结果,
+                            "cyan",
+                            new HObject(displayCircles)
+                        ));
+                    }
+                }
+                else if (RoiMode == eRoiMode.CircleArray)
+                {
+                    // ========== 圆阵ROI模式：按行列生成多个圆，每个圆算灰度 ==========
+                    HOperatorSet.GenEmptyObj(out HObject allCircleContours);
+
+                    for (int r = 0; r < ArrayRows; r++)
+                    {
+                        for (int c = 0; c < ArrayCols; c++)
+                        {
+                            double cy = CenterY + r * ArrayRowSpacing;
+                            double cx = CenterX + c * ArrayColSpacing;
+
+                            HRegion circleRegion = new HRegion();
+                            circleRegion.GenCircle(cy, cx, Radius);
+
+                            HOperatorSet.Intensity(circleRegion, grayImage, out HTuple meanGray, out HTuple deviation);
+                            double grayVal = Math.Round(meanGray.D, 2);
+                            grayValues.Add(grayVal);
+
+                            if (ShowGrayValue)
+                            {
+                                string text = grayVal.ToString("F1");
+                                ShowHRoi(new HText(
+                                    ModuleParam.ModuleEncode,
+                                    ModuleParam.ModuleName,
+                                    ModuleParam.Remarks,
+                                    HRoiType.文字显示,
+                                    "green",
+                                    text,
+                                    cx,
+                                    cy - Radius - 5,
+                                    12
+                                ));
+                            }
+
+                            HOperatorSet.GenCircleContourXld(out HObject circleCont, cy, cx, Radius, 0, 6.28318, "positive", 1);
+                            HOperatorSet.ConcatObj(allCircleContours, circleCont, out HObject temp);
+                            allCircleContours.Dispose();
+                            allCircleContours = temp;
+
+                            circleRegion.Dispose();
+                            circleCont.Dispose();
+                        }
+                    }
+
+                    displayCircles = allCircleContours;
+                    if (ShowCircleArray && displayCircles != null && displayCircles.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(
+                            ModuleParam.ModuleEncode,
+                            ModuleParam.ModuleName,
+                            ModuleParam.Remarks,
+                            HRoiType.检测结果,
+                            "cyan",
+                            new HObject(displayCircles)
+                        ));
+                    }
+                }
+                else if (RoiMode == eRoiMode.RectArray)
+                {
+                    // ========== 矩形阵ROI模式：按行列生成多个矩形，每个矩形算灰度 ==========
+                    HOperatorSet.GenEmptyObj(out HObject allRectContours);
+
+                    for (int r = 0; r < ArrayRows; r++)
+                    {
+                        for (int c = 0; c < ArrayCols; c++)
+                        {
+                            double ry = CenterY + r * ArrayRowSpacing;
+                            double rx = CenterX + c * ArrayColSpacing;
+
+                            HRegion rectRegion = new HRegion();
+                            rectRegion.GenRectangle2(ry, rx, RectAngle, RectLength1, RectLength2);
+
+                            HOperatorSet.Intensity(rectRegion, grayImage, out HTuple meanGray, out HTuple deviation);
+                            double grayVal = Math.Round(meanGray.D, 2);
+                            grayValues.Add(grayVal);
+
+                            if (ShowGrayValue)
+                            {
+                                string text = grayVal.ToString("F1");
+                                ShowHRoi(new HText(
+                                    ModuleParam.ModuleEncode,
+                                    ModuleParam.ModuleName,
+                                    ModuleParam.Remarks,
+                                    HRoiType.文字显示,
+                                    "green",
+                                    text,
+                                    rx,
+                                    ry - RectLength2 - 5,
+                                    12
+                                ));
+                            }
+
+                            HOperatorSet.GenRectangle2ContourXld(out HObject rectCont, ry, rx, RectAngle, RectLength1, RectLength2);
+                            HOperatorSet.ConcatObj(allRectContours, rectCont, out HObject temp);
+                            allRectContours.Dispose();
+                            allRectContours = temp;
+
+                            rectRegion.Dispose();
+                            rectCont.Dispose();
+                        }
+                    }
+
+                    HObject displayRects = allRectContours;
+                    if (ShowCircleArray && displayRects != null && displayRects.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(
+                            ModuleParam.ModuleEncode,
+                            ModuleParam.ModuleName,
+                            ModuleParam.Remarks,
+                            HRoiType.检测结果,
+                            "cyan",
+                            new HObject(displayRects)
+                        ));
+                    }
+                }
+
+                AverageGray = grayValues.Count > 0 ? Math.Round(grayValues.Average(), 2) : 0;
+                GrayValueList = grayValues;
+                MaxGray = grayValues.Count > 0 ? grayValues.Max() : 0;
+                MinGray = grayValues.Count > 0 ? grayValues.Min() : 0;
+
+                ShowHRoi();
+
+                displayCircles?.Dispose();
+                scopeRegion?.Dispose();
+
+                if (channels.I > 1)
+                    grayImage.Dispose();
+
+                ChangeModuleRunStatus(eRunStatus.OK);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ChangeModuleRunStatus(eRunStatus.NG);
+                Logger.GetExceptionMsg(ex);
+                return false;
+            }
+        }
+
+        public override void AddOutputParams()
+        {
+            ClearOutputParam();
+            AddOutputParam("平均灰度", "double", AverageGray);
+            AddOutputParam("最大灰度", "double", MaxGray);
+            AddOutputParam("最小灰度", "double", MinGray);
+            for (int i = 0; i < GrayValueList.Count; i++)
+            {
+                AddOutputParam($"灰度值_{i + 1}", "double", GrayValueList[i]);
+            }
+            AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
+            AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
+        }
+
+        #region Prop
+        private string _InputImageLinkText;
+        public string InputImageLinkText
+        {
+            get { return _InputImageLinkText; }
+            set { Set(ref _InputImageLinkText, value); }
+        }
+
+        private eRoiMode _RoiMode = eRoiMode.Circle;
+        public eRoiMode RoiMode
+        {
+            get { return _RoiMode; }
+            set { Set(ref _RoiMode, value); }
+        }
+
+        private double _CenterX = 200;
+        public double CenterX
+        {
+            get { return _CenterX; }
+            set { Set(ref _CenterX, value); }
+        }
+
+        private double _CenterY = 200;
+        public double CenterY
+        {
+            get { return _CenterY; }
+            set { Set(ref _CenterY, value); }
+        }
+
+        private double _Radius = 100;
+        public double Radius
+        {
+            get { return _Radius; }
+            set { Set(ref _Radius, value); }
+        }
+
+        private double _Length1 = 30;
+        public double Length1
+        {
+            get { return _Length1; }
+            set { Set(ref _Length1, value); }
+        }
+
+        private double _Length2 = 10;
+        public double Length2
+        {
+            get { return _Length2; }
+            set { Set(ref _Length2, value); }
+        }
+
+        private int _MeasNum = 12;
+        public int MeasNum
+        {
+            get { return _MeasNum; }
+            set { Set(ref _MeasNum, value); }
+        }
+
+        // 圆阵参数
+        private int _ArrayRows = 3;
+        public int ArrayRows
+        {
+            get { return _ArrayRows; }
+            set { Set(ref _ArrayRows, value); }
+        }
+
+        private int _ArrayCols = 3;
+        public int ArrayCols
+        {
+            get { return _ArrayCols; }
+            set { Set(ref _ArrayCols, value); }
+        }
+
+        private double _ArrayRowSpacing = 100;
+        public double ArrayRowSpacing
+        {
+            get { return _ArrayRowSpacing; }
+            set { Set(ref _ArrayRowSpacing, value); }
+        }
+
+        private double _ArrayColSpacing = 100;
+        public double ArrayColSpacing
+        {
+            get { return _ArrayColSpacing; }
+            set { Set(ref _ArrayColSpacing, value); }
+        }
+
+        private double _RectLength1 = 50;
+        public double RectLength1
+        {
+            get { return _RectLength1; }
+            set { Set(ref _RectLength1, value); }
+        }
+
+        private double _RectLength2 = 30;
+        public double RectLength2
+        {
+            get { return _RectLength2; }
+            set { Set(ref _RectLength2, value); }
+        }
+
+        private double _RectAngle = 0;
+        public double RectAngle
+        {
+            get { return _RectAngle; }
+            set { Set(ref _RectAngle, value); }
+        }
+
+        private double _AverageGray;
+        public double AverageGray
+        {
+            get { return _AverageGray; }
+            set { Set(ref _AverageGray, value); }
+        }
+
+        private double _MaxGray;
+        public double MaxGray
+        {
+            get { return _MaxGray; }
+            set { Set(ref _MaxGray, value); }
+        }
+
+        private double _MinGray;
+        public double MinGray
+        {
+            get { return _MinGray; }
+            set { Set(ref _MinGray, value); }
+        }
+
+        [NonSerialized]
+        private List<double> _GrayValueList = new List<double>();
+        public List<double> GrayValueList
+        {
+            get { return _GrayValueList; }
+            set { Set(ref _GrayValueList, value); }
+        }
+
+        private bool _ShowMeasContour = true;
+        public bool ShowMeasContour
+        {
+            get { return _ShowMeasContour; }
+            set { Set(ref _ShowMeasContour, value); }
+        }
+
+        private bool _ShowGrayValue = true;
+        public bool ShowGrayValue
+        {
+            get { return _ShowGrayValue; }
+            set { Set(ref _ShowGrayValue, value); }
+        }
+
+        private bool _ShowCirclePath = true;
+        public bool ShowCirclePath
+        {
+            get { return _ShowCirclePath; }
+            set { Set(ref _ShowCirclePath, value); }
+        }
+
+        private bool _ShowCircleArray = true;
+        public bool ShowCircleArray
+        {
+            get { return _ShowCircleArray; }
+            set { Set(ref _ShowCircleArray, value); }
+        }
+
+        /// <summary> 交互式ROI列表 </summary>
+        public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
+        [NonSerialized]
+        private ROICircle _roiCircle;
+        #endregion
+
+        #region Command
+        public override void Loaded()
+        {
+            base.Loaded();
+            var view = ModuleView as GrayMeasureView;
+            ClosedView = true;
+            if (view.mWindowH == null)
+            {
+                view.mWindowH = new VMHWindowControl();
+                view.winFormHost.Child = view.mWindowH;
+            }
+            if (DispImage == null || !DispImage.IsInitialized())
+            {
+                SetDefaultLink();
+                if (InputImageLinkText == null) return;
+            }
+            GetDispImage(InputImageLinkText);
+            if (DispImage != null && DispImage.IsInitialized())
+            {
+                view.mWindowH.hControl.MouseUp += HControl_MouseUp;
+                ShowHRoi();
+                InitCircleMethod();
+            }
+        }
+
+        [NonSerialized]
+        private CommandBase _ExecuteCommand;
+        public CommandBase ExecuteCommand
+        {
+            get
+            {
+                if (_ExecuteCommand == null)
+                    _ExecuteCommand = new CommandBase((obj) =>
+                    {
+                        ExeModule();
+                        InitCircleMethod();
+                    });
+                return _ExecuteCommand;
+            }
+        }
+
+        [NonSerialized]
+        private CommandBase _ConfirmCommand;
+        public CommandBase ConfirmCommand
+        {
+            get
+            {
+                if (_ConfirmCommand == null)
+                    _ConfirmCommand = new CommandBase((obj) =>
+                    {
+                        var view = ModuleView as GrayMeasureView;
+                        if (view != null)
+                            view.Close();
+                    });
+                return _ConfirmCommand;
+            }
+        }
+
+        private void OnVarChanged(VarChangedEventParamModel obj)
+        {
+            switch (obj.SendName.Split(',')[1])
+            {
+                case "InputImageLink":
+                    InputImageLinkText = obj.LinkName;
+                    break;
+            }
+        }
+
+        private void HControl_MouseUp(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                if (RoiMode != eRoiMode.Circle) return;  // 圆阵模式不响应拖动
+                var view = ModuleView as GrayMeasureView;
+                if (view == null) return;
+                ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
+                if (index.Length > 0)
+                {
+                    _roiCircle = roi as ROICircle;
+                    if (_roiCircle != null)
+                    {
+                        CenterX = Math.Round(_roiCircle.CenterX, 3);
+                        CenterY = Math.Round(_roiCircle.CenterY, 3);
+                        Radius = Math.Round(_roiCircle.Radius, 3);
+                        ExeModule();
+                        InitCircleMethod();
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        public void InitCircleMethod()
+        {
+            var view = ModuleView as GrayMeasureView;
+            if (view == null) return;
+            if (DispImage == null || !DispImage.IsInitialized()) return;
+
+            // 先清掉旧的交互圆，避免模式切换时残留
+            view.mWindowH.ClearROI();
+            RoiList.Clear();
+
+            // 重绘 mHRoi（卡尺区域、结果轮廓等），避免 ClearROI 把 ShowHRoi 画的内容也清掉
+            ShowHRoi();
+
+            if (RoiMode == eRoiMode.Circle)
+            {
+                if (ShowCirclePath)
+                {
+                    view.mWindowH.WindowH.genCircle(
+                        ModuleParam.ModuleName,
+                        CenterY,
+                        CenterX,
+                        Radius,
+                        ref RoiList
+                    );
+                }
+            }
+            else if (RoiMode == eRoiMode.CircleArray && ShowCircleArray)
+            {
+                // 圆阵模式：为每个圆生成一个交互圆（不可拖动，因为 HControl_MouseUp 已跳过）
+                for (int r = 0; r < ArrayRows; r++)
+                {
+                    for (int c = 0; c < ArrayCols; c++)
+                    {
+                        double cy = CenterY + r * ArrayRowSpacing;
+                        double cx = CenterX + c * ArrayColSpacing;
+                        string roiName = $"{ModuleParam.ModuleName}_{r}_{c}";
+                        view.mWindowH.WindowH.genCircle(roiName, cy, cx, Radius, ref RoiList);
+                    }
+                }
+            }
+            else if (RoiMode == eRoiMode.RectArray && ShowCircleArray)
+            {
+                // 矩形阵模式：为每个矩形生成一个交互矩形（不可拖动，因为 HControl_MouseUp 已跳过）
+                for (int r = 0; r < ArrayRows; r++)
+                {
+                    for (int c = 0; c < ArrayCols; c++)
+                    {
+                        double ry = CenterY + r * ArrayRowSpacing;
+                        double rx = CenterX + c * ArrayColSpacing;
+                        string roiName = $"{ModuleParam.ModuleName}_{r}_{c}";
+                        view.mWindowH.WindowH.genRect2(roiName, ry, rx, RectAngle, RectLength1, RectLength2, ref RoiList);
+                    }
+                }
+            }
+        }
+
+        [NonSerialized]
+        private CommandBase _LinkCommand;
+        public CommandBase LinkCommand
+        {
+            get
+            {
+                if (_LinkCommand == null)
+                {
+                    EventMgr.Ins.GetEvent<VarChangedEvent>().Subscribe(OnVarChanged,
+                        o => o.SendName.StartsWith($"{ModuleGuid}"));
+                    _LinkCommand = new CommandBase((obj) =>
+                    {
+                        eLinkCommand linkCommand = (eLinkCommand)obj;
+                        switch (linkCommand)
+                        {
+                            case eLinkCommand.InputImageLink:
+                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InputImageLink");
+                                break;
+                        }
+                    });
+                }
+                return _LinkCommand;
+            }
+        }
+        #endregion
+    }
+}
