@@ -54,7 +54,7 @@ namespace Plugin.SaveImage.ViewModels
     public enum TimePrefixOption
     {
         无前缀,
-        年月日时分秒,
+        年月日时分秒毫秒,
     }
     #endregion
 	
@@ -796,8 +796,8 @@ namespace Plugin.SaveImage.ViewModels
 
             switch (SelectedTimePrefix)
             {
-                case TimePrefixOption.年月日时分秒:
-                    return now.ToString("yyyyMMdd_HHmmss_");
+                case TimePrefixOption.年月日时分秒毫秒:
+                    return now.ToString("yyyyMMdd_HHmmssfff_");
                 case TimePrefixOption.无前缀:
                 default:
                     return "";
