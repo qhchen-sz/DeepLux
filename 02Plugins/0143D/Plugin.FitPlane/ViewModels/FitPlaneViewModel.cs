@@ -38,8 +38,8 @@ namespace Plugin.FitPlane.ViewModels
     {
         [EnumDescription("标准回归")]
         regression,
-        [EnumDescription("加权最小二乘")]
-        least_squares,
+        [EnumDescription("Huber加权最小二乘")]
+        huber,
         [EnumDescription("Tukey鲁棒估计")]
         tukey,
     }
@@ -81,7 +81,10 @@ namespace Plugin.FitPlane.ViewModels
                     return false;
                 }
 
-                GetDispImage(InputImageLinkText, true);
+                if (!IsOpenWindows)
+                {
+                    GetDispImage(InputImageLinkText, true);
+                }
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -115,11 +118,30 @@ namespace Plugin.FitPlane.ViewModels
                 }
                 else
                 {
-                    InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
-                    InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
-                    InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
-                    InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
-                    InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
+                    if (!InitRoiCenterX.Text.StartsWith("&"))
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC;
+                    else
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
+
+                    if (!InitRoiCenterY.Text.StartsWith("&"))
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR;
+                    else
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
+
+                    if (!InitRoiLength1.Text.StartsWith("&"))
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1;
+                    else
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
+
+                    if (!InitRoiLength2.Text.StartsWith("&"))
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2;
+                    else
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
+
+                    if (!InitRoiAngel.Text.StartsWith("&"))
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg;
+                    else
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
                 }
 
                 domain = GetRoiRegion();
@@ -163,32 +185,34 @@ namespace Plugin.FitPlane.ViewModels
                     out HTuple gamma
                 );
 
-                // 保存拟合参数
+                // 获取拟合区域的重心（fit_surface_first_order 使用的参考点）
+                HOperatorSet.AreaCenter(domain, out HTuple area, out HTuple centerR, out HTuple centerC);
+
+                // 保存原始拟合参数（内部调试用）
                 Alpha = Math.Round(alpha.D, 6);
                 Beta = Math.Round(beta.D, 6);
                 Gamma = Math.Round(gamma.D, 6);
 
-                // 计算平面法向量 n = (-Beta, -Alpha, 1) / ||n||
-                // 平面方程: z = Alpha*y + Beta*x + Gamma  ... wait
-                // Halcon convention: z = Alpha*y + Beta*x + Gamma
-                // Plane normal: (-Alpha, -Beta, 1) or (-dB/dx, -dB/dy, 1)
-                // Actually: surface(r,c), Alpha = derivative in row direction, Beta = derivative in col direction
-                // surface(r,c) = Alpha*(r - r0) + Beta*(c - c0) + Gamma
-                // The plane normal in (row, col, value) space is (-Alpha, -Beta, 1)
-                double norm = Math.Sqrt(Alpha * Alpha + Beta * Beta + 1.0);
-                NormalNx = Math.Round(-Beta / norm, 6);
-                NormalNy = Math.Round(-Alpha / norm, 6);
+                // 转换为标准平面方程 Nx*x + Ny*y + Nz*z = D
+                // HALCON 公式: z = Alpha*(r-r0) + Beta*(c-c0) + Gamma
+                // 映射: x->c(Column), y->r(Row), z->Height
+                // 展开: Beta*x + Alpha*y - z + (Gamma - Beta*c0 - Alpha*r0) = 0
+                // 法向量取 (-Beta, -Alpha, 1) 方向并归一化，保证 Nz > 0（朝上）
+                double norm = Math.Sqrt(alpha.D * alpha.D + beta.D * beta.D + 1.0);
+                NormalNx = Math.Round(-beta.D / norm, 6);
+                NormalNy = Math.Round(-alpha.D / norm, 6);
                 NormalNz = Math.Round(1.0 / norm, 6);
+                PlaneD = Math.Round((gamma.D - beta.D * centerC.D - alpha.D * centerR.D) / norm, 6);
 
-                // 生成拟合平面图像
+                // 生成拟合平面图像（参考点必须用 area_center，与 fit_surface_first_order 一致）
                 HOperatorSet.GenImageSurfaceFirstOrder(
                     out planeImageObj,
                     "real",
                     alpha,
                     beta,
                     gamma,
-                    height / 2,
-                    width / 2,
+                    centerR,
+                    centerC,
                     width,
                     height
                 );
@@ -237,7 +261,7 @@ namespace Plugin.FitPlane.ViewModels
                     {
                         HImage dispScaled = diffImage.ScaleImage(
                             255.0 / rangeVal,
-                            128.0 - 128.0 * maxDev.D / rangeVal
+                            -minDev.D * 255.0 / rangeVal
                         );
                         DispImage = new RImage(dispScaled);
                     }
@@ -255,7 +279,7 @@ namespace Plugin.FitPlane.ViewModels
                         {
                             HImage planeScaled = planeImage.ScaleImage(
                                 255.0 / planeRange,
-                                -128.0 * planeMin.D / planeRange
+                                -planeMin.D * 255.0 / planeRange
                             );
                             DispImage = new RImage(planeScaled);
                         }
@@ -266,13 +290,7 @@ namespace Plugin.FitPlane.ViewModels
                 // 显示结果文字
                 if (ShowResultPoint)
                 {
-                    HOperatorSet.AreaCenter(
-                        domain,
-                        out HTuple area,
-                        out HTuple centerR,
-                        out HTuple centerC
-                    );
-                    string text = $"平面: z={Alpha:F4}*y+{Beta:F4}*x+{Gamma:F4}";
+                    string text = $"平面: {NormalNx:F4}x+{NormalNy:F4}y+{NormalNz:F4}z={PlaneD:F4}";
                     ShowHRoi(new HText(
                         ModuleParam.ModuleEncode,
                         ModuleParam.ModuleName,
@@ -282,7 +300,7 @@ namespace Plugin.FitPlane.ViewModels
                         text,
                         centerC.D,
                         centerR.D - 50,
-                        14
+                        32
                     ));
 
                     string text2 = $"平面度:{Flatness:F4}  RMS:{RmsError:F4}";
@@ -295,7 +313,7 @@ namespace Plugin.FitPlane.ViewModels
                         text2,
                         centerC.D,
                         centerR.D - 25,
-                        14
+                        32
                     ));
                 }
 
@@ -314,6 +332,13 @@ namespace Plugin.FitPlane.ViewModels
 
                 ShowHRoi();
                 InitRoiMethod();
+
+                // ClearROI 会导致 real 类型深度图丢失颜色映射，重新设置 LUT
+                if (ModuleView is FitPlaneView view && view.mWindowH != null)
+                {
+                    HOperatorSet.SetLut(view.mWindowH.hControl.HalconWindow, "temperature");
+                    view.mWindowH.WindowH._hWndControl.Repaint();
+                }
 
                 chObj.Dispose();
                 chRealObj.Dispose();
@@ -340,17 +365,15 @@ namespace Plugin.FitPlane.ViewModels
 
         public override void AddOutputParams()
         {
-            AddOutputParam("Alpha", "double", Alpha);
-            AddOutputParam("Beta", "double", Beta);
-            AddOutputParam("Gamma", "double", Gamma);
             AddOutputParam("法向量Nx", "double", NormalNx);
             AddOutputParam("法向量Ny", "double", NormalNy);
             AddOutputParam("法向量Nz", "double", NormalNz);
+            AddOutputParam("平面距离D", "double", PlaneD);
             AddOutputParam("平面度", "double", Flatness);
             AddOutputParam("最大偏差", "double", MaxDeviation);
             AddOutputParam("最小偏差", "double", MinDeviation);
             AddOutputParam("RMS", "double", RmsError);
-            AddOutputParam("拟合平面图像", "object", FittedPlaneImage);
+            AddOutputParam("拟合平面图像", "HImage", FittedPlaneImage);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
@@ -361,7 +384,7 @@ namespace Plugin.FitPlane.ViewModels
             if (UseRoi && TranRoi.Length1 > 0 && TranRoi.Length2 > 0)
             {
                 HRegion roiRegion = new HRegion();
-                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
+                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, -TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
                 return roiRegion;
             }
             return DispImage.GetDomain();
@@ -589,6 +612,13 @@ namespace Plugin.FitPlane.ViewModels
             set { Set(ref _NormalNz, value); }
         }
 
+        private double _PlaneD;
+        public double PlaneD
+        {
+            get { return _PlaneD; }
+            set { Set(ref _PlaneD, value); }
+        }
+
         [NonSerialized]
         private RImage _FittedPlaneImage;
         public RImage FittedPlaneImage
@@ -598,16 +628,16 @@ namespace Plugin.FitPlane.ViewModels
         }
 
         // ROI 原始坐标输入（可链接变量）
-        public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiLength2 { get; set; } = new LinkVarModel() { Text = "10" };
+        public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiLength2 { get; set; } = new LinkVarModel() { Text = "100" };
         public LinkVarModel InitRoiAngel { get; set; } = new LinkVarModel() { Text = "0" };
 
         // 几何对象
-        [NonSerialized] public ROIRectangle2 InitRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TranRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TempRoi = new ROIRectangle2();
+        public ROIRectangle2 InitRoi = new ROIRectangle2();
+        public ROIRectangle2 TranRoi = new ROIRectangle2();
+        public ROIRectangle2 TempRoi = new ROIRectangle2();
 
         // 标志位
         [NonSerialized] bool DisenableAffine2d = false;

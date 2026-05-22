@@ -28,14 +28,16 @@ namespace Plugin.PlaneCorrection.ViewModels
     {
         InputImageLink,
         PlaneImageLink,
-        InitAlpha,
-        InitBeta,
-        InitGamma,
+        InitNx,
+        InitNy,
+        InitNz,
+        InitD,
         InitRoiCenterX,
         InitRoiCenterY,
         InitRoiLength1,
         InitRoiLength2,
         InitRoiAngel,
+        InitTranslateZ,
     }
 
     public enum ePlaneMode
@@ -81,22 +83,26 @@ namespace Plugin.PlaneCorrection.ViewModels
                     return false;
                 }
 
-                GetDispImage(InputImageLinkText, true);
+                if (!IsOpenWindows)
+                {
+                    GetDispImage(InputImageLinkText, true);
+                }
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
 
-                // 获取基准平面参数
-                double refAlpha, refBeta, refGamma;
+                // 获取基准平面参数（标准平面方程 Nx*x + Ny*y + Nz*z = D）
+                double nxRef, nyRef, nzRef, dRef;
                 HImage linkedPlaneImg = null;
 
                 if (PlaneMode == ePlaneMode.Manual)
                 {
-                    refAlpha = Convert.ToDouble(GetLinkValue(InitAlpha));
-                    refBeta = Convert.ToDouble(GetLinkValue(InitBeta));
-                    refGamma = Convert.ToDouble(GetLinkValue(InitGamma));
+                    nxRef = Convert.ToDouble(GetLinkValue(InitNx));
+                    nyRef = Convert.ToDouble(GetLinkValue(InitNy));
+                    nzRef = Convert.ToDouble(GetLinkValue(InitNz));
+                    dRef = Convert.ToDouble(GetLinkValue(InitD));
                 }
                 else
                 {
@@ -133,9 +139,13 @@ namespace Plugin.PlaneCorrection.ViewModels
                         out HTuple pBeta,
                         out HTuple pGamma
                     );
-                    refAlpha = pAlpha.D;
-                    refBeta = pBeta.D;
-                    refGamma = pGamma.D;
+                    // 转换为标准平面方程 Nx/Ny/Nz/D
+                    HOperatorSet.AreaCenter(linkedPlaneImg.GetDomain(), out _, out HTuple refR, out HTuple refC);
+                    double normRefCalc = Math.Sqrt(pAlpha.D * pAlpha.D + pBeta.D * pBeta.D + 1.0);
+                    nxRef = -pBeta.D / normRefCalc;
+                    nyRef = -pAlpha.D / normRefCalc;
+                    nzRef = 1.0 / normRefCalc;
+                    dRef = (pGamma.D - pBeta.D * refC.D - pAlpha.D * refR.D) / normRefCalc;
                     pChObj.Dispose();
                     pRealObj.Dispose();
                 }
@@ -167,11 +177,30 @@ namespace Plugin.PlaneCorrection.ViewModels
                 }
                 else
                 {
-                    InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
-                    InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
-                    InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
-                    InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
-                    InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
+                    if (!InitRoiCenterX.Text.StartsWith("&"))
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC;
+                    else
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
+
+                    if (!InitRoiCenterY.Text.StartsWith("&"))
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR;
+                    else
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
+
+                    if (!InitRoiLength1.Text.StartsWith("&"))
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1;
+                    else
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
+
+                    if (!InitRoiLength2.Text.StartsWith("&"))
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2;
+                    else
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
+
+                    if (!InitRoiAngel.Text.StartsWith("&"))
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg;
+                    else
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
                 }
 
                 domain = GetRoiRegion();
@@ -203,47 +232,77 @@ namespace Plugin.PlaneCorrection.ViewModels
                 double cx = width / 2.0;
                 double cy = height / 2.0;
 
-                // 生成 X、Y 坐标图（像素斜坡），用于构建 3D 点云
+                // 拟合输入 ROI 平面
+                HOperatorSet.FitSurfaceFirstOrder(
+                    domain,
+                    chRealObj,
+                    "regression",
+                    5,
+                    0.1,
+                    out HTuple inAlphaT,
+                    out HTuple inBetaT,
+                    out HTuple inGammaT
+                );
+                double inAlpha = inAlphaT.D;
+                double inBeta = inBetaT.D;
+                double inGamma = inGammaT.D;
+
+                // 生成 X、Y 坐标图
                 HOperatorSet.GenImageSurfaceFirstOrder(out HObject xImage, "real", 0, 1, 0, cy, cx, width, height);
                 HOperatorSet.GenImageSurfaceFirstOrder(out HObject yImage, "real", 1, 0, 0, cy, cx, width, height);
 
-                // 参考平面法向量: n = (-β, -α, 1) / sqrt(α² + β² + 1)
-                double normVal = Math.Sqrt(refAlpha * refAlpha + refBeta * refBeta + 1.0);
-                double nx = -refBeta / normVal;
-                double ny = -refAlpha / normVal;
-                double nz = 1.0 / normVal;
+                // 输入面法向量: n_in = (-β_in, -α_in, 1) / norm_in
+                double normIn = Math.Sqrt(inAlpha * inAlpha + inBeta * inBeta + 1.0);
+                double nxIn = -inBeta / normIn;
+                double nyIn = -inAlpha / normIn;
+                double nzIn = 1.0 / normIn;
 
-                // 旋转轴: k = n × (0,0,1) = (ny, -nx, 0)
-                // 旋转角: θ = acos(n·(0,0,1)) = acos(nz)
-                double rx = ny;
-                double ry = -nx;
-                double angle = Math.Acos(nz);
+                // 基准面中心高度（从标准方程 Nx*x + Ny*y + Nz*z = D 推导）
+                double zRefCenter = (dRef - nxRef * cx - nyRef * cy) / nzRef;
+
+                // 旋转轴: k = n_in × n_ref
+                double kx = nyIn * nzRef - nzIn * nyRef;
+                double ky = nzIn * nxRef - nxIn * nzRef;
+                double kz = nxIn * nyRef - nyIn * nxRef;
+                double kNorm = Math.Sqrt(kx * kx + ky * ky + kz * kz);
+
+                // 旋转角: θ = acos(n_in · n_ref)
+                double dotVal = nxIn * nxRef + nyIn * nyRef + nzIn * nzRef;
+                dotVal = Math.Max(-1.0, Math.Min(1.0, dotVal));
+                double rotAngle = Math.Acos(dotVal);
+
+                // 输入面中心高度（旋转中心 Z），基于 area_center 修正
+                HOperatorSet.AreaCenter(domain, out _, out HTuple roiR, out HTuple roiC);
+                double zInCenter = inAlpha * (cy - roiR.D) + inBeta * (cx - roiC.D) + inGamma;
 
                 // 转为 3D 对象模型
                 HOperatorSet.XyzToObjectModel3d(xImage, yImage, chRealObj, out om3D);
 
-                if (Math.Abs(angle) > 1e-10)
+                if (Math.Abs(rotAngle) > 1e-10 && kNorm > 1e-10)
                 {
-                    // 轴角 → 四元数 → 旋转矩阵
-                    HOperatorSet.AxisAngleToQuat(rx, ry, 0, angle, out HTuple quat);
+                    HOperatorSet.AxisAngleToQuat(kx / kNorm, ky / kNorm, kz / kNorm, rotAngle, out HTuple quat);
                     HOperatorSet.QuatToHomMat3d(quat, out HTuple rotMat);
 
-                    // 组合变换：先平移到图像中心，旋转，再平移回来
                     HOperatorSet.HomMat3dIdentity(out HTuple homMat3D);
-                    HOperatorSet.HomMat3dTranslate(homMat3D, -cx, -cy, 0, out HTuple toOrigin);
+                    HOperatorSet.HomMat3dTranslate(homMat3D, 0, 0, -zInCenter, out HTuple toOrigin);
                     HOperatorSet.HomMat3dCompose(rotMat, toOrigin, out HTuple afterRot);
                     HOperatorSet.HomMat3dIdentity(out HTuple id2);
-                    HOperatorSet.HomMat3dTranslate(id2, cx, cy, 0, out HTuple toCenter);
+                    HOperatorSet.HomMat3dTranslate(id2, 0, 0, zInCenter, out HTuple toCenter);
                     HOperatorSet.HomMat3dCompose(toCenter, afterRot, out HTuple transform);
 
+                    HTuple originalOm3D = om3D;
                     HOperatorSet.RigidTransObjectModel3d(om3D, transform, out HTuple transformedOM);
+                    HOperatorSet.ClearObjectModel3d(originalOm3D);
                     om3D = transformedOM;
                 }
 
-                // 转回 XYZ 图像，其中 Z 图是校正后的高度
+                // 转回 XYZ 图像
                 HOperatorSet.ObjectModel3dToXyz(out HObject xTr, out HObject yTr, out HObject zTrans, om3D, "area", 0, -1);
 
-                // 基准平面图像：优先用链接的，否则从参数生成
+                // 高度距离 = 旋转后输入面中心 Z - 基准面中心 Z
+                HeightDistance = Math.Round(zInCenter - zRefCenter, 6);
+
+                // 基准平面图像（从标准方程 Nx*x + Ny*y + Nz*z = D 生成）
                 if (linkedPlaneImg != null && linkedPlaneImg.IsInitialized())
                 {
                     planeImageObj = linkedPlaneImg;
@@ -253,19 +312,28 @@ namespace Plugin.PlaneCorrection.ViewModels
                     HOperatorSet.GenImageSurfaceFirstOrder(
                         out planeImageObj,
                         "real",
-                        refAlpha,
-                        refBeta,
-                        refGamma,
-                        cy,
-                        cx,
+                        -nyRef / nzRef,
+                        -nxRef / nzRef,
+                        dRef / nzRef,
+                        0,
+                        0,
                         width,
                         height
                     );
                 }
 
-                // 旋转后基准面在中心处的高度
-                double planeCenterHeight = refAlpha * cy + refBeta * cx + refGamma;
-                HOperatorSet.ScaleImage(zTrans, out HObject zCorrected, 1.0, -planeCenterHeight);
+                // 可选平移
+                HObject zCorrected;
+                if (IsTranslateEnabled)
+                {
+                    double translateZ = Convert.ToDouble(GetLinkValue(InitTranslateZ));
+                    HOperatorSet.ScaleImage(zTrans, out zCorrected, 1.0, translateZ);
+                    zTrans.Dispose();
+                }
+                else
+                {
+                    zCorrected = zTrans;
+                }
 
                 var correctedImage = new HImage(zCorrected);
                 CorrectedImage = new RImage(correctedImage);
@@ -352,6 +420,13 @@ namespace Plugin.PlaneCorrection.ViewModels
                 ShowHRoi();
                 InitRoiMethod();
 
+                // ClearROI 会导致 real 类型深度图丢失颜色映射，重新设置 LUT
+                if (ModuleView is PlaneCorrectionView view && view.mWindowH != null)
+                {
+                    HOperatorSet.SetLut(view.mWindowH.hControl.HalconWindow, "temperature");
+                    view.mWindowH.WindowH._hWndControl.Repaint();
+                }
+
                 chObj.Dispose();
                 chRealObj.Dispose();
 
@@ -385,6 +460,7 @@ namespace Plugin.PlaneCorrection.ViewModels
             AddOutputParam("最大偏差", "double", MaxDeviation);
             AddOutputParam("最小偏差", "double", MinDeviation);
             AddOutputParam("RMS", "double", RmsError);
+            AddOutputParam("高度距离", "double", HeightDistance);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
@@ -394,7 +470,7 @@ namespace Plugin.PlaneCorrection.ViewModels
             if (UseRoi && TranRoi.Length1 > 0 && TranRoi.Length2 > 0)
             {
                 HRegion roiRegion = new HRegion();
-                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
+                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, -TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
                 return roiRegion;
             }
             return DispImage.GetDomain();
@@ -487,6 +563,13 @@ namespace Plugin.PlaneCorrection.ViewModels
             set { Set(ref _PlaneMode, value); }
         }
 
+        private bool _IsTranslateEnabled = false;
+        public bool IsTranslateEnabled
+        {
+            get { return _IsTranslateEnabled; }
+            set { Set(ref _IsTranslateEnabled, value); }
+        }
+
         private bool _UseRoi = false;
         public bool UseRoi
         {
@@ -551,6 +634,13 @@ namespace Plugin.PlaneCorrection.ViewModels
             set { Set(ref _RmsError, value); }
         }
 
+        private double _HeightDistance;
+        public double HeightDistance
+        {
+            get { return _HeightDistance; }
+            set { Set(ref _HeightDistance, value); }
+        }
+
         [NonSerialized]
         private RImage _CorrectedImage;
         public RImage CorrectedImage
@@ -560,9 +650,11 @@ namespace Plugin.PlaneCorrection.ViewModels
         }
 
         // ROI 原始坐标输入
-        public LinkVarModel InitAlpha { get; set; } = new LinkVarModel() { Text = "0" };
-        public LinkVarModel InitBeta { get; set; } = new LinkVarModel() { Text = "0" };
-        public LinkVarModel InitGamma { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitNx { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitNy { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitNz { get; set; } = new LinkVarModel() { Text = "1" };
+        public LinkVarModel InitD { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitTranslateZ { get; set; } = new LinkVarModel() { Text = "0" };
         public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "10" };
@@ -600,9 +692,11 @@ namespace Plugin.PlaneCorrection.ViewModels
             InitRoiLength1.TextChanged = new Action(() => { InitRoiChanged(); });
             InitRoiLength2.TextChanged = new Action(() => { InitRoiChanged(); });
             InitRoiAngel.TextChanged = new Action(() => { InitRoiChanged(); });
-            InitAlpha.TextChanged = new Action(() => { InitRoiChanged(); });
-            InitBeta.TextChanged = new Action(() => { InitRoiChanged(); });
-            InitGamma.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitNx.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitNy.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitNz.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitD.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitTranslateZ.TextChanged = new Action(() => { InitRoiChanged(); });
 
             if (DispImage == null || !DispImage.IsInitialized())
             {
@@ -732,14 +826,20 @@ namespace Plugin.PlaneCorrection.ViewModels
                 case eLinkCommand.PlaneImageLink:
                     PlaneImageLinkText = obj.LinkName;
                     break;
-                case eLinkCommand.InitAlpha:
-                    InitAlpha.Text = obj.LinkName;
+                case eLinkCommand.InitNx:
+                    InitNx.Text = obj.LinkName;
                     break;
-                case eLinkCommand.InitBeta:
-                    InitBeta.Text = obj.LinkName;
+                case eLinkCommand.InitNy:
+                    InitNy.Text = obj.LinkName;
                     break;
-                case eLinkCommand.InitGamma:
-                    InitGamma.Text = obj.LinkName;
+                case eLinkCommand.InitNz:
+                    InitNz.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitD:
+                    InitD.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitTranslateZ:
+                    InitTranslateZ.Text = obj.LinkName;
                     break;
                 case eLinkCommand.InitRoiCenterX:
                     InitRoiCenterX.Text = obj.LinkName;
@@ -786,23 +886,35 @@ namespace Plugin.PlaneCorrection.ViewModels
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
                                     .Publish($"{ModuleGuid},PlaneImageLink");
                                 break;
-                            case eLinkCommand.InitAlpha:
+                            case eLinkCommand.InitNx:
                                 CommonMethods.GetModuleList(ModuleParam,
                                     VarLinkViewModel.Ins.Modules, "double");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
-                                    .Publish($"{ModuleGuid},InitAlpha");
+                                    .Publish($"{ModuleGuid},InitNx");
                                 break;
-                            case eLinkCommand.InitBeta:
+                            case eLinkCommand.InitNy:
                                 CommonMethods.GetModuleList(ModuleParam,
                                     VarLinkViewModel.Ins.Modules, "double");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
-                                    .Publish($"{ModuleGuid},InitBeta");
+                                    .Publish($"{ModuleGuid},InitNy");
                                 break;
-                            case eLinkCommand.InitGamma:
+                            case eLinkCommand.InitNz:
                                 CommonMethods.GetModuleList(ModuleParam,
                                     VarLinkViewModel.Ins.Modules, "double");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
-                                    .Publish($"{ModuleGuid},InitGamma");
+                                    .Publish($"{ModuleGuid},InitNz");
+                                break;
+                            case eLinkCommand.InitD:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitD");
+                                break;
+                            case eLinkCommand.InitTranslateZ:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitTranslateZ");
                                 break;
                             case eLinkCommand.InitRoiCenterX:
                                 CommonMethods.GetModuleList(ModuleParam,

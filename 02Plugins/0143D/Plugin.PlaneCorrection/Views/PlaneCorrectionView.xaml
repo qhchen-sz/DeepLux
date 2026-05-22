@@ -105,13 +105,13 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </StackPanel.Style>
-                                                    <TextBlock Text="Alpha:" VerticalAlignment="Center" Width="60"/>
+                                                    <TextBlock Text="Nx:" VerticalAlignment="Center" Width="60"/>
                                                     <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                             Text="{Binding InitAlpha.Text}"
-                                                             IsReadOnly="{Binding InitAlpha.IsReadOnly}"
-                                                             mah:TextBoxHelper.Value="{Binding InitAlpha.Value}"
+                                                             Text="{Binding InitNx.Text}"
+                                                             IsReadOnly="{Binding InitNx.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitNx.Value}"
                                                              mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitAlpha}"/>
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitNx}"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0 2">
                                                     <StackPanel.Style>
@@ -124,13 +124,13 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </StackPanel.Style>
-                                                    <TextBlock Text="Beta:" VerticalAlignment="Center" Width="60"/>
+                                                    <TextBlock Text="Ny:" VerticalAlignment="Center" Width="60"/>
                                                     <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                             Text="{Binding InitBeta.Text}"
-                                                             IsReadOnly="{Binding InitBeta.IsReadOnly}"
-                                                             mah:TextBoxHelper.Value="{Binding InitBeta.Value}"
+                                                             Text="{Binding InitNy.Text}"
+                                                             IsReadOnly="{Binding InitNy.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitNy.Value}"
                                                              mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitBeta}"/>
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitNy}"/>
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0 2">
                                                     <StackPanel.Style>
@@ -143,13 +143,32 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </StackPanel.Style>
-                                                    <TextBlock Text="Gamma:" VerticalAlignment="Center" Width="60"/>
+                                                    <TextBlock Text="Nz:" VerticalAlignment="Center" Width="60"/>
                                                     <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                             Text="{Binding InitGamma.Text}"
-                                                             IsReadOnly="{Binding InitGamma.IsReadOnly}"
-                                                             mah:TextBoxHelper.Value="{Binding InitGamma.Value}"
+                                                             Text="{Binding InitNz.Text}"
+                                                             IsReadOnly="{Binding InitNz.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitNz.Value}"
                                                              mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitGamma}"/>
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitNz}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0 2">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PlaneMode}" Value="{x:Static vm:ePlaneMode.Manual}">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </StackPanel.Style>
+                                                    <TextBlock Text="D:" VerticalAlignment="Center" Width="60"/>
+                                                    <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                             Text="{Binding InitD.Text}"
+                                                             IsReadOnly="{Binding InitD.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitD.Value}"
+                                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitD}"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
@@ -203,6 +222,30 @@
                                                 </StackPanel>
                                             </StackPanel>
                                         </GroupBox>
+                                        <GroupBox Header="平移设置" Margin="5" Padding="5">
+                                            <StackPanel>
+                                                <CheckBox Content="启用平移" IsChecked="{Binding IsTranslateEnabled}" Margin="5"/>
+                                                <StackPanel Orientation="Horizontal" Margin="5">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsTranslateEnabled}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </StackPanel.Style>
+                                                    <TextBlock Text="平移值:" VerticalAlignment="Center" Width="60"/>
+                                                    <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                             Text="{Binding InitTranslateZ.Text}"
+                                                             IsReadOnly="{Binding InitTranslateZ.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitTranslateZ.Value}"
+                                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitTranslateZ}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </GroupBox>
                                     </StackPanel>
                                 </GroupBox>
                             </Border>
@@ -229,6 +272,11 @@
                                                 <TextBlock Text="RMS:" VerticalAlignment="Center" Width="70"/>
                                                 <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                          Text="{Binding RmsError, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="高度距离:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding HeightDistance, StringFormat=F6}" IsReadOnly="True"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </ScrollViewer>

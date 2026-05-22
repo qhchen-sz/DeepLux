@@ -167,21 +167,6 @@
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
                                         <StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="5">
-                                                <TextBlock Text="Alpha:" VerticalAlignment="Center" Width="70"/>
-                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                         Text="{Binding Alpha, StringFormat=F6}" IsReadOnly="True"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="5">
-                                                <TextBlock Text="Beta:" VerticalAlignment="Center" Width="70"/>
-                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                         Text="{Binding Beta, StringFormat=F6}" IsReadOnly="True"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="5">
-                                                <TextBlock Text="Gamma:" VerticalAlignment="Center" Width="70"/>
-                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                         Text="{Binding Gamma, StringFormat=F6}" IsReadOnly="True"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="5">
                                                 <TextBlock Text="法向量Nx:" VerticalAlignment="Center" Width="70"/>
                                                 <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                          Text="{Binding NormalNx, StringFormat=F6}" IsReadOnly="True"/>
@@ -195,6 +180,11 @@
                                                 <TextBlock Text="法向量Nz:" VerticalAlignment="Center" Width="70"/>
                                                 <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                          Text="{Binding NormalNz, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="平面距离D:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding PlaneD, StringFormat=F6}" IsReadOnly="True"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="5">
                                                 <TextBlock Text="平面度:" VerticalAlignment="Center" Width="70"/>

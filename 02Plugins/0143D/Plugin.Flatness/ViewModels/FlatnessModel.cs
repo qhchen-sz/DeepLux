@@ -40,8 +40,8 @@ namespace Plugin.Flatness.ViewModels
     {
         [EnumDescription("标准回归")]
         regression,
-        [EnumDescription("加权最小二乘")]
-        least_squares,
+        [EnumDescription("Huber加权最小二乘")]
+        huber,
         [EnumDescription("Tukey鲁棒估计")]
         tukey,
     }
@@ -83,7 +83,10 @@ namespace Plugin.Flatness.ViewModels
                     return false;
                 }
 
-                GetDispImage(InputImageLinkText, true);
+                if (!IsOpenWindows)
+                {
+                    GetDispImage(InputImageLinkText, true);
+                }
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -117,11 +120,30 @@ namespace Plugin.Flatness.ViewModels
                 }
                 else
                 {
-                    InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
-                    InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
-                    InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
-                    InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
-                    InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
+                    if (!InitRoiCenterX.Text.StartsWith("&"))
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC;
+                    else
+                        InitRoi.MidC = TranRoi.MidC = TempRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
+
+                    if (!InitRoiCenterY.Text.StartsWith("&"))
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR;
+                    else
+                        InitRoi.MidR = TranRoi.MidR = TempRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
+
+                    if (!InitRoiLength1.Text.StartsWith("&"))
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1;
+                    else
+                        InitRoi.Length1 = TranRoi.Length1 = TempRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
+
+                    if (!InitRoiLength2.Text.StartsWith("&"))
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2;
+                    else
+                        InitRoi.Length2 = TranRoi.Length2 = TempRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
+
+                    if (!InitRoiAngel.Text.StartsWith("&"))
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg;
+                    else
+                        InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
                 }
 
                 domain = GetRoiRegion();
@@ -283,6 +305,13 @@ namespace Plugin.Flatness.ViewModels
                 ShowHRoi();
                 InitRoiMethod();
 
+                // ClearROI 会导致 real 类型深度图丢失颜色映射，重新设置 LUT
+                if (ModuleView is FlatnessView view && view.mWindowH != null && IsOpenWindows)
+                {
+                    HOperatorSet.SetLut(view.mWindowH.hControl.HalconWindow, "temperature");
+                    view.mWindowH.WindowH._hWndControl.Repaint();
+                }
+
                 // 释放临时对象
                 chObj.Dispose();
                 chRealObj.Dispose();
@@ -326,7 +355,7 @@ namespace Plugin.Flatness.ViewModels
             if (UseRoi && TranRoi.Length1 > 0 && TranRoi.Length2 > 0)
             {
                 HRegion roiRegion = new HRegion();
-                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
+                roiRegion.GenRectangle2(TranRoi.MidR, TranRoi.MidC, -TranRoi.Phi, TranRoi.Length1, TranRoi.Length2);
                 return roiRegion;
             }
             return DispImage.GetDomain();
@@ -532,16 +561,16 @@ namespace Plugin.Flatness.ViewModels
         }
 
         // ROI 原始坐标输入（可链接变量）
-        public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "10" };
-        public LinkVarModel InitRoiLength2 { get; set; } = new LinkVarModel() { Text = "10" };
+        public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "100" };
+        public LinkVarModel InitRoiLength2 { get; set; } = new LinkVarModel() { Text = "100" };
         public LinkVarModel InitRoiAngel { get; set; } = new LinkVarModel() { Text = "0" };
 
         // 几何对象
-        [NonSerialized] public ROIRectangle2 InitRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TranRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TempRoi = new ROIRectangle2();
+        public ROIRectangle2 InitRoi = new ROIRectangle2();
+        public ROIRectangle2 TranRoi = new ROIRectangle2();
+        public ROIRectangle2 TempRoi = new ROIRectangle2();
 
         // 标志位
         [NonSerialized] bool DisenableAffine2d = false;
