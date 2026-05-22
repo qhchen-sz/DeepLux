@@ -53,7 +53,10 @@ namespace Plugin.GrayMeasure.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                GetDispImage(InputImageLinkText);
+                if (!IsOpenWindows)
+                {
+                    GetDispImage(InputImageLinkText);
+                }
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -109,17 +112,17 @@ namespace Plugin.GrayMeasure.ViewModels
                             if (ShowGrayValue)
                             {
                                 HOperatorSet.AreaCenter(singleRegion, out HTuple area, out HTuple row, out HTuple col);
-                                string text = grayVal.ToString("F1");
+                                string text = $"{i}:{grayVal:F1}";
                                 ShowHRoi(new HText(
                                     ModuleParam.ModuleEncode,
-                                    ModuleParam.ModuleName,
+                                    $"{ModuleParam.ModuleName}_{i}",
                                     ModuleParam.Remarks,
                                     HRoiType.文字显示,
                                     "green",
                                     text,
                                     col.D,
-                                    row.D - Length1 - 5,
-                                    12
+                                    row.D,
+                                    64
                                 ));
                             }
 
@@ -162,6 +165,7 @@ namespace Plugin.GrayMeasure.ViewModels
                 {
                     // ========== 圆阵ROI模式：按行列生成多个圆，每个圆算灰度 ==========
                     HOperatorSet.GenEmptyObj(out HObject allCircleContours);
+                    int circleIndex = 1;
 
                     for (int r = 0; r < ArrayRows; r++)
                     {
@@ -179,19 +183,20 @@ namespace Plugin.GrayMeasure.ViewModels
 
                             if (ShowGrayValue)
                             {
-                                string text = grayVal.ToString("F1");
+                                string text = $"{circleIndex}:{grayVal:F1}";
                                 ShowHRoi(new HText(
                                     ModuleParam.ModuleEncode,
-                                    ModuleParam.ModuleName,
+                                    $"{ModuleParam.ModuleName}_{circleIndex}",
                                     ModuleParam.Remarks,
                                     HRoiType.文字显示,
                                     "green",
                                     text,
                                     cx,
-                                    cy - Radius - 5,
-                                    12
+                                    cy,
+                                    64
                                 ));
                             }
+                            circleIndex++;
 
                             HOperatorSet.GenCircleContourXld(out HObject circleCont, cy, cx, Radius, 0, 6.28318, "positive", 1);
                             HOperatorSet.ConcatObj(allCircleContours, circleCont, out HObject temp);
@@ -220,6 +225,7 @@ namespace Plugin.GrayMeasure.ViewModels
                 {
                     // ========== 矩形阵ROI模式：按行列生成多个矩形，每个矩形算灰度 ==========
                     HOperatorSet.GenEmptyObj(out HObject allRectContours);
+                    int rectIndex = 1;
 
                     for (int r = 0; r < ArrayRows; r++)
                     {
@@ -237,19 +243,20 @@ namespace Plugin.GrayMeasure.ViewModels
 
                             if (ShowGrayValue)
                             {
-                                string text = grayVal.ToString("F1");
+                                string text = $"{rectIndex}:{grayVal:F1}";
                                 ShowHRoi(new HText(
                                     ModuleParam.ModuleEncode,
-                                    ModuleParam.ModuleName,
+                                    $"{ModuleParam.ModuleName}_{rectIndex}",
                                     ModuleParam.Remarks,
                                     HRoiType.文字显示,
                                     "green",
                                     text,
                                     rx,
-                                    ry - RectLength2 - 5,
-                                    12
+                                    ry,
+                                    64
                                 ));
                             }
+                            rectIndex++;
 
                             HOperatorSet.GenRectangle2ContourXld(out HObject rectCont, ry, rx, RectAngle, RectLength1, RectLength2);
                             HOperatorSet.ConcatObj(allRectContours, rectCont, out HObject temp);
@@ -288,8 +295,23 @@ namespace Plugin.GrayMeasure.ViewModels
                 if (channels.I > 1)
                     grayImage.Dispose();
 
-                ChangeModuleRunStatus(eRunStatus.OK);
-                return true;
+                // 最大/最小灰度阈值检测
+                bool checkOK = true;
+                if (EnableMaxGrayCheck && grayValues.Any(v => v > MaxGrayThreshold))
+                    checkOK = false;
+                if (EnableMinGrayCheck && grayValues.Any(v => v < MinGrayThreshold))
+                    checkOK = false;
+
+                if (checkOK)
+                {
+                    ChangeModuleRunStatus(eRunStatus.OK);
+                    return true;
+                }
+                else
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return true;
+                }
             }
             catch (Exception ex)
             {
@@ -475,6 +497,34 @@ namespace Plugin.GrayMeasure.ViewModels
         {
             get { return _ShowCircleArray; }
             set { Set(ref _ShowCircleArray, value); }
+        }
+
+        private bool _EnableMaxGrayCheck = false;
+        public bool EnableMaxGrayCheck
+        {
+            get { return _EnableMaxGrayCheck; }
+            set { Set(ref _EnableMaxGrayCheck, value); }
+        }
+
+        private double _MaxGrayThreshold = 255;
+        public double MaxGrayThreshold
+        {
+            get { return _MaxGrayThreshold; }
+            set { Set(ref _MaxGrayThreshold, value); }
+        }
+
+        private bool _EnableMinGrayCheck = false;
+        public bool EnableMinGrayCheck
+        {
+            get { return _EnableMinGrayCheck; }
+            set { Set(ref _EnableMinGrayCheck, value); }
+        }
+
+        private double _MinGrayThreshold = 0;
+        public double MinGrayThreshold
+        {
+            get { return _MinGrayThreshold; }
+            set { Set(ref _MinGrayThreshold, value); }
         }
 
         /// <summary> 交互式ROI列表 </summary>

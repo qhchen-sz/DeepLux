@@ -215,7 +215,12 @@
                 </TabItem>
                 <TabItem Header="参数设置">
                     <Grid>
-                        <GroupBox Header="卡尺参数">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <GroupBox Header="卡尺参数" Grid.Row="0">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="5">
                                     <TextBlock Text="卡尺长度:" VerticalAlignment="Center" Width="70"/>
@@ -231,6 +236,22 @@
                                     <TextBlock Text="卡尺个数:" VerticalAlignment="Center" Width="70"/>
                                     <mah:NumericUpDown Width="180" Margin="5 0"
                                                        Value="{Binding MeasNum}" Minimum="1" Maximum="100" Interval="1"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="灰度阈值检测" Grid.Row="1" Margin="0 10 0 0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="5">
+                                    <CheckBox Content="启用" IsChecked="{Binding EnableMaxGrayCheck}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="最大灰度阈值:" VerticalAlignment="Center" Width="85" Margin="10 0 0 0"/>
+                                    <mah:NumericUpDown Width="120" Margin="5 0"
+                                                       Value="{Binding MaxGrayThreshold}" Minimum="0" Maximum="255" Interval="1"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="5">
+                                    <CheckBox Content="启用" IsChecked="{Binding EnableMinGrayCheck}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="最小灰度阈值:" VerticalAlignment="Center" Width="85" Margin="10 0 0 0"/>
+                                    <mah:NumericUpDown Width="120" Margin="5 0"
+                                                       Value="{Binding MinGrayThreshold}" Minimum="0" Maximum="255" Interval="1"/>
                                 </StackPanel>
                             </StackPanel>
                         </GroupBox>
