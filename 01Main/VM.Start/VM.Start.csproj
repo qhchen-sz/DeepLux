@@ -661,6 +661,7 @@
     <Compile Include="Common\Enum\EnumType.cs" />
     <Compile Include="Common\Helper\ClearMemoryHelper.cs" />
     <Compile Include="Common\Helper\CommandBase.cs" />
+    <Compile Include="Common\Helper\HardwareMonitorService.cs" />
     <Compile Include="Common\Helper\Encrypt\DesEncrypt.cs" />
     <Compile Include="Common\Helper\Encrypt\MD5Provider.cs" />
     <Compile Include="Common\Helper\EventTriggerAction.cs" />

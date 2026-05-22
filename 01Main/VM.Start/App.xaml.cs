@@ -74,6 +74,8 @@ namespace HV
                     }
                     //【8】定期清理内存
                     //ClearMemoryHelper.ClearMemory();
+                    //【8-1】硬件资源监控
+                    HardwareMonitorService.Start();
                     //【19】用户登陆
                     base.OnStartup(e);
                     _ = MainView.Ins;
