@@ -109,6 +109,19 @@ namespace Plugin.GSD.ViewModels
                 else if (DebugPath == "") {
                     DebugPath = _DebugPath;
                 }
+                // 调试模式下保存点云数据
+                if (DebugMode)
+                {
+                    if (!System.IO.Directory.Exists(DebugPath))
+                        System.IO.Directory.CreateDirectory(DebugPath);
+                    var savePath = System.IO.Path.Combine(DebugPath, $"pointcloud_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    var xArr = pointX.ToDArr();
+                    var yArr = pointY.ToDArr();
+                    var zArr = pointZ.ToDArr();
+                    using (var sw = new System.IO.StreamWriter(savePath))
+                        for (int i = 0; i < xArr.Length; i++)
+                            sw.WriteLine($"{xArr[i]:F8} {yArr[i]:F8} {zArr[i]:F8}");
+                }
                 GSDA.RunGSDAFix(
                     new List<double>(pointX.ToDArr()),
                     new List<double>(pointY.ToDArr()),
