@@ -35,7 +35,7 @@ namespace HV.Views.Dock
         {
             InitializeComponent();
             this.DataContext = VisionViewModel.Ins;
-            for (int i = 1; i <= 9; i++)
+            for (int i = 1; i <= 16; i++)
             {
                 GetImageBox(i);
             }
@@ -63,7 +63,7 @@ namespace HV.Views.Dock
         #region Method
         public void Show(RImage rImage)
         {
-            if (rImage.DispViewID > 0 && rImage.DispViewID < 10)
+            if (rImage.DispViewID > 0 && rImage.DispViewID < 17)
             {
                 ViewDic.mViewDic[rImage.DispViewID].ShowHImage(rImage);
             }
@@ -84,15 +84,17 @@ namespace HV.Views.Dock
             RowDefinition row1 = new RowDefinition();
             RowDefinition row2 = new RowDefinition();
             RowDefinition row3 = new RowDefinition();
+            RowDefinition row4 = new RowDefinition();
             ColumnDefinition col1 = new ColumnDefinition();
             ColumnDefinition col2 = new ColumnDefinition();
             ColumnDefinition col3 = new ColumnDefinition();
             ColumnDefinition col4 = new ColumnDefinition();
+            ColumnDefinition col5 = new ColumnDefinition();
             grid.Children.Clear();
             grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Clear();
-            WindowsFormsHost[] windowsFormsHost = new WindowsFormsHost[9];
-            for (int i = 0; i < 9; i++)
+            WindowsFormsHost[] windowsFormsHost = new WindowsFormsHost[16];
+            for (int i = 0; i < 16; i++)
             {
                 windowsFormsHost[i] = new WindowsFormsHost();
             }
@@ -421,6 +423,80 @@ namespace HV.Views.Dock
                     Grid.SetRow(windowsFormsHost[8], 2);
                     Grid.SetColumn(windowsFormsHost[8], 2);
 
+                    break;
+                case eViewMode.Ten:
+                    // 2行 x 5列 = 10窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    for (int i = 0; i < 10; i++)
+                    {
+                        windowsFormsHost[i].Margin = new Thickness(5);
+                        windowsFormsHost[i].Child = GetImageBox(i + 1);
+                        grid.Children.Add(windowsFormsHost[i]);
+                        Grid.SetRow(windowsFormsHost[i], i / 5);
+                        Grid.SetColumn(windowsFormsHost[i], i % 5);
+                    }
+                    break;
+                case eViewMode.Twelve:
+                    // 3行 x 4列 = 12窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 12; i++)
+                    {
+                        windowsFormsHost[i].Margin = new Thickness(5);
+                        windowsFormsHost[i].Child = GetImageBox(i + 1);
+                        grid.Children.Add(windowsFormsHost[i]);
+                        Grid.SetRow(windowsFormsHost[i], i / 4);
+                        Grid.SetColumn(windowsFormsHost[i], i % 4);
+                    }
+                    break;
+                case eViewMode.Fifteen:
+                    // 3行 x 5列 = 15窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 15; i++)
+                    {
+                        windowsFormsHost[i].Margin = new Thickness(5);
+                        windowsFormsHost[i].Child = GetImageBox(i + 1);
+                        grid.Children.Add(windowsFormsHost[i]);
+                        Grid.SetRow(windowsFormsHost[i], i / 5);
+                        Grid.SetColumn(windowsFormsHost[i], i % 5);
+                    }
+                    break;
+                case eViewMode.Sixteen:
+                    // 4行 x 4列 = 16窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    grid.RowDefinitions.Add(row4);
+                    for (int i = 0; i < 16; i++)
+                    {
+                        windowsFormsHost[i].Margin = new Thickness(5);
+                        windowsFormsHost[i].Child = GetImageBox(i + 1);
+                        grid.Children.Add(windowsFormsHost[i]);
+                        Grid.SetRow(windowsFormsHost[i], i / 4);
+                        Grid.SetColumn(windowsFormsHost[i], i % 4);
+                    }
                     break;
                 default:
                     break;

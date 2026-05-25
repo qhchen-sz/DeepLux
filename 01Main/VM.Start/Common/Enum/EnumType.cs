@@ -412,7 +412,11 @@ namespace HV.Common.Enums
         Six,
         Seven,
         Eight,
-        Night
+        Night,
+        Ten,
+        Twelve,
+        Fifteen,
+        Sixteen
     }
 
     public enum eActiveState

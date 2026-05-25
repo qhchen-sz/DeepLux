@@ -164,6 +164,69 @@ namespace HV.ViewModels
                 RaisePropertyChanged();
             }
         }
+        /// <summary>
+        /// 图表10类型
+        /// </summary>
+        private Types _ChartType10 = Types.柱状图;
+        public Types ChartType10
+        {
+            get { return _ChartType10; }
+            set { _ChartType10 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表11类型
+        /// </summary>
+        private Types _ChartType11 = Types.柱状图;
+        public Types ChartType11
+        {
+            get { return _ChartType11; }
+            set { _ChartType11 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表12类型
+        /// </summary>
+        private Types _ChartType12 = Types.柱状图;
+        public Types ChartType12
+        {
+            get { return _ChartType12; }
+            set { _ChartType12 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表13类型
+        /// </summary>
+        private Types _ChartType13 = Types.柱状图;
+        public Types ChartType13
+        {
+            get { return _ChartType13; }
+            set { _ChartType13 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表14类型
+        /// </summary>
+        private Types _ChartType14 = Types.柱状图;
+        public Types ChartType14
+        {
+            get { return _ChartType14; }
+            set { _ChartType14 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表15类型
+        /// </summary>
+        private Types _ChartType15 = Types.柱状图;
+        public Types ChartType15
+        {
+            get { return _ChartType15; }
+            set { _ChartType15 = value; RaisePropertyChanged(); }
+        }
+        /// <summary>
+        /// 图表16类型
+        /// </summary>
+        private Types _ChartType16 = Types.柱状图;
+        public Types ChartType16
+        {
+            get { return _ChartType16; }
+            set { _ChartType16 = value; RaisePropertyChanged(); }
+        }
 
         #endregion
 
