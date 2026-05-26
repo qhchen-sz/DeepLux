@@ -24,6 +24,7 @@ using HV.Core;
 using HV.Events;
 using HV.Models;
 using HV.ViewModels;
+using HV.ViewModels.Dock;
 using HV.Views;
 using HV.Views.Dock;
 
@@ -461,7 +462,18 @@ namespace HV.Services
                                 })
                             );
                         }
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
                         Execute();
+                        sw.Stop();
+                        if (this.Equals(Solution.Ins.CurrentProject))
+                        {
+                            Application.Current.Dispatcher.BeginInvoke(
+                                new Action(() =>
+                                {
+                                    ProcessViewModel.Ins.ProcessTime = sw.ElapsedMilliseconds;
+                                })
+                            );
+                        }
                     }
                     if (this.ProjectInfo.IsRefreshUi)
                     {

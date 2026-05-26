@@ -1004,15 +1004,15 @@ namespace HV.Views.Dock
 
         public void ClearStatus()
         {
-            if (TreeSoureList == null || TreeSoureList.Count == 0)
-                return;
-            foreach (var node in TreeSoureList)
-            {
-                node.CostTime = "0";
-                node.StatusImage = null;
-                node.StatusColor = Brushes.Transparent;
-                node.IsRunning = false;
-            }
+            //if (TreeSoureList == null || TreeSoureList.Count == 0)
+            //    return;
+            //foreach (var node in TreeSoureList)
+            //{
+            //    node.CostTime = "0";
+            //    node.StatusImage = null;
+            //    node.StatusColor = Brushes.Transparent;
+            //    node.IsRunning = false;
+            //}
         }
 
         public void UpdateStatus(ModuleParam moduleParam)
