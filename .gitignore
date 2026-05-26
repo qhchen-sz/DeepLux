@@ -35,5 +35,7 @@ Control3D/WpfApp1/obj/
 CLAUDE.md
 ChatSessions/
 .claude/
+*.zip
+*.rar
 
 

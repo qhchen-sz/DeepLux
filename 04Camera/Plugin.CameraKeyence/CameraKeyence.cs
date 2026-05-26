@@ -284,13 +284,14 @@ namespace Plugin.CameraKeyence
             {
                 if (_isCaptureRunning)
                 {
-                    // 如果已经在运行，等待完成或强制停止
+                    // 如果已经在运行，等待上一次采集完成，不强制终止
                     if (_captureThread != null && _captureThread.IsAlive)
                     {
-                        _captureThread.Join(DelayQurey); // 等待0.5秒后强制终止
+                        _captureThread.Join(DelayQurey);
                         if (_captureThread.IsAlive)
                         {
-                            _captureThread.Abort(); // 强制终止（谨慎使用）
+                            Logger.AddLog("上一次图像采集尚未完成，放弃本次采集", eMsgType.Warn);
+                            return false;
                         }
                     }
                 }
@@ -363,18 +364,20 @@ namespace Plugin.CameraKeyence
                 }
 
                 // 执行采集
+                DelayReduce = DelayTime - DelayQurey;
+                int waitTimeout = DelayReduce > 0 ? DelayReduce : 10000;
                 if (!byHand)
                 {
                     if (HImages.Count == 0)
                         StartGrab();
-                    WaitImage();
+                    WaitImage(waitTimeout);
                     StopGrab();
                 }
                 else
                 {
                     if (HImages.Count == 0)
                         StartGrab();
-                    WaitImage(DelayTime);
+                    WaitImage(waitTimeout);
                     StopGrab();
                 }
 
