@@ -80,9 +80,12 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>packages\ControlzEx.7.0.3\lib\net462\ControlzEx.dll</HintPath>
     </Reference>
+    <Reference Include="EVDll">
+      <HintPath>..\..\..\00Exe\Plugins\EVDll.dll</HintPath>
+    </Reference>
     <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\EventMgrLib.dll</HintPath>
+      <HintPath>..\..\..\00Exe\Plugins\EventMgrLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="halcondotnet">
@@ -90,18 +93,21 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="HandyControl">
-      <HintPath>..\..\DLL\HandyControl.dll</HintPath>
+      <HintPath>..\..\..\00Exe\Plugins\HandyControl.dll</HintPath>
     </Reference>
     <Reference Include="HV">
-      <HintPath>..\..\DLL\HV.exe</HintPath>
+      <HintPath>..\..\..\00Exe\HV.exe</HintPath>
     </Reference>
     <Reference Include="MahApps.Metro, Version=2.0.0.0, Culture=neutral, PublicKeyToken=51482d6f650b2b3f, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\MahApps.Metro.dll</HintPath>
+      <HintPath>..\..\..\00Exe\MahApps.Metro.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.Xaml.Behaviors, Version=1.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Xaml.Behaviors.Wpf.1.1.142\lib\net462\Microsoft.Xaml.Behaviors.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -132,9 +138,12 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="VM.Core">
+      <HintPath>..\..\..\00Exe\VM.Core.dll</HintPath>
+    </Reference>
     <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\DLL\VM.Halcon.dll</HintPath>
+      <HintPath>..\..\..\00Exe\Plugins\VM.Halcon.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="WindowsBase" />

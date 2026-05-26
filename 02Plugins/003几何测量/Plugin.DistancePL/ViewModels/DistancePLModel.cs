@@ -25,6 +25,7 @@ using System.Windows.Shapes;
 using VM.Halcon;
 using VM.Halcon.Config;
 using VM.Halcon.Model;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.DistancePL.ViewModels
 {
@@ -326,6 +327,47 @@ namespace Plugin.DistancePL.ViewModels
 
      
 
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["UseManualLine"] = UseManualLine;
+            obj["ManualLineAngle"] = ManualLineAngle;
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Line1LinkText"] = Line1LinkText ?? "";
+            obj["PXLinkText"] = PXLinkText ?? "";
+            obj["PYLinkText"] = PYLinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["UseManualLine"] != null) UseManualLine = obj["UseManualLine"].Value<bool>();
+                if (obj["ManualLineAngle"] != null) ManualLineAngle = obj["ManualLineAngle"].Value<double>();
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
+                if (obj["PXLinkText"] != null) PXLinkText = obj["PXLinkText"].ToString();
+                if (obj["PYLinkText"] != null) PYLinkText = obj["PYLinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DistancePLModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
 
         #region Command

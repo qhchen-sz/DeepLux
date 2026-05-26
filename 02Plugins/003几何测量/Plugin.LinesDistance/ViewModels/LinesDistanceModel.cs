@@ -22,6 +22,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.LinesDistance.ViewModels
 {
@@ -261,6 +262,44 @@ namespace Plugin.LinesDistance.ViewModels
             set { Set(ref _Line2LinkText, value); }
         }
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ValueMode"] = (int)ValueMode;
+            obj["FilterMode"] = (int)FilterMode;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Line1LinkText"] = Line1LinkText ?? "";
+            obj["Line2LinkText"] = Line2LinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ValueMode"] != null) ValueMode = (eValueMode)obj["ValueMode"].Value<int>();
+                if (obj["FilterMode"] != null) FilterMode = (eFilterMode)obj["FilterMode"].Value<int>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
+                if (obj["Line2LinkText"] != null) Line2LinkText = obj["Line2LinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"LinesDistanceModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
         #region Command
         public override void Loaded()
         {

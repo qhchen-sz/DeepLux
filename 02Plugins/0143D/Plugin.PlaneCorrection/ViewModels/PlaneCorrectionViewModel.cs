@@ -20,6 +20,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.PlaneCorrection.ViewModels
 {
@@ -950,6 +951,65 @@ namespace Plugin.PlaneCorrection.ViewModels
                     });
                 }
                 return _LinkCommand;
+            }
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["PlaneImageLinkText"] = PlaneImageLinkText ?? "";
+            obj["PlaneMode"] = (int)PlaneMode;
+            obj["IsTranslateEnabled"] = IsTranslateEnabled;
+            obj["UseRoi"] = UseRoi;
+            obj["ShowCorrectedImage"] = ShowCorrectedImage;
+            obj["ShowRegion"] = ShowRegion;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["InitNx"] = InitNx?.Text ?? "";
+            obj["InitNy"] = InitNy?.Text ?? "";
+            obj["InitNz"] = InitNz?.Text ?? "";
+            obj["InitD"] = InitD?.Text ?? "";
+            obj["InitTranslateZ"] = InitTranslateZ?.Text ?? "";
+            obj["InitRoiCenterX"] = InitRoiCenterX?.Text ?? "";
+            obj["InitRoiCenterY"] = InitRoiCenterY?.Text ?? "";
+            obj["InitRoiLength1"] = InitRoiLength1?.Text ?? "";
+            obj["InitRoiLength2"] = InitRoiLength2?.Text ?? "";
+            obj["InitRoiAngel"] = InitRoiAngel?.Text ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["PlaneImageLinkText"] != null) PlaneImageLinkText = obj["PlaneImageLinkText"].ToString();
+                if (obj["PlaneMode"] != null) PlaneMode = (ePlaneMode)obj["PlaneMode"].Value<int>();
+                if (obj["IsTranslateEnabled"] != null) IsTranslateEnabled = obj["IsTranslateEnabled"].Value<bool>();
+                if (obj["UseRoi"] != null) UseRoi = obj["UseRoi"].Value<bool>();
+                if (obj["ShowCorrectedImage"] != null) ShowCorrectedImage = obj["ShowCorrectedImage"].Value<bool>();
+                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["InitNx"] != null && InitNx != null) InitNx.Text = obj["InitNx"].ToString();
+                if (obj["InitNy"] != null && InitNy != null) InitNy.Text = obj["InitNy"].ToString();
+                if (obj["InitNz"] != null && InitNz != null) InitNz.Text = obj["InitNz"].ToString();
+                if (obj["InitD"] != null && InitD != null) InitD.Text = obj["InitD"].ToString();
+                if (obj["InitTranslateZ"] != null && InitTranslateZ != null) InitTranslateZ.Text = obj["InitTranslateZ"].ToString();
+                if (obj["InitRoiCenterX"] != null && InitRoiCenterX != null) InitRoiCenterX.Text = obj["InitRoiCenterX"].ToString();
+                if (obj["InitRoiCenterY"] != null && InitRoiCenterY != null) InitRoiCenterY.Text = obj["InitRoiCenterY"].ToString();
+                if (obj["InitRoiLength1"] != null && InitRoiLength1 != null) InitRoiLength1.Text = obj["InitRoiLength1"].ToString();
+                if (obj["InitRoiLength2"] != null && InitRoiLength2 != null) InitRoiLength2.Text = obj["InitRoiLength2"].ToString();
+                if (obj["InitRoiAngel"] != null && InitRoiAngel != null) InitRoiAngel.Text = obj["InitRoiAngel"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PlaneCorrectionViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

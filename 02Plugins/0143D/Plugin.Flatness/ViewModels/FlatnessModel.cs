@@ -22,6 +22,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.Flatness.ViewModels
 {
@@ -797,6 +798,55 @@ namespace Plugin.Flatness.ViewModels
                     });
                 }
                 return _LinkCommand;
+            }
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["FitMethod"] = (int)FitMethod;
+            obj["UseRoi"] = UseRoi;
+            obj["NumIterations"] = NumIterations;
+            obj["ClippingFactor"] = ClippingFactor;
+            obj["ShowDeviationMap"] = ShowDeviationMap;
+            obj["ShowRegion"] = ShowRegion;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["InitRoiCenterX"] = InitRoiCenterX?.Text ?? "";
+            obj["InitRoiCenterY"] = InitRoiCenterY?.Text ?? "";
+            obj["InitRoiLength1"] = InitRoiLength1?.Text ?? "";
+            obj["InitRoiLength2"] = InitRoiLength2?.Text ?? "";
+            obj["InitRoiAngel"] = InitRoiAngel?.Text ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["FitMethod"] != null) FitMethod = (eFitMethod)obj["FitMethod"].Value<int>();
+                if (obj["UseRoi"] != null) UseRoi = obj["UseRoi"].Value<bool>();
+                if (obj["NumIterations"] != null) NumIterations = obj["NumIterations"].Value<int>();
+                if (obj["ClippingFactor"] != null) ClippingFactor = obj["ClippingFactor"].Value<double>();
+                if (obj["ShowDeviationMap"] != null) ShowDeviationMap = obj["ShowDeviationMap"].Value<bool>();
+                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["InitRoiCenterX"] != null && InitRoiCenterX != null) InitRoiCenterX.Text = obj["InitRoiCenterX"].ToString();
+                if (obj["InitRoiCenterY"] != null && InitRoiCenterY != null) InitRoiCenterY.Text = obj["InitRoiCenterY"].ToString();
+                if (obj["InitRoiLength1"] != null && InitRoiLength1 != null) InitRoiLength1.Text = obj["InitRoiLength1"].ToString();
+                if (obj["InitRoiLength2"] != null && InitRoiLength2 != null) InitRoiLength2.Text = obj["InitRoiLength2"].ToString();
+                if (obj["InitRoiAngel"] != null && InitRoiAngel != null) InitRoiAngel.Text = obj["InitRoiAngel"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"FlatnessModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

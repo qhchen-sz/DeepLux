@@ -1,5 +1,6 @@
 ﻿using HalconDotNet;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using ScottPlot.Drawing.Colormaps;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,7 @@ using HV.Models;
 using HV.ViewModels;
 using HV.Views;
 using HV.Views.Dock;
+using HV.Common.Provide;
 
 namespace HV.Services
 {
@@ -1038,6 +1040,60 @@ namespace HV.Services
                 #endregion
             }
             return true;
+        }
+        #endregion
+
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            // 流程信息
+            obj["ProjectInfo"] = ProjectInfo != null ? JObject.Parse(ProjectInfo.HVSerialize()) : null;
+            // 模块列表
+            JArray moduleArr = new JArray();
+            foreach (var module in ModuleList)
+            {
+                if (module != null)
+                    moduleArr.Add(JObject.Parse(module.HVSerialize()));
+            }
+            obj["ModuleList"] = moduleArr;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ProjectInfo"] != null && ProjectInfo != null)
+                    ProjectInfo.HVDeserialize(obj["ProjectInfo"].ToString());
+                if (obj["ModuleList"] != null)
+                {
+                    JArray moduleArr = (JArray)obj["ModuleList"];
+                    ModuleList.Clear();
+                    foreach (var item in moduleArr)
+                    {
+                        JObject moduleObj = (JObject)item;
+                        string pluginName = moduleObj["ModuleParam"]?["PluginName"]?.ToString();
+                        if (!string.IsNullOrEmpty(pluginName) && PluginService.PluginDic_Module.ContainsKey(pluginName))
+                        {
+                            ModuleBase module = (ModuleBase)Activator.CreateInstance(
+                                PluginService.PluginDic_Module[pluginName].ModuleType);
+                            module.ModuleParam = new ModuleParam();
+                            module.HVDeserialize(moduleObj.ToString());
+                            ModuleList.Add(module);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"Project.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
         #endregion
     }

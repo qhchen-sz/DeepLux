@@ -32,6 +32,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.SealingPinYuhan.ViewModels
 {
@@ -876,7 +877,76 @@ namespace Plugin.SealingPinYuhan.ViewModels
 
 
 
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DefectNum"] = DefectNum;
+            obj["DeviceStatic"] = DeviceStatic;
+            obj["CONF_THRESHOLD"] = CONF_THRESHOLD;
+            obj["NMS_THRESHOLD"] = NMS_THRESHOLD;
+            obj["SelectLocation"] = (int)SelectLocation;
+            obj["AiPath"] = AiPath ?? "";
+            obj["IsOpen"] = IsOpen;
+            obj["IsDispAiRegion"] = IsDispAiRegion;
+            obj["IsCross"] = IsCross;
+            obj["IsFindRegions"] = IsFindRegions;
+            obj["IsFindCircles"] = IsFindCircles;
+            obj["OutPutMaxArea"] = OutPutMaxArea;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Scale"] = Scale?.Text ?? "";
+            obj["DrawSize"] = DrawSize;
+            obj["UseLimtWidth"] = UseLimtWidth;
+            obj["UseLimtHeight"] = UseLimtHeight;
+            obj["UseID"] = UseID;
+            obj["UseScore"] = UseScore;
+            obj["Score"] = Score;
+            obj["ID"] = ID;
+            obj["LimtHeight"] = LimtHeight;
+            obj["LimtWidth"] = LimtWidth;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DefectNum"] != null) DefectNum = obj["DefectNum"].Value<int>();
+                if (obj["DeviceStatic"] != null) DeviceStatic = obj["DeviceStatic"].Value<bool>();
+                if (obj["CONF_THRESHOLD"] != null) CONF_THRESHOLD = obj["CONF_THRESHOLD"].Value<double>();
+                if (obj["NMS_THRESHOLD"] != null) NMS_THRESHOLD = obj["NMS_THRESHOLD"].Value<double>();
+                if (obj["SelectLocation"] != null) SelectLocation = (eLocationClass)obj["SelectLocation"].Value<int>();
+                if (obj["AiPath"] != null) AiPath = obj["AiPath"].ToString();
+                if (obj["IsOpen"] != null) IsOpen = obj["IsOpen"].Value<bool>();
+                if (obj["IsDispAiRegion"] != null) IsDispAiRegion = obj["IsDispAiRegion"].Value<bool>();
+                if (obj["IsCross"] != null) IsCross = obj["IsCross"].Value<bool>();
+                if (obj["IsFindRegions"] != null) IsFindRegions = obj["IsFindRegions"].Value<bool>();
+                if (obj["IsFindCircles"] != null) IsFindCircles = obj["IsFindCircles"].Value<bool>();
+                if (obj["OutPutMaxArea"] != null) OutPutMaxArea = obj["OutPutMaxArea"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Scale"] != null && Scale != null) Scale.Text = obj["Scale"].ToString();
+                if (obj["DrawSize"] != null) DrawSize = obj["DrawSize"].Value<int>();
+                if (obj["UseLimtWidth"] != null) UseLimtWidth = obj["UseLimtWidth"].Value<bool>();
+                if (obj["UseLimtHeight"] != null) UseLimtHeight = obj["UseLimtHeight"].Value<bool>();
+                if (obj["UseID"] != null) UseID = obj["UseID"].Value<bool>();
+                if (obj["UseScore"] != null) UseScore = obj["UseScore"].Value<bool>();
+                if (obj["Score"] != null) Score = obj["Score"].Value<double>();
+                if (obj["ID"] != null) ID = obj["ID"].Value<int>();
+                if (obj["LimtHeight"] != null) LimtHeight = obj["LimtHeight"].Value<double>();
+                if (obj["LimtWidth"] != null) LimtWidth = obj["LimtWidth"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SelectLocation.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
-        
+
     }
+}
 }

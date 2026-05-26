@@ -1,5 +1,6 @@
 ﻿using HalconDotNet;
 using MahApps.Metro.Controls;
+using Newtonsoft.Json.Linq;
 using ScottPlot.Drawing.Colormaps;
 using System;
 using System.Collections.Generic;
@@ -222,6 +223,140 @@ namespace HV.Core
 
         #endregion
         #region Method
+
+        [OnDeserialized]
+        private void OnDeserializedCallback(StreamingContext context)
+        {
+            // 防御性初始化基类中可能为null的集合
+            if (mHRoi == null)
+                mHRoi = new List<HRoi>();
+            // ModeCoord 是值类型(struct)，不会为 null，无需检查
+            if (CanvasList == null)
+                CanvasList = new List<string>()
+                {
+                    "图像窗口1", "图像窗口2", "图像窗口3",
+                    "图像窗口4", "图像窗口5", "图像窗口6",
+                    "图像窗口7", "图像窗口8", "图像窗口9",
+                };
+
+            // 自动扫描并初始化子类中新增的为null的可序列化字段
+            AutoInitializeNullFields();
+
+            // 清空所有委托字段，防止lambda方法名变化导致的序列化异常
+            ClearDelegateFields();
+
+            // 调用子类扩展初始化
+            try
+            {
+                OnAfterDeserialized();
+            }
+            catch (Exception ex)
+            {
+                Logger.GetExceptionMsg(ex);
+            }
+        }
+
+        /// <summary>
+        /// 自动初始化所有为null的可序列化字段。模块开发者新增字段后无需任何额外操作。
+        /// </summary>
+        private void AutoInitializeNullFields()
+        {
+            Type currentType = GetType();
+
+            // 只处理子类中声明的字段（基类字段上面已手动处理）
+            var fields = currentType.GetFields(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
+            );
+
+            foreach (var field in fields)
+            {
+                // 跳过标记了 [NonSerialized] 的字段
+                if (Attribute.IsDefined(field, typeof(NonSerializedAttribute)))
+                    continue;
+
+                // 跳过值类型（它们已经有默认值了）
+                Type fieldType = field.FieldType;
+                if (fieldType.IsValueType)
+                    continue;
+
+                // 跳过已经有值的字段
+                object currentValue = field.GetValue(this);
+                if (currentValue != null)
+                    continue;
+
+                // 跳过明确不应该自动初始化的类型
+                if (ShouldSkipAutoInitialization(fieldType))
+                    continue;
+
+                // 尝试用无参构造函数创建实例
+                var ctor = fieldType.GetConstructor(Type.EmptyTypes);
+                if (ctor != null)
+                {
+                    try
+                    {
+                        object instance = Activator.CreateInstance(fieldType);
+                        field.SetValue(this, instance);
+                    }
+                    catch
+                    {
+                        // 如果创建失败，静默忽略
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 清空所有委托字段，防止lambda/匿名方法因编译器生成名变化导致反序列化异常
+        /// </summary>
+        private void ClearDelegateFields()
+        {
+            Type currentType = GetType();
+            var fields = currentType.GetFields(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
+            );
+
+            foreach (var field in fields)
+            {
+                if (typeof(Delegate).IsAssignableFrom(field.FieldType))
+                {
+                    try
+                    {
+                        field.SetValue(this, null);
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 判断某个类型是否不应该被自动初始化
+        /// </summary>
+        private bool ShouldSkipAutoInitialization(Type type)
+        {
+            // string：null 是合法状态
+            if (type == typeof(string)) return true;
+
+            // Halcon 图像/区域类型：这些不能随意 new
+            if (type == typeof(HImage) || type == typeof(RImage) || type == typeof(HObject) || type == typeof(HRegion))
+                return true;
+
+            // 委托和事件（由 ClearDelegateFields 单独处理）
+            if (typeof(Delegate).IsAssignableFrom(type)) return true;
+
+            // 抽象类、接口：无法实例化
+            if (type.IsAbstract || type.IsInterface) return true;
+
+            // 数组：不自动初始化
+            if (type.IsArray) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 反序列化后的扩展初始化。子类如有特殊需求可重写。
+        /// </summary>
+        protected virtual void OnAfterDeserialized() { }
+
         /*private void InitRect1Changed()
         {
             if (InitLineChanged_Flag == true) return;
@@ -632,9 +767,10 @@ namespace HV.Core
                 }
                 else
                 {
-                    if (this.Prj.GetParamByName(var) == null)
+                    if (this.Prj != null && this.Prj.GetParamByName(var) == null)
                         return null;
-                    result = this.Prj.GetParamByName(var).Value;
+                    if(this.Prj != null)
+                        result = this.Prj.GetParamByName(var).Value;
                 }
             }
             else
@@ -797,6 +933,13 @@ namespace HV.Core
         {
             if (imageLinkText == null)
                 return;
+
+            if(Prj == null)
+            {
+                DispImage = null;
+                return;
+            }
+
             VarModel var = Prj.GetParamByName(imageLinkText);
             if (var == null)
             {
@@ -879,6 +1022,8 @@ namespace HV.Core
                         DispImage = new RImage();
                         DispImage.ReadImage($"{FilePaths.ConfigFilePath}Background.bmp");
                     }
+
+                    if(Solution.Ins.GetProjectById(ModuleParam.ProjectID) != null)
                     Logger.AddLog(
                         $"流程[{Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName}]执行[{ModuleParam.ModuleName}]模块失败，耗时{ModuleParam.ElapsedTime}ms.",
                         eMsgType.Warn
@@ -1055,139 +1200,78 @@ namespace HV.Core
         #endregion
         #endregion
 		
-		
-        [OnDeserialized]
-        private void OnDeserializedCallback(StreamingContext context)
+
+        /// <summary>
+        /// 自定义序列化：子类重写此方法，先调用 base.HVSerialize() 获取基类 JSON，
+        /// 再追加自身字段，返回完整的 JSON 字符串。
+        /// </summary>
+        /// <returns>JSON 字符串</returns>
+        public virtual string HVSerialize()
         {
-            // 防御性初始化基类中可能为null的集合
-            if (mHRoi == null)
-                mHRoi = new List<HRoi>();
-            if (CanvasList == null)
-                CanvasList = new List<string>()
-                {
-                    "图像窗口1", "图像窗口2", "图像窗口3",
-                    "图像窗口4", "图像窗口5", "图像窗口6",
-                    "图像窗口7", "图像窗口8", "图像窗口9",
-                    "图像窗口10", "图像窗口11", "图像窗口12",
-                    "图像窗口13", "图像窗口14", "图像窗口15", "图像窗口16",
-                };
+            JObject obj = new JObject();
+            obj["ModuleParam"] = ModuleParam != null ? JObject.Parse(ModuleParam.HVSerialize()) : null;
+            obj["ModuleGuid"] = ModuleGuid.ToString();
+            obj["TimeOut"] = TimeOut;
+            obj["IsFillDisp"] = IsFillDisp;
+            obj["DispViewID"] = DispViewID;
+            obj["TimeText"] = TimeText ?? "";
+            obj["DateTime"] = DateTime;
+            JObject modeCoordObj = new JObject();
+            modeCoordObj["Status"] = ModeCoord.Status;
+            modeCoordObj["Y"] = ModeCoord.Y;
+            modeCoordObj["X"] = ModeCoord.X;
+            modeCoordObj["Phi"] = ModeCoord.Phi;
+            modeCoordObj["Score"] = ModeCoord.Score;
+            obj["ModeCoord"] = modeCoordObj;
+            return obj.ToString();
+        }
 
-            // 自动扫描并初始化子类中新增的为null的可序列化字段
-            AutoInitializeNullFields();
-
-            // 清空所有委托字段，防止lambda方法名变化导致的序列化异常
-            ClearDelegateFields();
-
-            // 调用子类扩展初始化
+        /// <summary>
+        /// 自定义反序列化：子类重写此方法，先调用 base.HVDeserialize(json) 恢复基类字段，
+        /// 再恢复自身字段。
+        /// </summary>
+        /// <param name="json">HVSerialize 保存的 JSON 字符串</param>
+        public virtual void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
             try
             {
-                OnAfterDeserialized();
+                JObject obj = JObject.Parse(json);
+                if (obj["ModuleParam"] != null)
+                {
+                    if (ModuleParam == null) ModuleParam = new ModuleParam();
+                    ModuleParam.HVDeserialize(obj["ModuleParam"].ToString());
+                }
+                if (obj["ModuleGuid"] != null)
+                    ModuleGuid = Guid.Parse(obj["ModuleGuid"].ToString());
+                if (obj["TimeOut"] != null)
+                    TimeOut = obj["TimeOut"].Value<int>();
+                if (obj["IsFillDisp"] != null)
+                    IsFillDisp = obj["IsFillDisp"].Value<bool>();
+                if (obj["DispViewID"] != null)
+                    DispViewID = obj["DispViewID"].Value<int>();
+                if (obj["TimeText"] != null)
+                    TimeText = obj["TimeText"].ToString();
+                if (obj["DateTime"] != null)
+                    DateTime = obj["DateTime"].Value<DateTime>();
+                if (obj["ModeCoord"] != null)
+                {
+                    JObject coord = (JObject)obj["ModeCoord"];
+                    if (ModeCoord.Equals(default(Coord_Info))) ModeCoord = new Coord_Info();
+                    if (coord["Status"] != null) ModeCoord.Status = coord["Status"].Value<bool>();
+                    if (coord["Y"] != null) ModeCoord.Y = coord["Y"].Value<double>();
+                    if (coord["X"] != null) ModeCoord.X = coord["X"].Value<double>();
+                    if (coord["Phi"] != null) ModeCoord.Phi = coord["Phi"].Value<double>();
+                    if (coord["Score"] != null) ModeCoord.Score = coord["Score"].Value<double>();
+                }
             }
             catch (Exception ex)
+
             {
-                Logger.GetExceptionMsg(ex);
+
+                  Logger.AddLog($"ModuleBase.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
-
-        /// <summary>
-        /// 自动初始化所有为null的可序列化字段。模块开发者新增字段后无需任何额外操作。
-        /// </summary>
-        private void AutoInitializeNullFields()
-        {
-            Type currentType = GetType();
-
-            // 只处理子类中声明的字段（基类字段上面已手动处理）
-            var fields = currentType.GetFields(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
-            );
-
-            foreach (var field in fields)
-            {
-                // 跳过标记了 [NonSerialized] 的字段
-                if (Attribute.IsDefined(field, typeof(NonSerializedAttribute)))
-                    continue;
-
-                // 跳过值类型（它们已经有默认值了）
-                Type fieldType = field.FieldType;
-                if (fieldType.IsValueType)
-                    continue;
-
-                // 跳过已经有值的字段
-                object currentValue = field.GetValue(this);
-                if (currentValue != null)
-                    continue;
-
-                // 跳过明确不应该自动初始化的类型
-                if (ShouldSkipAutoInitialization(fieldType))
-                    continue;
-
-                // 尝试用无参构造函数创建实例
-                var ctor = fieldType.GetConstructor(Type.EmptyTypes);
-                if (ctor != null)
-                {
-                    try
-                    {
-                        object instance = Activator.CreateInstance(fieldType);
-                        field.SetValue(this, instance);
-                    }
-                    catch
-                    {
-                        // 如果创建失败，静默忽略
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 清空所有委托字段，防止lambda/匿名方法因编译器生成名变化导致反序列化异常
-        /// </summary>
-        private void ClearDelegateFields()
-        {
-            Type currentType = GetType();
-            var fields = currentType.GetFields(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly
-            );
-
-            foreach (var field in fields)
-            {
-                if (typeof(Delegate).IsAssignableFrom(field.FieldType))
-                {
-                    try
-                    {
-                        field.SetValue(this, null);
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 判断某个类型是否不应该被自动初始化
-        /// </summary>
-        private bool ShouldSkipAutoInitialization(Type type)
-        {
-            // string：null 是合法状态
-            if (type == typeof(string)) return true;
-
-            // Halcon 图像/区域类型：这些不能随意 new
-            if (type == typeof(HImage) || type == typeof(RImage) || type == typeof(HObject) || type == typeof(HRegion))
-                return true;
-
-            // 委托和事件（由 ClearDelegateFields 单独处理）
-            if (typeof(Delegate).IsAssignableFrom(type)) return true;
-
-            // 抽象类、接口：无法实例化
-            if (type.IsAbstract || type.IsInterface) return true;
-
-            // 数组：不自动初始化
-            if (type.IsArray) return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// 反序列化后的扩展初始化。子类如有特殊需求可重写。
-        /// </summary>
-        protected virtual void OnAfterDeserialized() { }
     }
 }

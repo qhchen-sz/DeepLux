@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.RunProject.Model;
 using Plugin.RunProject.Views;
 using System;
@@ -225,5 +226,57 @@ namespace Plugin.RunProject.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["RunProjectType"] = (int)RunProjectType;
+            JArray arr = new JArray();
+            if (ProjectRunModeDataSource != null)
+            {
+                foreach (var item in ProjectRunModeDataSource)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ProcessName"] = item.ProcessName ?? "";
+                    itemObj["IsRun"] = item.IsRun;
+                    itemObj["IsWait"] = item.IsWait;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["ProjectRunModeDataSource"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["RunProjectType"] != null) RunProjectType = (eRunProjectType)obj["RunProjectType"].Value<int>();
+                if (obj["ProjectRunModeDataSource"] != null)
+                {
+                    JArray arr = (JArray)obj["ProjectRunModeDataSource"];
+                    ProjectRunModeDataSource.Clear();
+                    foreach (var item in arr)
+                    {
+                        ProjectRunModeDataSource.Add(new RunProjectTypeModel()
+                        {
+                            ProcessName = item["ProcessName"]?.ToString() ?? "",
+                            IsRun = item["IsRun"]?.Value<bool>() ?? false,
+                            IsWait = item["IsWait"]?.Value<bool>() ?? false
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"RunProjectViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

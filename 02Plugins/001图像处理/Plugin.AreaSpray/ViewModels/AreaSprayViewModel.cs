@@ -266,7 +266,6 @@ namespace Plugin.AreaSpray.ViewModels
             try
             {
                 ExeModule();
-                ShowCurrentRoi();
             }
             catch
             {

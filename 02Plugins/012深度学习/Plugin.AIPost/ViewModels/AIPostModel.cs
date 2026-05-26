@@ -27,6 +27,7 @@ using System.Collections.ObjectModel;
 using Plugin.AIPost.Model;
 using HandyControl.Controls;
 using System.Data.Common;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.AIPost.ViewModels
 {
@@ -514,5 +515,89 @@ namespace Plugin.AIPost.ViewModels
         //    }
         //}
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["AiClass"] = AiClass ?? "";
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InputRegionLinkText"] = InputRegionLinkText ?? "";
+            if (ParaModelAll != null)
+            {
+                JArray arr = new JArray();
+                foreach (var item in ParaModelAll)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["AreaUpLimt"] = item.AreaUpLimt;
+                    itemObj["AreaDnLimt"] = item.AreaDnLimt;
+                    itemObj["AreaUpLimtstr"] = item.AreaUpLimtstr ?? "";
+                    itemObj["AreaDnLimtstr"] = item.AreaDnLimtstr ?? "";
+                    itemObj["UseArea"] = item.UseArea;
+                    itemObj["WidthUpLimt"] = item.WidthUpLimt;
+                    itemObj["WidthDnLimt"] = item.WidthDnLimt;
+                    itemObj["WidthUpLimtstr"] = item.WidthUpLimtstr ?? "";
+                    itemObj["WidthDnLimtstr"] = item.WidthDnLimtstr ?? "";
+                    itemObj["UseWidth"] = item.UseWidth;
+                    itemObj["HeightUpLimt"] = item.HeightUpLimt;
+                    itemObj["HeightDnLimt"] = item.HeightDnLimt;
+                    itemObj["HeightUpLimtstr"] = item.HeightUpLimtstr ?? "";
+                    itemObj["HeightDnLimtstr"] = item.HeightDnLimtstr ?? "";
+                    itemObj["UseHeight"] = item.UseHeight;
+                    arr.Add(itemObj);
+                }
+                obj["ParaModelAll"] = arr;
+            }
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["AiClass"] != null) AiClass = obj["AiClass"].ToString();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InputRegionLinkText"] != null) InputRegionLinkText = obj["InputRegionLinkText"].ToString();
+                if (obj["ParaModelAll"] != null)
+                {
+                    JArray arr = (JArray)obj["ParaModelAll"];
+                    if (ParaModelAll == null) ParaModelAll = new ObservableCollection<ParaModel>();
+                    ParaModelAll.Clear();
+                    foreach (var item in arr)
+                    {
+                        ParaModelAll.Add(new ParaModel()
+                        {
+                            AreaUpLimt = item["AreaUpLimt"]?.Value<int>() ?? 999999999,
+                            AreaDnLimt = item["AreaDnLimt"]?.Value<int>() ?? 0,
+                            AreaUpLimtstr = item["AreaUpLimtstr"]?.ToString() ?? "999999999",
+                            AreaDnLimtstr = item["AreaDnLimtstr"]?.ToString() ?? "0",
+                            UseArea = item["UseArea"]?.Value<bool>() ?? false,
+                            WidthUpLimt = item["WidthUpLimt"]?.Value<int>() ?? 999999999,
+                            WidthDnLimt = item["WidthDnLimt"]?.Value<int>() ?? 0,
+                            WidthUpLimtstr = item["WidthUpLimtstr"]?.ToString() ?? "999999999",
+                            WidthDnLimtstr = item["WidthDnLimtstr"]?.ToString() ?? "0",
+                            UseWidth = item["UseWidth"]?.Value<bool>() ?? false,
+                            HeightUpLimt = item["HeightUpLimt"]?.Value<int>() ?? 999999999,
+                            HeightDnLimt = item["HeightDnLimt"]?.Value<int>() ?? 0,
+                            HeightUpLimtstr = item["HeightUpLimtstr"]?.ToString() ?? "999999999",
+                            HeightDnLimtstr = item["HeightDnLimtstr"]?.ToString() ?? "0",
+                            UseHeight = item["UseHeight"]?.Value<bool>() ?? false,
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"AIPostModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

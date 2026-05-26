@@ -22,6 +22,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.DistanceLL.ViewModels
 {
@@ -383,6 +384,63 @@ namespace Plugin.DistanceLL.ViewModels
         {
             get { return _Line2LinkText; }
             set { Set(ref _Line2LinkText, value); }
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DistanceMode"] = (int)DistanceMode;
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["Line1SourceMode"] = (int)Line1SourceMode;
+            obj["Line2SourceMode"] = (int)Line2SourceMode;
+            obj["Line1P1XLinkText"] = Line1P1XLinkText ?? "";
+            obj["Line1P1YLinkText"] = Line1P1YLinkText ?? "";
+            obj["Line1P2XLinkText"] = Line1P2XLinkText ?? "";
+            obj["Line1P2YLinkText"] = Line1P2YLinkText ?? "";
+            obj["Line2P1XLinkText"] = Line2P1XLinkText ?? "";
+            obj["Line2P1YLinkText"] = Line2P1YLinkText ?? "";
+            obj["Line2P2XLinkText"] = Line2P2XLinkText ?? "";
+            obj["Line2P2YLinkText"] = Line2P2YLinkText ?? "";
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Line1LinkText"] = Line1LinkText ?? "";
+            obj["Line2LinkText"] = Line2LinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DistanceMode"] != null) DistanceMode = (eDistanceMode)obj["DistanceMode"].Value<int>();
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["Line1SourceMode"] != null) Line1SourceMode = (eLineSourceMode)obj["Line1SourceMode"].Value<int>();
+                if (obj["Line2SourceMode"] != null) Line2SourceMode = (eLineSourceMode)obj["Line2SourceMode"].Value<int>();
+                if (obj["Line1P1XLinkText"] != null) Line1P1XLinkText = obj["Line1P1XLinkText"].ToString();
+                if (obj["Line1P1YLinkText"] != null) Line1P1YLinkText = obj["Line1P1YLinkText"].ToString();
+                if (obj["Line1P2XLinkText"] != null) Line1P2XLinkText = obj["Line1P2XLinkText"].ToString();
+                if (obj["Line1P2YLinkText"] != null) Line1P2YLinkText = obj["Line1P2YLinkText"].ToString();
+                if (obj["Line2P1XLinkText"] != null) Line2P1XLinkText = obj["Line2P1XLinkText"].ToString();
+                if (obj["Line2P1YLinkText"] != null) Line2P1YLinkText = obj["Line2P1YLinkText"].ToString();
+                if (obj["Line2P2XLinkText"] != null) Line2P2XLinkText = obj["Line2P2XLinkText"].ToString();
+                if (obj["Line2P2YLinkText"] != null) Line2P2YLinkText = obj["Line2P2YLinkText"].ToString();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
+                if (obj["Line2LinkText"] != null) Line2LinkText = obj["Line2LinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DistanceLLModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
         #endregion
 

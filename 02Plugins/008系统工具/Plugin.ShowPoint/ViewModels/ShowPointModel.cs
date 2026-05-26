@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.ShowPoint.Views;
 using System;
 using System.Collections.Generic;
@@ -303,6 +304,39 @@ namespace Plugin.ShowPoint.ViewModels
         }
         #endregion
         #region Method
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["P1XLinkText"] = P1XLinkText ?? "";
+            obj["P1YLinkText"] = P1YLinkText ?? "";
+            obj["PLengthLinkText"] = PLengthLinkText ?? "";
+            obj["ColorLinkText"] = _ColorLinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["P1XLinkText"] != null) P1XLinkText = obj["P1XLinkText"].ToString();
+                if (obj["P1YLinkText"] != null) P1YLinkText = obj["P1YLinkText"].ToString();
+                if (obj["PLengthLinkText"] != null) PLengthLinkText = obj["PLengthLinkText"].ToString();
+                if (obj["ColorLinkText"] != null) _ColorLinkText = obj["ColorLinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ShowPointModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
         #endregion
     }

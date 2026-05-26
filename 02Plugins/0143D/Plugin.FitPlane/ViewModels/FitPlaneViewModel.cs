@@ -20,6 +20,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.FitPlane.ViewModels
 {
@@ -69,6 +70,13 @@ namespace Plugin.FitPlane.ViewModels
             HRegion domain = null;
             HImage diffImage = null;
             HObject planeImageObj = null;
+            HImage sourceImage = null;
+            HObject chObj = null;
+            HObject chRealObj = null;
+            HObject diffObj = null;
+            HImage planeImage = null;
+            HImage dispScaled = null;
+            HImage planeScaled = null;
 
             try
             {
@@ -81,15 +89,13 @@ namespace Plugin.FitPlane.ViewModels
                     return false;
                 }
 
-                if (!IsOpenWindows)
-                {
-                    GetDispImage(InputImageLinkText, true);
-                }
+                GetDispImage(InputImageLinkText, true);
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
+                sourceImage = new HImage(DispImage);
 
                 // 逆变换：拖动 ROI 后把图像坐标转回原始坐标
                 if (DisenableAffine2d && HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
@@ -152,7 +158,7 @@ namespace Plugin.FitPlane.ViewModels
                 }
 
                 // 获取图像通道数
-                HOperatorSet.CountChannels(DispImage, out HTuple channelCount);
+                HOperatorSet.CountChannels(sourceImage, out HTuple channelCount);
                 int nChannels = channelCount.I;
 
                 // 固定用通道1（高度数据）
@@ -165,10 +171,10 @@ namespace Plugin.FitPlane.ViewModels
                 }
 
                 // 提取高度通道（Ch1）
-                HOperatorSet.AccessChannel(DispImage, out HObject chObj, targetChannel);
+                HOperatorSet.AccessChannel(sourceImage, out chObj, targetChannel);
 
                 // 高度数据转 real 类型
-                HOperatorSet.ConvertImageType(chObj, out HObject chRealObj, "real");
+                HOperatorSet.ConvertImageType(chObj, out chRealObj, "real");
 
                 // 获取图像尺寸
                 HOperatorSet.GetImageSize(chRealObj, out HTuple width, out HTuple height);
@@ -224,7 +230,7 @@ namespace Plugin.FitPlane.ViewModels
                 HOperatorSet.SubImage(
                     chRealObj,
                     planeImageObj,
-                    out HObject diffObj,
+                    out diffObj,
                     1.0,
                     0.0
                 );
@@ -259,7 +265,7 @@ namespace Plugin.FitPlane.ViewModels
                     double rangeVal = range.D;
                     if (rangeVal > 0)
                     {
-                        HImage dispScaled = diffImage.ScaleImage(
+                        dispScaled = diffImage.ScaleImage(
                             255.0 / rangeVal,
                             -minDev.D * 255.0 / rangeVal
                         );
@@ -272,18 +278,17 @@ namespace Plugin.FitPlane.ViewModels
                 {
                     if (!ShowDeviationMap)
                     {
-                        HImage planeImage = new HImage(planeImageObj);
+                        planeImage = new HImage(planeImageObj);
                         HOperatorSet.MinMaxGray(planeImage.GetDomain(), planeImage, 0.0, out HTuple planeMin, out HTuple planeMax, out HTuple _);
                         double planeRange = planeMax.D - planeMin.D;
                         if (planeRange > 0)
                         {
-                            HImage planeScaled = planeImage.ScaleImage(
+                            planeScaled = planeImage.ScaleImage(
                                 255.0 / planeRange,
                                 -planeMin.D * 255.0 / planeRange
                             );
                             DispImage = new RImage(planeScaled);
                         }
-                        planeImage.Dispose();
                     }
                 }
 
@@ -340,9 +345,6 @@ namespace Plugin.FitPlane.ViewModels
                     view.mWindowH.WindowH._hWndControl.Repaint();
                 }
 
-                chObj.Dispose();
-                chRealObj.Dispose();
-
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -356,6 +358,13 @@ namespace Plugin.FitPlane.ViewModels
             {
                 domain?.Dispose();
                 diffImage?.Dispose();
+                sourceImage?.Dispose();
+                chObj?.Dispose();
+                chRealObj?.Dispose();
+                diffObj?.Dispose();
+                planeImage?.Dispose();
+                dispScaled?.Dispose();
+                planeScaled?.Dispose();
                 if (planeImageObj != null)
                 {
                     planeImageObj.Dispose();
@@ -864,6 +873,57 @@ namespace Plugin.FitPlane.ViewModels
                     });
                 }
                 return _LinkCommand;
+            }
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["FitMethod"] = (int)FitMethod;
+            obj["UseRoi"] = UseRoi;
+            obj["NumIterations"] = NumIterations;
+            obj["ClippingFactor"] = ClippingFactor;
+            obj["ShowDeviationMap"] = ShowDeviationMap;
+            obj["ShowPlaneMap"] = ShowPlaneMap;
+            obj["ShowRegion"] = ShowRegion;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["InitRoiCenterX"] = InitRoiCenterX?.Text ?? "";
+            obj["InitRoiCenterY"] = InitRoiCenterY?.Text ?? "";
+            obj["InitRoiLength1"] = InitRoiLength1?.Text ?? "";
+            obj["InitRoiLength2"] = InitRoiLength2?.Text ?? "";
+            obj["InitRoiAngel"] = InitRoiAngel?.Text ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["FitMethod"] != null) FitMethod = (eFitMethod)obj["FitMethod"].Value<int>();
+                if (obj["UseRoi"] != null) UseRoi = obj["UseRoi"].Value<bool>();
+                if (obj["NumIterations"] != null) NumIterations = obj["NumIterations"].Value<int>();
+                if (obj["ClippingFactor"] != null) ClippingFactor = obj["ClippingFactor"].Value<double>();
+                if (obj["ShowDeviationMap"] != null) ShowDeviationMap = obj["ShowDeviationMap"].Value<bool>();
+                if (obj["ShowPlaneMap"] != null) ShowPlaneMap = obj["ShowPlaneMap"].Value<bool>();
+                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["InitRoiCenterX"] != null && InitRoiCenterX != null) InitRoiCenterX.Text = obj["InitRoiCenterX"].ToString();
+                if (obj["InitRoiCenterY"] != null && InitRoiCenterY != null) InitRoiCenterY.Text = obj["InitRoiCenterY"].ToString();
+                if (obj["InitRoiLength1"] != null && InitRoiLength1 != null) InitRoiLength1.Text = obj["InitRoiLength1"].ToString();
+                if (obj["InitRoiLength2"] != null && InitRoiLength2 != null) InitRoiLength2.Text = obj["InitRoiLength2"].ToString();
+                if (obj["InitRoiAngel"] != null && InitRoiAngel != null) InitRoiAngel.Text = obj["InitRoiAngel"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"FitPlaneViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

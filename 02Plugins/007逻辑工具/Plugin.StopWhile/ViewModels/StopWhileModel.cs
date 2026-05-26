@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.ComponentModel;
 using HV.Attributes;
 using HV.Common.Enums;
@@ -16,6 +17,17 @@ namespace Plugin.StopWhile.ViewModels
         {
             ChangeModuleRunStatus(eRunStatus.OK);
             return true;
+        }
+
+        public override string HVSerialize()
+        {
+            return base.HVSerialize();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
         }
     }
 }

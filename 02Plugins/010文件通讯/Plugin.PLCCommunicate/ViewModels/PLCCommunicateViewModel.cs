@@ -2,6 +2,7 @@
 using HalconDotNet;
 using HslCommunication;
 using HslCommunication.ModBus;
+using Newtonsoft.Json.Linq;
 using Plugin.PLCCommunicate.Views;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,8 @@ using VM.Start.Models;
 using VM.Start.Services;
 using VM.Start.ViewModels;
 using VM.Start.Views.Dock;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace Plugin.PLCCommunicate.ViewModels
 {
@@ -297,5 +300,44 @@ namespace Plugin.PLCCommunicate.ViewModels
             DoubleDataLength = EComManageer.s_ECommunacationDic[CurKey].m_DoubleNumber;
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["PlcCommunicationType"] = (int)PlcCommunicationType;
+            obj["PLCDataFormat"] = (int)PLCDataFormat;
+            obj["StationNumber"] = StationNumber;
+            obj["AddressStartWithZero"] = AddressStartWithZero;
+            obj["CurKey"] = CurKey ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            obj["IntDataLength"] = (int)IntDataLength;
+            obj["DoubleDataLength"] = (int)DoubleDataLength;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["PlcCommunicationType"] != null) PlcCommunicationType = (PLCType)obj["PlcCommunicationType"].Value<int>();
+                if (obj["PLCDataFormat"] != null) PLCDataFormat = (PLCDataType)obj["PLCDataFormat"].Value<int>();
+                if (obj["StationNumber"] != null) StationNumber = obj["StationNumber"].Value<int>();
+                if (obj["AddressStartWithZero"] != null) AddressStartWithZero = obj["AddressStartWithZero"].Value<bool>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["IntDataLength"] != null) IntDataLength = (PLCIntDataLengthEnum)obj["IntDataLength"].Value<int>();
+                if (obj["DoubleDataLength"] != null) DoubleDataLength = (PLCDoubleDataLengthEnum)obj["DoubleDataLength"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PLCCommunicateViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

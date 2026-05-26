@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows;
 using YoloSDK;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.Yolo.ViewModels
 {
@@ -900,6 +901,73 @@ namespace Plugin.Yolo.ViewModels
 
 
         #endregion
-        
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["AiPath"] = AiPath ?? "";
+            obj["CONF_THRESHOLD"] = CONF_THRESHOLD;
+            obj["NMS_THRESHOLD"] = NMS_THRESHOLD;
+            obj["AiClass"] = (int)AiClass;
+            obj["DefectNum"] = DefectNum;
+            obj["IsOpen"] = IsOpen;
+            obj["Confidence"] = Confidence;
+            obj["DefectArea"] = DefectArea;
+            obj["OutPutMaxArea"] = OutPutMaxArea;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["DrawSize"] = DrawSize;
+            obj["IsShowRegion"] = IsShowRegion;
+            obj["IsShowClass"] = IsShowClass;
+            obj["UseScore"] = UseScore;
+            obj["UseID"] = UseID;
+            obj["UseLimtHeight"] = UseLimtHeight;
+            obj["UseLimtWidth"] = UseLimtWidth;
+            obj["Score"] = Score;
+            obj["ID"] = ID;
+            obj["LimtHeight"] = LimtHeight;
+            obj["LimtWidth"] = LimtWidth;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["AiPath"] != null) AiPath = obj["AiPath"].ToString();
+                if (obj["CONF_THRESHOLD"] != null) CONF_THRESHOLD = obj["CONF_THRESHOLD"].Value<double>();
+                if (obj["NMS_THRESHOLD"] != null) NMS_THRESHOLD = obj["NMS_THRESHOLD"].Value<double>();
+                if (obj["AiClass"] != null) AiClass = (eAiClass)obj["AiClass"].Value<int>();
+                if (obj["DefectNum"] != null) DefectNum = obj["DefectNum"].Value<int>();
+                if (obj["IsOpen"] != null) IsOpen = obj["IsOpen"].Value<bool>();
+                if (obj["Confidence"] != null) Confidence = obj["Confidence"].Value<double>();
+                if (obj["DefectArea"] != null) DefectArea = obj["DefectArea"].Value<int>();
+                if (obj["OutPutMaxArea"] != null) OutPutMaxArea = obj["OutPutMaxArea"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["DrawSize"] != null) DrawSize = obj["DrawSize"].Value<int>();
+                if (obj["IsShowRegion"] != null) IsShowRegion = obj["IsShowRegion"].Value<bool>();
+                if (obj["IsShowClass"] != null) IsShowClass = obj["IsShowClass"].Value<bool>();
+                if (obj["UseScore"] != null) UseScore = obj["UseScore"].Value<bool>();
+                if (obj["UseID"] != null) UseID = obj["UseID"].Value<bool>();
+                if (obj["UseLimtHeight"] != null) UseLimtHeight = obj["UseLimtHeight"].Value<bool>();
+                if (obj["UseLimtWidth"] != null) UseLimtWidth = obj["UseLimtWidth"].Value<bool>();
+                if (obj["Score"] != null) Score = obj["Score"].Value<double>();
+                if (obj["ID"] != null) ID = obj["ID"].Value<int>();
+                if (obj["LimtHeight"] != null) LimtHeight = obj["LimtHeight"].Value<double>();
+                if (obj["LimtWidth"] != null) LimtWidth = obj["LimtWidth"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"AiClass.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

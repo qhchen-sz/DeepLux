@@ -1166,22 +1166,6 @@ namespace HV.Views.Dock
 
         }
 
-        private void AddChartToGrid(object chart, int row, int col)
-        {
-            if (chart is PieChart)
-            {
-                grid.Children.Add((PieChart)chart);
-                Grid.SetRow((PieChart)chart, row);
-                Grid.SetColumn((PieChart)chart, col);
-            }
-            else
-            {
-                grid.Children.Add((CartesianChart)chart);
-                Grid.SetRow((CartesianChart)chart, row);
-                Grid.SetColumn((CartesianChart)chart, col);
-            }
-        }
-
         public void ResetView()
         {
             RowDefinition row1 = new RowDefinition();
@@ -1998,6 +1982,23 @@ namespace HV.Views.Dock
                     break;
             }
         }
+		
+	    private void AddChartToGrid(object chart, int row, int col)
+        {
+            if (chart is PieChart)
+            {
+                grid.Children.Add((PieChart)chart);
+                Grid.SetRow((PieChart)chart, row);
+                Grid.SetColumn((PieChart)chart, col);
+            }
+            else
+            {
+                grid.Children.Add((CartesianChart)chart);
+                Grid.SetRow((CartesianChart)chart, row);
+                Grid.SetColumn((CartesianChart)chart, col);
+            }
+        }
+
 
     }
 

@@ -100,6 +100,8 @@
         >
             <DataGrid.ContextMenu>
                 <ContextMenu StaysOpen="True">
+                    <MenuItem Header="拷贝选中行" Click="CopySelectedRow"/>
+                    <Separator/>
                     <MenuItem Header="{lex:Loc Key=ClearAlarm}" Click="ClearAlarm"/>
                 </ContextMenu>
             </DataGrid.ContextMenu>

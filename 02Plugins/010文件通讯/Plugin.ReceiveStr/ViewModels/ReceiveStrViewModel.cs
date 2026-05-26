@@ -1,4 +1,5 @@
-﻿using Plugin.ReceiveStr.Views;
+﻿using Newtonsoft.Json.Linq;
+using Plugin.ReceiveStr.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -183,5 +184,40 @@ namespace Plugin.ReceiveStr.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsEnableTimeOut"] = IsEnableTimeOut;
+            obj["TimeOut"] = TimeOut;
+            obj["CurKey"] = CurKey ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            obj["ReceiveAsHex"] = ReceiveAsHex;
+            obj["IsClearCache"] = IsClearCache;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsEnableTimeOut"] != null) IsEnableTimeOut = obj["IsEnableTimeOut"].Value<bool>();
+                if (obj["TimeOut"] != null) TimeOut = obj["TimeOut"].Value<int>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["ReceiveAsHex"] != null) ReceiveAsHex = obj["ReceiveAsHex"].Value<bool>();
+                if (obj["IsClearCache"] != null) IsClearCache = obj["IsClearCache"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ReceiveStrViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

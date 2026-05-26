@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using VM.Script.Support;
 using HV.Common.Enums;
 using HV.Common.Helper;
 using HV.Script;
+using HV.Common.Provide;
 
 namespace HV.Models
 {
@@ -414,6 +416,47 @@ namespace HV.Models
         /// 注释
         /// </summary>
         public string Note { set; get; }
+
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            if (ModuleParam != null)
+                obj["ModuleParam"] = ModuleParam != null ? JObject.Parse(ModuleParam.HVSerialize()) : null;
+            obj["Index"] = Index;
+            obj["DataType"] = DataType ?? "";
+            obj["Name"] = Name ?? "";
+            obj["Expression"] = Expression ?? "";
+            obj["Note"] = Note ?? "";
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ModuleParam"] != null)
+                {
+                    ModuleParam = new ModuleParam();
+                    ModuleParam.HVDeserialize(obj["ModuleParam"].ToString());
+                }
+                if (obj["Index"] != null) Index = obj["Index"].Value<int>();
+                if (obj["DataType"] != null) DataType = obj["DataType"].ToString();
+                if (obj["Name"] != null) Name = obj["Name"].ToString();
+                if (obj["Expression"] != null) Expression = obj["Expression"].ToString();
+                if (obj["Note"] != null) Note = obj["Note"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"VarModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 
     [Serializable]

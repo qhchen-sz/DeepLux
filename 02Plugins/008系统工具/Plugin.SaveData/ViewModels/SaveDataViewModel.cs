@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.SaveData.Models;
 using Plugin.SaveData.Views;
 using System;
@@ -661,6 +662,74 @@ namespace Plugin.SaveData.ViewModels
                     });
                 }
                 return _FilePathCommand;
+            }
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DecimalPlaces"] = DecimalPlaces;
+            obj["AutoAddTime"] = AutoAddTime;
+            obj["UseDateFolder"] = UseDateFolder;
+            obj["UseFirstColumnTime"] = UseFirstColumnTime;
+            obj["SelectedMode"] = (int)SelectedMode;
+            obj["FilePath"] = FilePath ?? "";
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InputFileLinkText"] = InputFileLinkText ?? "";
+            JArray arr = new JArray();
+            if (SaveData != null)
+            {
+                foreach (var item in SaveData)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["Link"] = item.Link ?? "";
+                    itemObj["DataType"] = item.DataType ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["SaveData"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DecimalPlaces"] != null) DecimalPlaces = obj["DecimalPlaces"].Value<int>();
+                if (obj["AutoAddTime"] != null) AutoAddTime = obj["AutoAddTime"].Value<bool>();
+                if (obj["UseDateFolder"] != null) UseDateFolder = obj["UseDateFolder"].Value<bool>();
+                if (obj["UseFirstColumnTime"] != null) UseFirstColumnTime = obj["UseFirstColumnTime"].Value<bool>();
+                if (obj["SelectedMode"] != null) SelectedMode = (LinkMode)obj["SelectedMode"].Value<int>();
+                if (obj["FilePath"] != null) FilePath = obj["FilePath"].ToString();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InputFileLinkText"] != null) InputFileLinkText = obj["InputFileLinkText"].ToString();
+                if (obj["SaveData"] != null)
+                {
+                    JArray arr = (JArray)obj["SaveData"];
+                    SaveData.Clear();
+                    foreach (var item in arr)
+                    {
+                        SaveData.Add(new VarSetModel()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Name = item["Name"]?.ToString() ?? "",
+                            Link = item["Link"]?.ToString() ?? "",
+                            DataType = item["DataType"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SaveDataViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
     }

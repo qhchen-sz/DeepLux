@@ -20,6 +20,7 @@ using HV.Events;
 using HV.Models;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.RotateNewPoint.ViewModels
 {
@@ -298,5 +299,45 @@ namespace Plugin.RotateNewPoint.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["RotateCenterX"] = RotateCenterX?.Text ?? "";
+            obj["RotateCenterY"] = RotateCenterY?.Text ?? "";
+            obj["RotatePointX"] = RotatePointX?.Text ?? "";
+            obj["RotatePointY"] = RotatePointY?.Text ?? "";
+            obj["RotateAngle"] = RotateAngle?.Text ?? "";
+            obj["InvertAngle"] = InvertAngle;
+            obj["RotateNewPointX"] = RotateNewPointX;
+            obj["RotateNewPointY"] = RotateNewPointY;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["RotateCenterX"] != null && RotateCenterX != null) RotateCenterX.Text = obj["RotateCenterX"].ToString();
+                if (obj["RotateCenterY"] != null && RotateCenterY != null) RotateCenterY.Text = obj["RotateCenterY"].ToString();
+                if (obj["RotatePointX"] != null && RotatePointX != null) RotatePointX.Text = obj["RotatePointX"].ToString();
+                if (obj["RotatePointY"] != null && RotatePointY != null) RotatePointY.Text = obj["RotatePointY"].ToString();
+                if (obj["RotateAngle"] != null && RotateAngle != null) RotateAngle.Text = obj["RotateAngle"].ToString();
+                if (obj["InvertAngle"] != null) InvertAngle = obj["InvertAngle"].Value<bool>();
+                if (obj["RotateNewPointX"] != null) RotateNewPointX = obj["RotateNewPointX"].Value<double>();
+                if (obj["RotateNewPointY"] != null) RotateNewPointY = obj["RotateNewPointY"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"RotateNewPointViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+
     }
 }

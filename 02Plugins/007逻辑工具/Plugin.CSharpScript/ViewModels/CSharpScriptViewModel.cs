@@ -1,4 +1,5 @@
 ﻿using ICSharpCode.CodeCompletion;
+using Newtonsoft.Json.Linq;
 using Plugin.CSharpScript.Views;
 using System;
 using System.Collections.Generic;
@@ -247,5 +248,31 @@ namespace Plugin.CSharpScript.ViewModels
         }
         #endregion
 
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["CsharpText"] = CsharpText ?? "";
+            obj["ModuleIndex"] = ModuleIndex;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["CsharpText"] != null) CsharpText = obj["CsharpText"].ToString();
+                if (obj["ModuleIndex"] != null) ModuleIndex = obj["ModuleIndex"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"MyScript.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

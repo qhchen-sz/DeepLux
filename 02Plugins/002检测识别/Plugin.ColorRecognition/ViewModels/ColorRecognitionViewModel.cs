@@ -30,6 +30,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using System.Xml.Serialization;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.ColorRecognition.ViewModels
 {
@@ -545,6 +546,86 @@ namespace Plugin.ColorRecognition.ViewModels
             }
         }
 
+        #endregion
+
+        #region 序列化
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["MinScore"] = MinScore;
+            obj["ShowSearchRegion"] = ShowSearchRegion;
+            obj["ShowResultContour"] = ShowResultContour;
+            JObject learningRegionObj = new JObject();
+            if (LearningRegion != null)
+            {
+                learningRegionObj["Row1"] = LearningRegion.Row1;
+                learningRegionObj["Col1"] = LearningRegion.Col1;
+                learningRegionObj["Row2"] = LearningRegion.Row2;
+                learningRegionObj["Col2"] = LearningRegion.Col2;
+            }
+            obj["LearningRegion"] = learningRegionObj;
+            JObject searchRegionObj = new JObject();
+            if (Rectangle1SearchRegion != null)
+            {
+                searchRegionObj["Row1"] = Rectangle1SearchRegion.Row1;
+                searchRegionObj["Col1"] = Rectangle1SearchRegion.Col1;
+                searchRegionObj["Row2"] = Rectangle1SearchRegion.Row2;
+                searchRegionObj["Col2"] = Rectangle1SearchRegion.Col2;
+            }
+            obj["Rectangle1SearchRegion"] = searchRegionObj;
+            obj["ColorThresholdRegionData"] = ColorThresholdRegionData ?? new byte[0];
+            obj["PreviewImageData"] = PreviewImageData ?? new byte[0];
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["MinScore"] != null) MinScore = obj["MinScore"].Value<double>();
+                if (obj["ShowSearchRegion"] != null) ShowSearchRegion = obj["ShowSearchRegion"].Value<bool>();
+                if (obj["ShowResultContour"] != null) ShowResultContour = obj["ShowResultContour"].Value<bool>();
+                if (obj["LearningRegion"] != null && LearningRegion != null)
+                {
+                    JObject lrObj = (JObject)obj["LearningRegion"];
+                    if (lrObj["Row1"] != null) LearningRegion.Row1 = lrObj["Row1"].Value<double>();
+                    if (lrObj["Col1"] != null) LearningRegion.Col1 = lrObj["Col1"].Value<double>();
+                    if (lrObj["Row2"] != null) LearningRegion.Row2 = lrObj["Row2"].Value<double>();
+                    if (lrObj["Col2"] != null) LearningRegion.Col2 = lrObj["Col2"].Value<double>();
+                }
+                if (obj["Rectangle1SearchRegion"] != null && Rectangle1SearchRegion != null)
+                {
+                    JObject srObj = (JObject)obj["Rectangle1SearchRegion"];
+                    if (srObj["Row1"] != null) Rectangle1SearchRegion.Row1 = srObj["Row1"].Value<double>();
+                    if (srObj["Col1"] != null) Rectangle1SearchRegion.Col1 = srObj["Col1"].Value<double>();
+                    if (srObj["Row2"] != null) Rectangle1SearchRegion.Row2 = srObj["Row2"].Value<double>();
+                    if (srObj["Col2"] != null) Rectangle1SearchRegion.Col2 = srObj["Col2"].Value<double>();
+                }
+                if (obj["ColorThresholdRegionData"] != null)
+                {
+                    byte[] data = obj["ColorThresholdRegionData"].ToObject<byte[]>();
+                    if (data != null && data.Length > 0) ColorThresholdRegionData = data;
+                }
+                if (obj["PreviewImageData"] != null)
+                {
+                    byte[] data = obj["PreviewImageData"].ToObject<byte[]>();
+                    if (data != null && data.Length > 0) PreviewImageData = data;
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ColorRecognitionViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
 
         #region Override Methods

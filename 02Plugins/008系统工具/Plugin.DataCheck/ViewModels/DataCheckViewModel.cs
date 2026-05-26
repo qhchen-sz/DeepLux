@@ -1,6 +1,7 @@
 ﻿using ControlzEx.Standard;
 using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.DataCheck.Model;
 using Plugin.DataCheck.Views;
 using System;
@@ -342,5 +343,73 @@ namespace Plugin.DataCheck.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["LinkDataName"] = LinkDataName ?? "";
+            obj["Result"] = Result;
+            JArray arr = new JArray();
+            if (DataChecks != null)
+            {
+                foreach (var item in DataChecks)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["IsCheck"] = item.IsCheck;
+                    itemObj["DataLinkText"] = item.DataLinkText ?? "";
+                    itemObj["lowerLimit"] = item.lowerLimit ?? "";
+                    itemObj["lowerLimitStr"] = item.lowerLimitStr ?? "";
+                    itemObj["upperLimit"] = item.upperLimit ?? "";
+                    itemObj["upperLimitStr"] = item.upperLimitStr ?? "";
+                    itemObj["lowerDeviation"] = item.lowerDeviation ?? "";
+                    itemObj["upperDeviation"] = item.upperDeviation ?? "";
+                    itemObj["DataType"] = item.DataType ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["DataChecks"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["LinkDataName"] != null) LinkDataName = obj["LinkDataName"].ToString();
+                if (obj["Result"] != null) Result = obj["Result"].Value<bool>();
+                if (obj["DataChecks"] != null)
+                {
+                    JArray arr = (JArray)obj["DataChecks"];
+                    DataChecks.Clear();
+                    foreach (var item in arr)
+                    {
+                        DataChecks.Add(new DataCheckModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            IsCheck = item["IsCheck"]?.Value<bool>() ?? true,
+                            DataLinkText = item["DataLinkText"]?.ToString() ?? "",
+                            lowerLimit = item["lowerLimit"]?.ToString() ?? "",
+                            lowerLimitStr = item["lowerLimitStr"]?.ToString() ?? "",
+                            upperLimit = item["upperLimit"]?.ToString() ?? "",
+                            upperLimitStr = item["upperLimitStr"]?.ToString() ?? "",
+                            lowerDeviation = item["lowerDeviation"]?.ToString() ?? "",
+                            upperDeviation = item["upperDeviation"]?.ToString() ?? "",
+                            DataType = item["DataType"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DataCheckViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

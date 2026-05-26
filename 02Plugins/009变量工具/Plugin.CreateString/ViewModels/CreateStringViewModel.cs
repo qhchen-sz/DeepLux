@@ -1,6 +1,7 @@
 ﻿using ControlzEx.Standard;
 using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.CreateString.Model;
 using Plugin.CreateString.Views;
 using System;
@@ -348,5 +349,65 @@ namespace Plugin.CreateString.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DataFormat"] = DataFormat ?? "";
+            obj["TrueReplace"] = TrueReplace ?? "";
+            obj["FalseReplace"] = FalseReplace ?? "";
+            obj["DataReserver"] = DataReserver;
+            JArray arr = new JArray();
+            if (CreateString != null)
+            {
+                foreach (var item in CreateString)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["IDString"] = item.IDString ?? "";
+                    itemObj["DataLinkText"] = item.DataLinkText ?? "";
+                    itemObj["DataType"] = item.DataType ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["CreateString"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DataFormat"] != null) DataFormat = obj["DataFormat"].ToString();
+                if (obj["TrueReplace"] != null) TrueReplace = obj["TrueReplace"].ToString();
+                if (obj["FalseReplace"] != null) FalseReplace = obj["FalseReplace"].ToString();
+                if (obj["DataReserver"] != null) DataReserver = obj["DataReserver"].Value<int>();
+                if (obj["CreateString"] != null)
+                {
+                    JArray arr = (JArray)obj["CreateString"];
+                    CreateString.Clear();
+                    foreach (var item in arr)
+                    {
+                        CreateString.Add(new CreateStringModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            IDString = item["IDString"]?.ToString() ?? "",
+                            DataLinkText = item["DataLinkText"]?.ToString() ?? "",
+                            DataType = item["DataType"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CreateStringViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

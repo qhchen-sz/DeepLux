@@ -26,6 +26,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.MeasureLine.ViewModels
 {
@@ -324,6 +325,103 @@ namespace Plugin.MeasureLine.ViewModels
                     ShowHRoi();
                 }
             }
+        }
+        #endregion
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InitLineCenterX"] = InitLineCenterX?.Text ?? "";
+            obj["InitLineCenterY"] = InitLineCenterY?.Text ?? "";
+            obj["InitLineLength1"] = InitLineLength1?.Text ?? "";
+            obj["InitLineLength2"] = InitLineLength2?.Text ?? "";
+            obj["InitLineAngel"] = InitLineAngel?.Text ?? "";
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            JObject measObj = new JObject();
+            if (MeasInfo != null)
+            {
+                measObj["MeasDis"] = MeasInfo.MeasDis;
+                measObj["Length1"] = MeasInfo.Length1;
+                measObj["Length2"] = MeasInfo.Length2;
+                measObj["Threshold"] = MeasInfo.Threshold;
+                measObj["MeasMode"] = (int)MeasInfo.MeasMode;
+                measObj["MeasSelect"] = (int)MeasInfo.MeasSelect;
+                measObj["PointsOrder"] = MeasInfo.PointsOrder;
+            }
+            obj["MeasInfo"] = measObj;
+            obj["InitLine"] = SerializeRect2(InitLine);
+            obj["TempLine"] = SerializeRect2(TempLine);
+            obj["TranLine"] = SerializeRect2(TranLine);
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InitLineCenterX"] != null && InitLineCenterX != null) InitLineCenterX.Text = obj["InitLineCenterX"].ToString();
+                if (obj["InitLineCenterY"] != null && InitLineCenterY != null) InitLineCenterY.Text = obj["InitLineCenterY"].ToString();
+                if (obj["InitLineLength1"] != null && InitLineLength1 != null) InitLineLength1.Text = obj["InitLineLength1"].ToString();
+                if (obj["InitLineLength2"] != null && InitLineLength2 != null) InitLineLength2.Text = obj["InitLineLength2"].ToString();
+                if (obj["InitLineAngel"] != null && InitLineAngel != null) InitLineAngel.Text = obj["InitLineAngel"].ToString();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+                if (obj["MeasInfo"] != null && MeasInfo != null)
+                {
+                    JObject measObj = (JObject)obj["MeasInfo"];
+                    if (measObj["MeasDis"] != null) MeasInfo.MeasDis = measObj["MeasDis"].Value<double>();
+                    if (measObj["Length1"] != null) MeasInfo.Length1 = measObj["Length1"].Value<double>();
+                    if (measObj["Length2"] != null) MeasInfo.Length2 = measObj["Length2"].Value<double>();
+                    if (measObj["Threshold"] != null) MeasInfo.Threshold = measObj["Threshold"].Value<double>();
+                    if (measObj["MeasMode"] != null) MeasInfo.MeasMode = (eMeasMode)measObj["MeasMode"].Value<int>();
+                    if (measObj["MeasSelect"] != null) MeasInfo.MeasSelect = (eMeasSelect)measObj["MeasSelect"].Value<int>();
+                    if (measObj["PointsOrder"] != null) MeasInfo.PointsOrder = measObj["PointsOrder"].Value<int>();
+                }
+                if (obj["InitLine"] != null) DeserializeRect2((JObject)obj["InitLine"], InitLine);
+                if (obj["TempLine"] != null) DeserializeRect2((JObject)obj["TempLine"], TempLine);
+                if (obj["TranLine"] != null) DeserializeRect2((JObject)obj["TranLine"], TranLine);
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"MeasureLineViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        private JObject SerializeRect2(ROIRectangle2 rect)
+        {
+            if (rect == null) return null;
+            JObject obj = new JObject();
+            obj["MidR"] = rect.MidR;
+            obj["MidC"] = rect.MidC;
+            obj["Length1"] = rect.Length1;
+            obj["Length2"] = rect.Length2;
+            obj["Phi"] = rect.Phi;
+            obj["Deg"] = rect.Deg;
+            return obj;
+        }
+
+        private void DeserializeRect2(JObject obj, ROIRectangle2 rect)
+        {
+            if (obj == null || rect == null) return;
+            if (obj["MidR"] != null) rect.MidR = obj["MidR"].Value<double>();
+            if (obj["MidC"] != null) rect.MidC = obj["MidC"].Value<double>();
+            if (obj["Length1"] != null) rect.Length1 = obj["Length1"].Value<double>();
+            if (obj["Length2"] != null) rect.Length2 = obj["Length2"].Value<double>();
+            if (obj["Phi"] != null) rect.Phi = obj["Phi"].Value<double>();
+            if (obj["Deg"] != null) rect.Deg = obj["Deg"].Value<double>();
         }
         #endregion
 

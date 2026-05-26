@@ -6,6 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using HV.Common.Provide;
+using HV.Common.Enums;
 using
    HV.Core;
 
@@ -443,5 +446,60 @@ namespace HV.Services
 
         // Token: 0x040003B4 RID: 948
         public bool _IsIgnoreError = true;
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["QueueKey"] = QueueKey ?? "";
+            obj["IsLimitLength"] = IsLimitLength;
+            obj["LimitLength"] = LimitLength;
+            obj["IsWait"] = IsWait;
+            obj["IsDeleteData"] = IsDeleteData;
+            obj["IsIgnoreError"] = IsIgnoreError;
+            if (m_DataTypeList != null)
+            {
+                JArray arr = new JArray();
+                foreach (var dt in m_DataTypeList)
+                {
+                    arr.Add(dt ?? "");
+                }
+                obj["DataTypeList"] = arr;
+            }
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                base.HVDeserialize(json);
+                if (obj["QueueKey"] != null) QueueKey = obj["QueueKey"].ToString();
+                if (obj["IsLimitLength"] != null) _IsLimitLength = obj["IsLimitLength"].Value<bool>();
+                if (obj["LimitLength"] != null) _LimitLength = obj["LimitLength"].Value<int>();
+                if (obj["IsWait"] != null) _IsWait = obj["IsWait"].Value<bool>();
+                if (obj["IsDeleteData"] != null) _IsDeleteData = obj["IsDeleteData"].Value<bool>();
+                if (obj["IsIgnoreError"] != null) _IsIgnoreError = obj["IsIgnoreError"].Value<bool>();
+                if (obj["DataTypeList"] != null)
+                {
+                    m_DataTypeList = new List<string>();
+                    JArray arr = (JArray)obj["DataTypeList"];
+                    foreach (var item in arr)
+                    {
+                        m_DataTypeList.Add(item.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DataOut.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }

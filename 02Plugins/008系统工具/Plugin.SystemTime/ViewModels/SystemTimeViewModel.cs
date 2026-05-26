@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.SystemTime.Views;
 using System;
 using System.Collections.Generic;
@@ -162,6 +163,35 @@ namespace Plugin.SystemTime.ViewModels
         }
         #endregion
         #region Method
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsYear"] = IsYear;
+            obj["IsHour"] = IsHour;
+            obj["IsMillisecond"] = IsMillisecond;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsYear"] != null) IsYear = obj["IsYear"].Value<bool>();
+                if (obj["IsHour"] != null) IsHour = obj["IsHour"].Value<bool>();
+                if (obj["IsMillisecond"] != null) IsMillisecond = obj["IsMillisecond"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SystemTimeViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
         #endregion
     }

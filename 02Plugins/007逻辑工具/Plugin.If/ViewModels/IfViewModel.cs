@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.If.Views;
 using System;
 using System.Collections.Generic;
@@ -320,6 +321,39 @@ namespace Plugin.If.ViewModels
         }
 
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["BoolInversion"] = BoolInversion;
+            obj["BoolLink"] = BoolLink;
+            obj["Expression"] = Expression;
+            obj["ExpressionString"] = ExpressionString ?? "";
+            obj["BoolLinkText"] = BoolLinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["BoolInversion"] != null) BoolInversion = obj["BoolInversion"].Value<bool>();
+                if (obj["BoolLink"] != null) BoolLink = obj["BoolLink"].Value<bool>();
+                if (obj["Expression"] != null) Expression = obj["Expression"].Value<bool>();
+                if (obj["ExpressionString"] != null) ExpressionString = obj["ExpressionString"].ToString();
+                if (obj["BoolLinkText"] != null) BoolLinkText = obj["BoolLinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"IfViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 
 }

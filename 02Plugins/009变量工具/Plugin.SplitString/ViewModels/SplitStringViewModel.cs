@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.SplitString.Model;
 using Plugin.SplitString.Views;
 using System;
@@ -448,5 +449,69 @@ namespace Plugin.SplitString.ViewModels
             return set.Count != arr.Length;
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["SelectSplitMode"] = (int)SelectSplitMode;
+            obj["DataLinkText"] = DataLinkText ?? "";
+            obj["SplitPoint"] = SplitPoint ?? "";
+            obj["SplitNum"] = SplitNum;
+            obj["IsSpiltGroup"] = IsSpiltGroup;
+            obj["GroupNum"] = GroupNum;
+            JArray arr = new JArray();
+            if (Data != null)
+            {
+                foreach (var item in Data)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["DataType"] = item.DataType ?? "";
+                    itemObj["DataName"] = item.DataName ?? "";
+                    itemObj["Prefix"] = item.Prefix ?? "";
+                    itemObj["Suffix"] = item.Suffix ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["Data"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["SelectSplitMode"] != null) SelectSplitMode = (eSplitMode)obj["SelectSplitMode"].Value<int>();
+                if (obj["DataLinkText"] != null) DataLinkText = obj["DataLinkText"].ToString();
+                if (obj["SplitPoint"] != null) SplitPoint = obj["SplitPoint"].ToString();
+                if (obj["SplitNum"] != null) SplitNum = obj["SplitNum"].Value<int>();
+                if (obj["IsSpiltGroup"] != null) IsSpiltGroup = obj["IsSpiltGroup"].Value<bool>();
+                if (obj["GroupNum"] != null) GroupNum = obj["GroupNum"].Value<int>();
+                if (obj["Data"] != null)
+                {
+                    JArray jarr = (JArray)obj["Data"];
+                    Data.Clear();
+                    foreach (var item in jarr)
+                    {
+                        Data.Add(new SplitStringModel()
+                        {
+                            DataType = item["DataType"]?.ToString() ?? "",
+                            DataName = item["DataName"]?.ToString() ?? "",
+                            Prefix = item["Prefix"]?.ToString() ?? "",
+                            Suffix = item["Suffix"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SplitStringViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

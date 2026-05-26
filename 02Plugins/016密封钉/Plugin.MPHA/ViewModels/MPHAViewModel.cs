@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web.UI.WebControls;
 using System.Windows.Documents;
 using System.Windows.Forms;
+using Newtonsoft.Json.Linq;
 using VM.Halcon;
 using VM.Halcon.Config;
 using VM.Halcon.Model;
@@ -832,5 +833,51 @@ namespace Plugin.MPHA.ViewModels
         #region Method
 
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText;
+            obj["NailSurfaceXText"] = NailSurfaceXText;
+            obj["NailSurfaceYText"] = NailSurfaceYText;
+            obj["MPScale"] = MPScale;
+            obj["MPSerachRadius"] = MPSerachRadius;
+            obj["MPNormal_Degree"] = MPNormal_Degree;
+            obj["Curvature_Threshold"] = Curvature_Threshold;
+            obj["Use_Curvature"] = Use_Curvature;
+            obj["Central_Plane_Size"] = Central_Plane_Size;
+            obj["MPDistance_Threshold"] = MPDistance_Threshold;
+            obj["MPMin_Planar_Points"] = MPMin_Planar_Points;
+            obj["Down_Sample_Size"] = Down_Sample_Size;
+            obj["SelectedROIType"] = (int)SelectedROIType;
+            return obj.ToString();
+        }
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].Value<string>();
+                if (obj["NailSurfaceXText"] != null) NailSurfaceXText = obj["NailSurfaceXText"].Value<string>();
+                if (obj["NailSurfaceYText"] != null) NailSurfaceYText = obj["NailSurfaceYText"].Value<string>();
+                if (obj["MPScale"] != null) MPScale = obj["MPScale"].Value<int>();
+                if (obj["MPSerachRadius"] != null) MPSerachRadius = (float)obj["MPSerachRadius"].Value<double>();
+                if (obj["MPNormal_Degree"] != null) MPNormal_Degree = (float)obj["MPNormal_Degree"].Value<double>();
+                if (obj["Curvature_Threshold"] != null) Curvature_Threshold = (float)obj["Curvature_Threshold"].Value<double>();
+                if (obj["Use_Curvature"] != null) Use_Curvature = obj["Use_Curvature"].Value<bool>();
+                if (obj["Central_Plane_Size"] != null) Central_Plane_Size = (float)obj["Central_Plane_Size"].Value<double>();
+                if (obj["MPDistance_Threshold"] != null) MPDistance_Threshold = (float)obj["MPDistance_Threshold"].Value<double>();
+                if (obj["MPMin_Planar_Points"] != null) MPMin_Planar_Points = obj["MPMin_Planar_Points"].Value<int>();
+                if (obj["Down_Sample_Size"] != null) Down_Sample_Size = obj["Down_Sample_Size"].Value<int>();
+                if (obj["SelectedROIType"] != null) SelectedROIType = (RoiParaType)obj["SelectedROIType"].Value<int>();
+            }
+            catch (Exception ex)
+            {
+                Logger.GetExceptionMsg(ex);
+            }
+        }
+
     }
 }

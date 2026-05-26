@@ -27,6 +27,7 @@ using HV.ViewModels;
 using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.MeasureGap.ViewModels
 {
@@ -703,6 +704,51 @@ namespace Plugin.MeasureGap.ViewModels
             //        }
             //    }
             //}
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["Offset"] = Offset;
+            obj["GapValue"] = GapValue;
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Rect1X1"] = Rect1X1?.Text ?? "";
+            obj["Rect1Y1"] = Rect1Y1?.Text ?? "";
+            obj["Rect1X2"] = Rect1X2?.Text ?? "";
+            obj["Rect1Y2"] = Rect1Y2?.Text ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["Offset"] != null) Offset = obj["Offset"].Value<int>();
+                if (obj["GapValue"] != null) GapValue = obj["GapValue"].Value<double>();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Rect1X1"] != null && Rect1X1 != null) Rect1X1.Text = obj["Rect1X1"].ToString();
+                if (obj["Rect1Y1"] != null && Rect1Y1 != null) Rect1Y1.Text = obj["Rect1Y1"].ToString();
+                if (obj["Rect1X2"] != null && Rect1X2 != null) Rect1X2.Text = obj["Rect1X2"].ToString();
+                if (obj["Rect1Y2"] != null && Rect1Y2 != null) Rect1Y2.Text = obj["Rect1Y2"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"MeasureGapViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
         #endregion
     }

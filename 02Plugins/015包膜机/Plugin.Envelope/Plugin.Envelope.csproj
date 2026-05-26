@@ -79,11 +79,11 @@
     </Reference>
     <Reference Include="EVDll, Version=2025.4.1.1, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\07Dll\EVDll.dll</HintPath>
+      <HintPath>..\..\..\00Exe\Plugins\EVDll.dll</HintPath>
     </Reference>
     <Reference Include="EventMgrLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dll\EventMgrLib.dll</HintPath>
+      <HintPath>..\..\..\00Exe\Plugins\EventMgrLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="halcondotnet, Version=20.11.1.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
@@ -113,6 +113,9 @@
       <HintPath>..\..\..\00Exe\Plugins\Plugin.GrabImage.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Configuration" />
@@ -131,7 +134,7 @@
     </Reference>
     <Reference Include="VM.Halcon, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Dll\VM.Halcon.dll</HintPath>
+      <HintPath>..\..\..\00Exe\VM.Halcon.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="WindowsBase" />

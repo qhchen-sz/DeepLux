@@ -33,6 +33,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using Plugin.JigsawPuzzle.Views;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.JigsawPuzzle.ViewModels
 {
@@ -217,6 +218,96 @@ namespace Plugin.JigsawPuzzle.ViewModels
         /// </summary>
 
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["SearchRegionSource"] = (int)SearchRegionSource;
+            JObject checkObj = new JObject();
+            if (CheckList != null)
+            {
+                checkObj["IsOutRoiImageChecked"] = CheckList.IsOutRoiImageChecked;
+                checkObj["IsWorldChecked"] = CheckList.IsWorldChecked;
+                checkObj["IsOmChecked"] = CheckList.IsOmChecked;
+                checkObj["IsOutResult"] = CheckList.IsOutResult;
+                checkObj["IsDianChecked"] = CheckList.IsDianChecked;
+                checkObj["IsOutWorldChecked"] = CheckList.IsOutWorldChecked;
+                checkObj["IsCreateZlChecked"] = CheckList.IsCreateZlChecked;
+                checkObj["IsScreenshotChecked"] = CheckList.IsScreenshotChecked;
+            }
+            obj["CheckList"] = checkObj;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            JArray arr = new JArray();
+            if (DataList != null)
+            {
+                foreach (var item in DataList)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["NO"] = item.NO ?? "";
+                    itemObj["X"] = item.X;
+                    itemObj["Y"] = item.Y;
+                    itemObj["L1"] = item.L1;
+                    itemObj["L2"] = item.L2;
+                    itemObj["Deg"] = item.Deg;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["DataList"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["SearchRegionSource"] != null) SearchRegionSource = (eROIMatrix)obj["SearchRegionSource"].Value<int>();
+                if (obj["CheckList"] != null)
+                {
+                    JObject checkObj = (JObject)obj["CheckList"];
+                    if (CheckList != null)
+                    {
+                        if (checkObj["IsOutRoiImageChecked"] != null) CheckList.IsOutRoiImageChecked = checkObj["IsOutRoiImageChecked"].Value<bool>();
+                        if (checkObj["IsWorldChecked"] != null) CheckList.IsWorldChecked = checkObj["IsWorldChecked"].Value<bool>();
+                        if (checkObj["IsOmChecked"] != null) CheckList.IsOmChecked = checkObj["IsOmChecked"].Value<bool>();
+                        if (checkObj["IsOutResult"] != null) CheckList.IsOutResult = checkObj["IsOutResult"].Value<bool>();
+                        if (checkObj["IsDianChecked"] != null) CheckList.IsDianChecked = checkObj["IsDianChecked"].Value<bool>();
+                        if (checkObj["IsOutWorldChecked"] != null) CheckList.IsOutWorldChecked = checkObj["IsOutWorldChecked"].Value<bool>();
+                        if (checkObj["IsCreateZlChecked"] != null) CheckList.IsCreateZlChecked = checkObj["IsCreateZlChecked"].Value<bool>();
+                        if (checkObj["IsScreenshotChecked"] != null) CheckList.IsScreenshotChecked = checkObj["IsScreenshotChecked"].Value<bool>();
+                    }
+                }
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["DataList"] != null)
+                {
+                    JArray arr = (JArray)obj["DataList"];
+                    DataList.Clear();
+                    foreach (var item in arr)
+                    {
+                        DataList.Add(new JigsawPuzzleData()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            NO = item["NO"]?.ToString() ?? "",
+                            X = item["X"]?.Value<double>() ?? 200,
+                            Y = item["Y"]?.Value<double>() ?? 200,
+                            L1 = item["L1"]?.Value<double>() ?? 20,
+                            L2 = item["L2"]?.Value<double>() ?? 20,
+                            Deg = item["Deg"]?.Value<double>() ?? 0
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"JigsawPuzzleViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
         #region Command
 

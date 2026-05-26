@@ -28,6 +28,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.MeasureRect.ViewModels
 {
@@ -317,6 +318,76 @@ namespace Plugin.MeasureRect.ViewModels
         {
             get { return _ColorLinkValue; }
             set { _ColorLinkValue = value; }
+        }
+        #endregion
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowResultRect"] = ShowResultRect;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["RectL1"] = RectL1?.Text ?? "";
+            obj["RectL2"] = RectL2?.Text ?? "";
+            obj["RectPX"] = RectPX?.Text ?? "";
+            obj["RectPY"] = RectPY?.Text ?? "";
+            obj["RectAngle"] = RectAngle?.Text ?? "";
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            obj["ColorLinkText"] = _ColorLinkText ?? "";
+            JObject measObj = new JObject();
+            if (MeasInfo != null)
+            {
+                measObj["MeasDis"] = MeasInfo.MeasDis;
+                measObj["Length1"] = MeasInfo.Length1;
+                measObj["Length2"] = MeasInfo.Length2;
+                measObj["Threshold"] = MeasInfo.Threshold;
+                measObj["MeasMode"] = (int)MeasInfo.MeasMode;
+                measObj["MeasSelect"] = (int)MeasInfo.MeasSelect;
+                measObj["PointsOrder"] = MeasInfo.PointsOrder;
+            }
+            obj["MeasInfo"] = measObj;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowResultRect"] != null) ShowResultRect = obj["ShowResultRect"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["RectL1"] != null && RectL1 != null) RectL1.Text = obj["RectL1"].ToString();
+                if (obj["RectL2"] != null && RectL2 != null) RectL2.Text = obj["RectL2"].ToString();
+                if (obj["RectPX"] != null && RectPX != null) RectPX.Text = obj["RectPX"].ToString();
+                if (obj["RectPY"] != null && RectPY != null) RectPY.Text = obj["RectPY"].ToString();
+                if (obj["RectAngle"] != null && RectAngle != null) RectAngle.Text = obj["RectAngle"].ToString();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+                if (obj["ColorLinkText"] != null) _ColorLinkText = obj["ColorLinkText"].ToString();
+                if (obj["MeasInfo"] != null && MeasInfo != null)
+                {
+                    JObject measObj = (JObject)obj["MeasInfo"];
+                    if (measObj["MeasDis"] != null) MeasInfo.MeasDis = measObj["MeasDis"].Value<double>();
+                    if (measObj["Length1"] != null) MeasInfo.Length1 = measObj["Length1"].Value<double>();
+                    if (measObj["Length2"] != null) MeasInfo.Length2 = measObj["Length2"].Value<double>();
+                    if (measObj["Threshold"] != null) MeasInfo.Threshold = measObj["Threshold"].Value<double>();
+                    if (measObj["MeasMode"] != null) MeasInfo.MeasMode = (eMeasMode)measObj["MeasMode"].Value<int>();
+                    if (measObj["MeasSelect"] != null) MeasInfo.MeasSelect = (eMeasSelect)measObj["MeasSelect"].Value<int>();
+                    if (measObj["PointsOrder"] != null) MeasInfo.PointsOrder = measObj["PointsOrder"].Value<int>();
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"MeasureRectViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
         #endregion
 

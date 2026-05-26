@@ -30,6 +30,7 @@ using LiveCharts;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Separator = LiveCharts.Wpf.Separator;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.ShowChart.ViewModels
 {
@@ -297,6 +298,97 @@ namespace Plugin.ShowChart.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ColumnName"] = ColumnName?.Text ?? "1";
+            obj["LineDispCount"] = LineDispCount?.Text ?? "50";
+            obj["nImageIndex"] = nImageIndex?.Text ?? "0";
+            obj["InputAxisXString"] = InputAxisXString?.Text ?? "";
+            obj["nSelectIndex"] = nSelectIndex;
+            obj["ShowResultRoi"] = ShowResultRoi;
+            obj["ShowChart"] = ShowChart;
+            obj["ShowOkLog"] = ShowOkLog;
+            obj["ShowNgLog"] = ShowNgLog;
+            obj["CurChartType"] = (int)CurChartType;
+            obj["DispChartViewID"] = DispChartViewID;
+            JArray arr = new JArray();
+            if (ImageParam != null)
+            {
+                foreach (var item in ImageParam)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["InputPara"] = item.InputPara?.Text ?? "";
+                    itemObj["ParaName"] = item.ParaName ?? "";
+                    JObject colorObj = new JObject();
+                    colorObj["A"] = item.SerializableBackgroundColor.A;
+                    colorObj["R"] = item.SerializableBackgroundColor.R;
+                    colorObj["G"] = item.SerializableBackgroundColor.G;
+                    colorObj["B"] = item.SerializableBackgroundColor.B;
+                    itemObj["BackgroundColor"] = colorObj;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["ImageParam"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ColumnName"] != null && ColumnName != null) ColumnName.Text = obj["ColumnName"].ToString();
+                if (obj["LineDispCount"] != null && LineDispCount != null) LineDispCount.Text = obj["LineDispCount"].ToString();
+                if (obj["nImageIndex"] != null && nImageIndex != null) nImageIndex.Text = obj["nImageIndex"].ToString();
+                if (obj["InputAxisXString"] != null && InputAxisXString != null) InputAxisXString.Text = obj["InputAxisXString"].ToString();
+                if (obj["nSelectIndex"] != null) nSelectIndex = obj["nSelectIndex"].Value<int>();
+                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
+                if (obj["ShowChart"] != null) ShowChart = obj["ShowChart"].Value<bool>();
+                if (obj["ShowOkLog"] != null) ShowOkLog = obj["ShowOkLog"].Value<bool>();
+                if (obj["ShowNgLog"] != null) ShowNgLog = obj["ShowNgLog"].Value<bool>();
+                if (obj["CurChartType"] != null) CurChartType = (ChartType)obj["CurChartType"].Value<int>();
+                if (obj["DispChartViewID"] != null) DispChartViewID = obj["DispChartViewID"].Value<int>();
+                if (obj["ImageParam"] != null)
+                {
+                    JArray arr = (JArray)obj["ImageParam"];
+                    ImageParam.Clear();
+                    foreach (var item in arr)
+                    {
+                        ImageParams imageParams = new ImageParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            LinkCommand = LinkCommand
+                        };
+                        if (item["InputPara"] != null && imageParams.InputPara != null) imageParams.InputPara.Text = item["InputPara"].ToString();
+                        if (item["ParaName"] != null) imageParams.ParaName = item["ParaName"].ToString();
+                        if (item["BackgroundColor"] != null)
+                        {
+                            JObject colorObj = (JObject)item["BackgroundColor"];
+                            imageParams.SerializableBackgroundColor = new SerializableColor
+                            {
+                                A = colorObj["A"]?.Value<byte>() ?? 255,
+                                R = colorObj["R"]?.Value<byte>() ?? 0,
+                                G = colorObj["G"]?.Value<byte>() ?? 0,
+                                B = colorObj["B"]?.Value<byte>() ?? 0
+                            };
+                        }
+                        ImageParam.Add(imageParams);
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ShowChartViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
         #region Command
         public override void Loaded()

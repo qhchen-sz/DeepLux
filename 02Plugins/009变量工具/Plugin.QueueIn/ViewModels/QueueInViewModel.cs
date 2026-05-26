@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -491,5 +492,82 @@ namespace Plugin.QueueIn.ViewModels
         // Token: 0x04000011 RID: 17
         [NonSerialized]
         private CommandBase _MoveCommand;
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["QueueIndex"] = QueueIndex?.Text ?? "";
+            obj["SelectedIndex_DataOut"] = SelectedIndex_DataOut;
+            JArray arr = new JArray();
+            if (DataOuts != null)
+            {
+                foreach (var item in DataOuts)
+                {
+                    arr.Add(item ?? "");
+                }
+            }
+            obj["DataOuts"] = arr;
+            JArray arr2 = new JArray();
+            if (LocalVar != null)
+            {
+                foreach (var item in LocalVar)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["DataType"] = item.DataType ?? "";
+                    itemObj["Value"] = item.Value?.ToString() ?? "";
+                    itemObj["Expression"] = item.Expression ?? "";
+                    itemObj["Note"] = item.Note ?? "";
+                    arr2.Add(itemObj);
+                }
+            }
+            obj["LocalVar"] = arr2;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["QueueIndex"] != null && QueueIndex != null) QueueIndex.Text = obj["QueueIndex"].ToString();
+                if (obj["SelectedIndex_DataOut"] != null) SelectedIndex_DataOut = obj["SelectedIndex_DataOut"].Value<int>();
+                if (obj["DataOuts"] != null)
+                {
+                    JArray arr = (JArray)obj["DataOuts"];
+                    DataOuts.Clear();
+                    foreach (var item in arr)
+                    {
+                        DataOuts.Add(item?.ToString() ?? "");
+                    }
+                }
+                if (obj["LocalVar"] != null)
+                {
+                    JArray arr = (JArray)obj["LocalVar"];
+                    LocalVar.Clear();
+                    foreach (var item in arr)
+                    {
+                        LocalVar.Add(new VarModel()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Name = item["Name"]?.ToString() ?? "",
+                            DataType = item["DataType"]?.ToString() ?? "",
+                            Expression = item["Expression"]?.ToString() ?? "",
+                            Note = item["Note"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"QueueInViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

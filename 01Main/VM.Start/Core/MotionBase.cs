@@ -19,6 +19,8 @@ using HV.Events;
 using HV.Models;
 using HV.Services;
 using HV.Views;
+using Newtonsoft.Json.Linq;
+using HV.Common.Enums;
 
 namespace HV.Core
 {
@@ -250,8 +252,6 @@ namespace HV.Core
         public virtual void UpdateData() { }
 
         #endregion
-
-
     }
     [Serializable]
     public abstract class AxisParam : NotifyPropertyBase
@@ -736,6 +736,90 @@ namespace HV.Core
         /// <returns></returns>
         public abstract bool Stop(int mode = 2);
         #endregion
+
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["EncoderResolution"] = EncoderResolution;
+            obj["IsEnable"] = IsEnable;
+            obj["AxisName"] = AxisName;
+            obj["Unit"] = Unit;
+            obj["IsRelMove"] = IsRelMove;
+            obj["CardID"] = CardID;
+            obj["AxisID"] = AxisID;
+            obj["Feed"] = Feed;
+            obj["Screw"] = Screw;
+            obj["RunVel"] = RunVel;
+            obj["JogVel"] = JogVel;
+            obj["RunPos"] = RunPos;
+            obj["SetVel"] = SetVel;
+            obj["Acc"] = Acc;
+            obj["SmoothTime"] = SmoothTime;
+            obj["MaxVel"] = MaxVel;
+            obj["MinVel"] = MinVel;
+            obj["MaxAcc"] = MaxAcc;
+            obj["MinAcc"] = MinAcc;
+            obj["StopVel"] = StopVel;
+            obj["HomeMode"] = (int)HomeMode;
+            obj["HomeDir"] = HomeDir;
+            obj["HomeLowVel"] = HomeLowVel;
+            obj["HomeHighVel"] = HomeHighVel;
+            obj["HomeAcc"] = HomeAcc;
+            obj["HomeOffset"] = HomeOffset;
+            obj["GoalPt"] = GoalPt;
+            obj["OffsetLinkText"] = OffsetLinkText;
+            obj["AxisChecked"] = AxisChecked;
+            obj["Pot"] = Pot;
+            obj["Net"] = Net;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["EncoderResolution"] != null) EncoderResolution = obj["EncoderResolution"].Value<int>();
+                if (obj["IsEnable"] != null) IsEnable = obj["IsEnable"].Value<bool>();
+                if (obj["AxisName"] != null) AxisName = obj["AxisName"].Value<string>();
+                if (obj["Unit"] != null) Unit = obj["Unit"].Value<string>();
+                if (obj["IsRelMove"] != null) IsRelMove = obj["IsRelMove"].Value<bool>();
+                if (obj["CardID"] != null) CardID = obj["CardID"].Value<int>();
+                if (obj["AxisID"] != null) AxisID = obj["AxisID"].Value<short>();
+                if (obj["Feed"] != null) Feed = obj["Feed"].Value<int>();
+                if (obj["Screw"] != null) Screw = obj["Screw"].Value<double>();
+                if (obj["RunVel"] != null) RunVel = obj["RunVel"].Value<double>();
+                if (obj["JogVel"] != null) JogVel = obj["JogVel"].Value<float>();
+                if (obj["RunPos"] != null) RunPos = obj["RunPos"].Value<double>();
+                if (obj["SetVel"] != null) SetVel = obj["SetVel"].Value<double>();
+                if (obj["Acc"] != null) Acc = obj["Acc"].Value<double>();
+                if (obj["SmoothTime"] != null) SmoothTime = obj["SmoothTime"].Value<short>();
+                if (obj["MaxVel"] != null) MaxVel = obj["MaxVel"].Value<double>();
+                if (obj["MinVel"] != null) MinVel = obj["MinVel"].Value<double>();
+                if (obj["MaxAcc"] != null) MaxAcc = obj["MaxAcc"].Value<double>();
+                if (obj["MinAcc"] != null) MinAcc = obj["MinAcc"].Value<double>();
+                if (obj["StopVel"] != null) StopVel = obj["StopVel"].Value<double>();
+                if (obj["HomeMode"] != null) HomeMode = (eHomeMode)obj["HomeMode"].Value<int>();
+                if (obj["HomeDir"] != null) HomeDir = obj["HomeDir"].Value<bool>();
+                if (obj["HomeLowVel"] != null) HomeLowVel = obj["HomeLowVel"].Value<double>();
+                if (obj["HomeHighVel"] != null) HomeHighVel = obj["HomeHighVel"].Value<double>();
+                if (obj["HomeAcc"] != null) HomeAcc = obj["HomeAcc"].Value<double>();
+                if (obj["HomeOffset"] != null) HomeOffset = obj["HomeOffset"].Value<double>();
+                if (obj["GoalPt"] != null) GoalPt = obj["GoalPt"].Value<double>();
+                if (obj["OffsetLinkText"] != null) OffsetLinkText = obj["OffsetLinkText"].Value<string>();
+                if (obj["AxisChecked"] != null) AxisChecked = obj["AxisChecked"].Value<bool>();
+                if (obj["Pot"] != null) Pot = obj["Pot"].Value<bool>();
+                if (obj["Net"] != null) Net = obj["Net"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"AxisParam.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
     [Serializable]
     public class IOIn : NotifyPropertyBase
@@ -780,6 +864,34 @@ namespace HV.Core
         {
             get { return _State; }
             set { Set(ref _State, value); }
+        }
+
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["CardID"] = CardID;
+            obj["InputID"] = InputID;
+            obj["Name"] = Name;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["CardID"] != null) CardID = obj["CardID"].Value<int>();
+                if (obj["InputID"] != null) InputID = obj["InputID"].Value<short>();
+                if (obj["Name"] != null) Name = obj["Name"].Value<string>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"IOIn.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
 
     }
@@ -889,6 +1001,36 @@ namespace HV.Core
                     });
                 }
                 return _MouseUpCommand;
+            }
+        }
+
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["CardID"] = CardID;
+            obj["OutputID"] = OutputID;
+            obj["Name"] = Name;
+            obj["IsForce"] = IsForce;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["CardID"] != null) CardID = obj["CardID"].Value<int>();
+                if (obj["OutputID"] != null) OutputID = obj["OutputID"].Value<short>();
+                if (obj["Name"] != null) Name = obj["Name"].Value<string>();
+                if (obj["IsForce"] != null) IsForce = obj["IsForce"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"IOOut.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
 

@@ -26,6 +26,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.FindCircle.ViewModels
 {
@@ -287,6 +288,74 @@ namespace Plugin.FindCircle.ViewModels
                 {
                     ShowHRoi();
                 }
+            }
+        }
+        #endregion
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowResultCircle"] = ShowResultCircle;
+            obj["Scale"] = Scale;
+            obj["OutPutRealCoordFlag"] = OutPutRealCoordFlag;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InitCenterX"] = InitCenterX?.Text ?? "";
+            obj["InitCenterY"] = InitCenterY?.Text ?? "";
+            obj["InitRadius"] = InitRadius?.Text ?? "";
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            JObject measObj = new JObject();
+            if (MeasInfo != null)
+            {
+                measObj["MeasDis"] = MeasInfo.MeasDis;
+                measObj["Length1"] = MeasInfo.Length1;
+                measObj["Length2"] = MeasInfo.Length2;
+                measObj["Threshold"] = MeasInfo.Threshold;
+                measObj["MeasMode"] = (int)MeasInfo.MeasMode;
+                measObj["MeasSelect"] = (int)MeasInfo.MeasSelect;
+                measObj["PointsOrder"] = MeasInfo.PointsOrder;
+            }
+            obj["MeasInfo"] = measObj;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowResultCircle"] != null) ShowResultCircle = obj["ShowResultCircle"].Value<bool>();
+                if (obj["Scale"] != null) Scale = obj["Scale"].Value<double>();
+                if (obj["OutPutRealCoordFlag"] != null) OutPutRealCoordFlag = obj["OutPutRealCoordFlag"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InitCenterX"] != null && InitCenterX != null) InitCenterX.Text = obj["InitCenterX"].ToString();
+                if (obj["InitCenterY"] != null && InitCenterY != null) InitCenterY.Text = obj["InitCenterY"].ToString();
+                if (obj["InitRadius"] != null && InitRadius != null) InitRadius.Text = obj["InitRadius"].ToString();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+                if (obj["MeasInfo"] != null && MeasInfo != null)
+                {
+                    JObject measObj = (JObject)obj["MeasInfo"];
+                    if (measObj["MeasDis"] != null) MeasInfo.MeasDis = measObj["MeasDis"].Value<double>();
+                    if (measObj["Length1"] != null) MeasInfo.Length1 = measObj["Length1"].Value<double>();
+                    if (measObj["Length2"] != null) MeasInfo.Length2 = measObj["Length2"].Value<double>();
+                    if (measObj["Threshold"] != null) MeasInfo.Threshold = measObj["Threshold"].Value<double>();
+                    if (measObj["MeasMode"] != null) MeasInfo.MeasMode = (eMeasMode)measObj["MeasMode"].Value<int>();
+                    if (measObj["MeasSelect"] != null) MeasInfo.MeasSelect = (eMeasSelect)measObj["MeasSelect"].Value<int>();
+                    if (measObj["PointsOrder"] != null) MeasInfo.PointsOrder = measObj["PointsOrder"].Value<int>();
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"FindCircleViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

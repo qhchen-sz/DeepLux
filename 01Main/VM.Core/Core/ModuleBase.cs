@@ -1,5 +1,6 @@
 ﻿using HalconDotNet;
 using MahApps.Metro.Controls;
+using Newtonsoft.Json.Linq;
 using ScottPlot.Drawing.Colormaps;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,7 @@ using HV.Common.Provide;
 using HV.Models;
 using HV.Services;
 using HV.Views.Dock;
+using HV.Common.Enums;
 
 namespace HV.Core
 {
@@ -1135,5 +1137,72 @@ namespace HV.Core
         /// 反序列化后的扩展初始化。子类如有特殊需求可重写。
         /// </summary>
         protected virtual void OnAfterDeserialized() { }
+
+        /// <summary>
+        /// 自定义序列化：子类重写此方法，先调用 base.HVSerialize() 获取基类 JSON，
+        /// 再追加自身字段，返回完整的 JSON 字符串。
+        /// </summary>
+        /// <returns>JSON 字符串</returns>
+        public virtual string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["ModuleGuid"] = ModuleGuid.ToString();
+            obj["TimeOut"] = TimeOut;
+            obj["IsFillDisp"] = IsFillDisp;
+            obj["DispViewID"] = DispViewID;
+            obj["TimeText"] = TimeText ?? "";
+            obj["DateTime"] = DateTime;
+            JObject modeCoordObj = new JObject();
+            modeCoordObj["Status"] = ModeCoord.Status;
+            modeCoordObj["Y"] = ModeCoord.Y;
+            modeCoordObj["X"] = ModeCoord.X;
+            modeCoordObj["Phi"] = ModeCoord.Phi;
+            modeCoordObj["Score"] = ModeCoord.Score;
+            obj["ModeCoord"] = modeCoordObj;
+            return obj.ToString();
+        }
+
+        /// <summary>
+        /// 自定义反序列化：子类重写此方法，先调用 base.HVDeserialize(json) 恢复基类字段，
+        /// 再恢复自身字段。
+        /// </summary>
+        /// <param name="json">HVSerialize 保存的 JSON 字符串</param>
+        public virtual void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ModuleGuid"] != null)
+                    ModuleGuid = Guid.Parse(obj["ModuleGuid"].ToString());
+                if (obj["TimeOut"] != null)
+                    TimeOut = obj["TimeOut"].Value<int>();
+                if (obj["IsFillDisp"] != null)
+                    IsFillDisp = obj["IsFillDisp"].Value<bool>();
+                if (obj["DispViewID"] != null)
+                    DispViewID = obj["DispViewID"].Value<int>();
+                if (obj["TimeText"] != null)
+                    TimeText = obj["TimeText"].ToString();
+                if (obj["DateTime"] != null)
+                    DateTime = obj["DateTime"].Value<DateTime>();
+                if (obj["ModeCoord"] != null)
+                {
+                    JObject coord = (JObject)obj["ModeCoord"];
+                    if (ModeCoord.Equals(default(Coord_Info))) ModeCoord = new Coord_Info();
+                    if (coord["Status"] != null) ModeCoord.Status = coord["Status"].Value<bool>();
+                    if (coord["Y"] != null) ModeCoord.Y = coord["Y"].Value<double>();
+                    if (coord["X"] != null) ModeCoord.X = coord["X"].Value<double>();
+                    if (coord["Phi"] != null) ModeCoord.Phi = coord["Phi"].Value<double>();
+                    if (coord["Score"] != null) ModeCoord.Score = coord["Score"].Value<double>();
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ModuleBase.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

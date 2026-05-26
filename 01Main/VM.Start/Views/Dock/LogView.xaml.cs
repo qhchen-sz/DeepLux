@@ -162,6 +162,20 @@ namespace HV.Views.Dock
             }
         }
 
+        private void CopySelectedRow(object sender, RoutedEventArgs e)
+        {
+            if (dg.SelectedItems.Count == 0) return;
+            var sb = new StringBuilder();
+            foreach (var item in dg.SelectedItems)
+            {
+                if (item is LogModel log)
+                {
+                    sb.AppendLine($"[{log.CreateTime:yyyy/MM/dd HH:mm:ss fff}] [{log.LogType}] {log.Content}");
+                }
+            }
+            Clipboard.SetText(sb.ToString().TrimEnd());
+        }
+
         private void ClearAlarm(object sender, RoutedEventArgs e)
         {
             //LogViewModel.Ins.AlarmCollection.Clear();

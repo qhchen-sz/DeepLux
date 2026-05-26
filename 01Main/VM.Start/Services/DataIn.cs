@@ -5,7 +5,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using HV.Core;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace HV.Services
 {
@@ -197,5 +200,52 @@ namespace HV.Services
 
         // Token: 0x040003AA RID: 938
         private List<string> m_DataTypeInList = new List<string>();
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["QueueIndex"] = QueueIndex;
+            obj["QueueKey"] = QueueKey ?? "";
+            if (m_DataTypeInList != null)
+            {
+                JArray arr = new JArray();
+                foreach (var dt in m_DataTypeInList)
+                {
+                    arr.Add(dt ?? "");
+                }
+                obj["DataTypeInList"] = arr;
+            }
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                base.HVDeserialize(json);
+                if (obj["QueueIndex"] != null) QueueIndex = obj["QueueIndex"].Value<int>();
+                if (obj["QueueKey"] != null) QueueKey = obj["QueueKey"].ToString();
+                if (obj["DataTypeInList"] != null)
+                {
+                    m_DataTypeInList = new List<string>();
+                    JArray arr = (JArray)obj["DataTypeInList"];
+                    foreach (var item in arr)
+                    {
+                        m_DataTypeInList.Add(item.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DataIn.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }
