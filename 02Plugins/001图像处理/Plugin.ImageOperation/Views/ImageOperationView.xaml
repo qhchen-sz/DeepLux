@@ -1,0 +1,215 @@
+<vb:ModuleViewBase x:Class="Plugin.ImageOperation.Views.ImageOperationView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:vm="clr-namespace:Plugin.ImageOperation.ViewModels"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   Icon="/Plugin.ImageOperation;component/Assets/Images/Tool/ImageOperation.png"
+                   Height="680"
+                   Width="980"
+                   Loaded="ModuleViewBase_Loaded"
+                   mc:Ignorable="d">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <cvt:EnumConverter x:Key="EnumConverter"/>
+                    <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+                    <cvt:StatusConverter x:Key="StatusConverter"/>
+                    <vm:EnumDescConverter x:Key="EnumDescConverter"/>
+                </ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+
+            <Border Padding="10 8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0 8 0 0">
+                            <TextBlock Text="输入图像" Width="70" VerticalAlignment="Center"/>
+                            <TextBox Width="270"
+                                     BorderThickness="0 0 0 1"
+                                     IsReadOnly="True"
+                                     Style="{StaticResource LinkTextBox}"
+                                     Text="{Binding InputImageLinkText}"
+                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"
+                                     mah:TextBoxHelper.Watermark="HImage"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                            <TextBlock Text="ROI类型" Width="70" VerticalAlignment="Center"/>
+                            <UniformGrid Rows="1" Columns="2" Width="270">
+                                <RadioButton Content="全图"
+                                             IsChecked="{Binding SelectedROIType, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eRoiType.FullImage}}"/>
+                                <RadioButton Content="ROI链接"
+                                             IsChecked="{Binding SelectedROIType, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eRoiType.RoiLink}}"/>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding SelectedROIType, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter={x:Static vm:eRoiType.RoiLink}}">
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="ROI" Width="70" VerticalAlignment="Center"/>
+                                <TextBox Width="270"
+                                         BorderThickness="0 0 0 1"
+                                         IsReadOnly="True"
+                                         Style="{StaticResource LinkTextBox}"
+                                         Text="{Binding InputRoiLinkText}"
+                                         mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                         mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputRoiLink}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                            <TextBlock Text="操作" Width="70" VerticalAlignment="Center"/>
+                            <ComboBox Width="270"
+                                      BorderThickness="0 0 0 1"
+                                      ItemsSource="{Binding Source={enum:EnumBindingSource {x:Type vm:eImageOperationType}}}"
+                                      SelectedItem="{Binding SelectedOperation}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource EnumDescConverter}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0 34 0 0">
+                            <TextBlock Text="操作对象" Width="70" VerticalAlignment="Center"/>
+                            <UniformGrid Rows="1" Columns="2" Width="270">
+                                <RadioButton Content="常量"
+                                             IsChecked="{Binding OperandMode, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eOperandMode.Constant}}"/>
+                                <RadioButton Content="图像"
+                                             IsChecked="{Binding OperandMode, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eOperandMode.Image}}"/>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding OperandMode, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter={x:Static vm:eOperandMode.Constant}}">
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="常量" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding ConstantValue}"
+                                                   Interval="1"
+                                                   Minimum="-999999"
+                                                   Maximum="999999"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding OperandMode, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter={x:Static vm:eOperandMode.Image}}">
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="图像" Width="70" VerticalAlignment="Center"/>
+                                <TextBox Width="270"
+                                         BorderThickness="0 0 0 1"
+                                         IsReadOnly="True"
+                                         Style="{StaticResource LinkTextBox}"
+                                         Text="{Binding OperandImageLinkText}"
+                                         mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                         mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.OperandImageLink}"
+                                         mah:TextBoxHelper.Watermark="HImage"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="偏移点坐标X" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding OffsetX}"
+                                                   Interval="0.1"
+                                                   Minimum="-999999"
+                                                   Maximum="999999"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="偏移点坐标Y" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding OffsetY}"
+                                                   Interval="0.1"
+                                                   Minimum="-999999"
+                                                   Maximum="999999"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="偏移角度" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding OffsetAngle}"
+                                                   Interval="0.1"
+                                                   Minimum="-360"
+                                                   Maximum="360"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="乘系数" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding MultFactor}"
+                                                   Interval="0.1"
+                                                   Minimum="-999999"
+                                                   Maximum="999999"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                                <TextBlock Text="加系数" Width="70" VerticalAlignment="Center"/>
+                                <mah:NumericUpDown Width="270"
+                                                   BorderThickness="0 0 0 1"
+                                                   Value="{Binding AddFactor}"
+                                                   Interval="0.1"
+                                                   Minimum="-999999"
+                                                   Maximum="999999"
+                                                   StringFormat="F6"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <CheckBox Content="实时刷新"
+                                  Margin="0 20 0 0"
+                                  IsChecked="{Binding IsRealtimePreview}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost"/>
+        </Grid>
+
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnConfirm" Content="确定" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                    <Button x:Name="btnCancel" Content="取消" Margin="10 0" Click="btnCancel_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>
