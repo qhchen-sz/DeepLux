@@ -173,37 +173,6 @@ namespace Plugin.CRCode.ViewModels
         }
         #endregion
 
-        #region Serialize
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["CodeType"] = (int)CodeType;
-            obj["ShowResultRoi"] = ShowResultRoi;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["CodeType"] != null) CodeType = (CodeType)obj["CodeType"].Value<int>();
-                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"QRCodeViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -430,6 +399,37 @@ namespace Plugin.CRCode.ViewModels
 
         }
    
+        #endregion
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["CodeType"] = (int)CodeType;
+            obj["ShowResultRoi"] = ShowResultRoi;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["CodeType"] != null) CodeType = (CodeType)obj["CodeType"].Value<int>();
+                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"QRCodeViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
 
     }

@@ -363,141 +363,6 @@ namespace Plugin.ImageScript.ViewModels
 
         #endregion
 
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["IsEnableDebug"] = IsEnableDebug;
-            obj["SelectedProcedure"] = SelectedProcedure ?? "";
-            obj["IsEnablePassword"] = IsEnablePassword;
-            obj["Password"] = Password ?? "1";
-            obj["ConfirmPassword"] = ConfirmPassword ?? "1";
-            JArray procArr = new JArray();
-            if (m_EProcedureList != null)
-            {
-                foreach (var proc in m_EProcedureList)
-                {
-                    JObject procObj = new JObject();
-                    procObj["Name"] = proc.Name ?? "";
-                    procObj["IconicInputList"] = new JArray(proc.IconicInputList ?? new List<string>());
-                    procObj["IconicOutputList"] = new JArray(proc.IconicOutputList ?? new List<string>());
-                    procObj["CtrlInputList"] = new JArray(proc.CtrlInputList ?? new List<string>());
-                    procObj["CtrlOutputList"] = new JArray(proc.CtrlOutputList ?? new List<string>());
-                    procObj["Body"] = proc.Body ?? "";
-                    procArr.Add(procObj);
-                }
-            }
-            obj["EProcedureList"] = procArr;
-            JArray inputArr = new JArray();
-            if (InputVars != null)
-            {
-                foreach (var item in InputVars)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Name"] = item.Name ?? "";
-                    itemObj["Type"] = (int)item.Type;
-                    itemObj["Var"] = item.Var?.Text ?? "";
-                    inputArr.Add(itemObj);
-                }
-            }
-            obj["InputVars"] = inputArr;
-            JArray outputArr = new JArray();
-            if (OutputVars != null)
-            {
-                foreach (var item in OutputVars)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Name"] = item.Name ?? "";
-                    itemObj["Type"] = (int)item.Type;
-                    outputArr.Add(itemObj);
-                }
-            }
-            obj["OutputVars"] = outputArr;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["IsEnableDebug"] != null) IsEnableDebug = obj["IsEnableDebug"].Value<bool>();
-                if (obj["SelectedProcedure"] != null) SelectedProcedure = obj["SelectedProcedure"].ToString();
-                if (obj["IsEnablePassword"] != null) IsEnablePassword = obj["IsEnablePassword"].Value<bool>();
-                if (obj["Password"] != null) Password = obj["Password"].ToString();
-                if (obj["ConfirmPassword"] != null) ConfirmPassword = obj["ConfirmPassword"].ToString();
-                if (obj["EProcedureList"] != null)
-                {
-                    JArray arr = (JArray)obj["EProcedureList"];
-                    m_EProcedureList = new List<EProcedure>();
-                    foreach (var item in arr)
-                    {
-                        EProcedure proc = new EProcedure();
-                        proc.Name = item["Name"]?.ToString() ?? "EProcedure";
-                        proc.Body = item["Body"]?.ToString() ?? "";
-                        if (item["IconicInputList"] != null)
-                        {
-                            JArray iconArr = (JArray)item["IconicInputList"];
-                            proc.IconicInputList = iconArr.Select(x => x.ToString()).ToList();
-                        }
-                        if (item["IconicOutputList"] != null)
-                        {
-                            JArray iconArr = (JArray)item["IconicOutputList"];
-                            proc.IconicOutputList = iconArr.Select(x => x.ToString()).ToList();
-                        }
-                        if (item["CtrlInputList"] != null)
-                        {
-                            JArray ctrlArr = (JArray)item["CtrlInputList"];
-                            proc.CtrlInputList = ctrlArr.Select(x => x.ToString()).ToList();
-                        }
-                        if (item["CtrlOutputList"] != null)
-                        {
-                            JArray ctrlArr = (JArray)item["CtrlOutputList"];
-                            proc.CtrlOutputList = ctrlArr.Select(x => x.ToString()).ToList();
-                        }
-                        m_EProcedureList.Add(proc);
-                    }
-                }
-                if (obj["InputVars"] != null)
-                {
-                    JArray arr = (JArray)obj["InputVars"];
-                    InputVars.Clear();
-                    foreach (var item in arr)
-                    {
-                        InputVarModel varModel = new InputVarModel()
-                        {
-                            Name = item["Name"]?.ToString() ?? "",
-                            Type = item["Type"] != null ? (eTypes)item["Type"].Value<int>() : eTypes.String,
-                            LinkCommand = LinkCommand
-                        };
-                        if (item["Var"] != null && varModel.Var != null) varModel.Var.Text = item["Var"].ToString();
-                        InputVars.Add(varModel);
-                    }
-                }
-                if (obj["OutputVars"] != null)
-                {
-                    JArray arr = (JArray)obj["OutputVars"];
-                    OutputVars.Clear();
-                    foreach (var item in arr)
-                    {
-                        OutputVars.Add(new OutputVarModel()
-                        {
-                            Name = item["Name"]?.ToString() ?? "",
-                            Type = item["Type"] != null ? (eTypes)item["Type"].Value<int>() : eTypes.String
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"ImageScriptViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-
         #region Command
         public override void Loaded()
         {
@@ -912,6 +777,143 @@ namespace Plugin.ImageScript.ViewModels
         #endregion
 
 
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsEnableDebug"] = IsEnableDebug;
+            obj["SelectedProcedure"] = SelectedProcedure ?? "";
+            obj["IsEnablePassword"] = IsEnablePassword;
+            obj["Password"] = Password ?? "1";
+            obj["ConfirmPassword"] = ConfirmPassword ?? "1";
+            JArray procArr = new JArray();
+            if (m_EProcedureList != null)
+            {
+                foreach (var proc in m_EProcedureList)
+                {
+                    JObject procObj = new JObject();
+                    procObj["Name"] = proc.Name ?? "";
+                    procObj["IconicInputList"] = new JArray(proc.IconicInputList ?? new List<string>());
+                    procObj["IconicOutputList"] = new JArray(proc.IconicOutputList ?? new List<string>());
+                    procObj["CtrlInputList"] = new JArray(proc.CtrlInputList ?? new List<string>());
+                    procObj["CtrlOutputList"] = new JArray(proc.CtrlOutputList ?? new List<string>());
+                    procObj["Body"] = proc.Body ?? "";
+                    procArr.Add(procObj);
+                }
+            }
+            obj["EProcedureList"] = procArr;
+            JArray inputArr = new JArray();
+            if (InputVars != null)
+            {
+                foreach (var item in InputVars)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["Type"] = (int)item.Type;
+                    itemObj["Var"] = item.Var?.Text ?? "";
+                    inputArr.Add(itemObj);
+                }
+            }
+            obj["InputVars"] = inputArr;
+            JArray outputArr = new JArray();
+            if (OutputVars != null)
+            {
+                foreach (var item in OutputVars)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["Type"] = (int)item.Type;
+                    outputArr.Add(itemObj);
+                }
+            }
+            obj["OutputVars"] = outputArr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsEnableDebug"] != null) IsEnableDebug = obj["IsEnableDebug"].Value<bool>();
+                if (obj["SelectedProcedure"] != null) SelectedProcedure = obj["SelectedProcedure"].ToString();
+                if (obj["IsEnablePassword"] != null) IsEnablePassword = obj["IsEnablePassword"].Value<bool>();
+                if (obj["Password"] != null) Password = obj["Password"].ToString();
+                if (obj["ConfirmPassword"] != null) ConfirmPassword = obj["ConfirmPassword"].ToString();
+                if (obj["EProcedureList"] != null)
+                {
+                    JArray arr = (JArray)obj["EProcedureList"];
+                    m_EProcedureList = new List<EProcedure>();
+                    foreach (var item in arr)
+                    {
+                        EProcedure proc = new EProcedure();
+                        proc.Name = item["Name"]?.ToString() ?? "EProcedure";
+                        proc.Body = item["Body"]?.ToString() ?? "";
+                        if (item["IconicInputList"] != null)
+                        {
+                            JArray iconArr = (JArray)item["IconicInputList"];
+                            proc.IconicInputList = iconArr.Select(x => x.ToString()).ToList();
+                        }
+                        if (item["IconicOutputList"] != null)
+                        {
+                            JArray iconArr = (JArray)item["IconicOutputList"];
+                            proc.IconicOutputList = iconArr.Select(x => x.ToString()).ToList();
+                        }
+                        if (item["CtrlInputList"] != null)
+                        {
+                            JArray ctrlArr = (JArray)item["CtrlInputList"];
+                            proc.CtrlInputList = ctrlArr.Select(x => x.ToString()).ToList();
+                        }
+                        if (item["CtrlOutputList"] != null)
+                        {
+                            JArray ctrlArr = (JArray)item["CtrlOutputList"];
+                            proc.CtrlOutputList = ctrlArr.Select(x => x.ToString()).ToList();
+                        }
+                        m_EProcedureList.Add(proc);
+                    }
+                }
+                if (obj["InputVars"] != null)
+                {
+                    JArray arr = (JArray)obj["InputVars"];
+                    InputVars.Clear();
+                    foreach (var item in arr)
+                    {
+                        InputVarModel varModel = new InputVarModel()
+                        {
+                            Name = item["Name"]?.ToString() ?? "",
+                            Type = item["Type"] != null ? (eTypes)item["Type"].Value<int>() : eTypes.String,
+                            LinkCommand = LinkCommand
+                        };
+                        if (item["Var"] != null && varModel.Var != null) varModel.Var.Text = item["Var"].ToString();
+                        InputVars.Add(varModel);
+                    }
+                }
+                if (obj["OutputVars"] != null)
+                {
+                    JArray arr = (JArray)obj["OutputVars"];
+                    OutputVars.Clear();
+                    foreach (var item in arr)
+                    {
+                        OutputVars.Add(new OutputVarModel()
+                        {
+                            Name = item["Name"]?.ToString() ?? "",
+                            Type = item["Type"] != null ? (eTypes)item["Type"].Value<int>() : eTypes.String
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ImageScriptViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 

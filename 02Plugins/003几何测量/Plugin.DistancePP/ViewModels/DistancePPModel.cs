@@ -261,49 +261,6 @@ namespace Plugin.DistancePP.ViewModels
         }
         #endregion
 
-        #region 序列化
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["ShowResultLine"] = ShowResultLine;
-            obj["ShowResultPoint"] = ShowResultPoint;
-            obj["ShowResultGPoint"] = ShowResultGPoint;
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["P1XLinkText"] = P1XLinkText ?? "";
-            obj["P1YLinkText"] = P1YLinkText ?? "";
-            obj["P2XLinkText"] = P2XLinkText ?? "";
-            obj["P2YLinkText"] = P2YLinkText ?? "";
-            obj["LineColor"] = _LineColor ?? "";
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
-                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
-                if (obj["ShowResultGPoint"] != null) ShowResultGPoint = obj["ShowResultGPoint"].Value<bool>();
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["P1XLinkText"] != null) P1XLinkText = obj["P1XLinkText"].ToString();
-                if (obj["P1YLinkText"] != null) P1YLinkText = obj["P1YLinkText"].ToString();
-                if (obj["P2XLinkText"] != null) P2XLinkText = obj["P2XLinkText"].ToString();
-                if (obj["P2YLinkText"] != null) P2YLinkText = obj["P2YLinkText"].ToString();
-                if (obj["LineColor"] != null) _LineColor = obj["LineColor"].ToString();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"DistancePPModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -469,5 +426,49 @@ namespace Plugin.DistancePP.ViewModels
         //    }
         //}
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowResultGPoint"] = ShowResultGPoint;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["P1XLinkText"] = P1XLinkText ?? "";
+            obj["P1YLinkText"] = P1YLinkText ?? "";
+            obj["P2XLinkText"] = P2XLinkText ?? "";
+            obj["P2YLinkText"] = P2YLinkText ?? "";
+            obj["LineColor"] = _LineColor ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowResultGPoint"] != null) ShowResultGPoint = obj["ShowResultGPoint"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["P1XLinkText"] != null) P1XLinkText = obj["P1XLinkText"].ToString();
+                if (obj["P1YLinkText"] != null) P1YLinkText = obj["P1YLinkText"].ToString();
+                if (obj["P2XLinkText"] != null) P2XLinkText = obj["P2XLinkText"].ToString();
+                if (obj["P2YLinkText"] != null) P2YLinkText = obj["P2YLinkText"].ToString();
+                if (obj["LineColor"] != null) _LineColor = obj["LineColor"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DistancePPModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

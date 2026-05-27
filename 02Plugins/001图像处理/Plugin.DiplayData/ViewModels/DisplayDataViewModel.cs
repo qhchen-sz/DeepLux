@@ -244,76 +244,6 @@ namespace Plugin.DiplayData.ViewModels
 
         #endregion
 
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["DecimalPlaces"] = DecimalPlaces;
-            obj["FontSize"] = FontSize;
-            obj["OK_Label"] = OK_Label ?? "OK";
-            obj["NG_Label"] = NG_Label ?? "NG";
-            obj["IsBlod"] = IsBlod;
-            JArray arr = new JArray();
-            if (TextModels != null)
-            {
-                foreach (var item in TextModels)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["ID"] = item.ID;
-                    itemObj["X_Pos"] = item.X_Pos;
-                    itemObj["Y_Pos"] = item.Y_Pos;
-                    itemObj["StatusLink"] = item.StatusLink ?? "True";
-                    itemObj["DispContent"] = item.DispContent ?? "";
-                    itemObj["Prefix"] = item.Prefix ?? "";
-                    itemObj["Suffix"] = item.Suffix ?? "";
-                    arr.Add(itemObj);
-                }
-            }
-            obj["TextModels"] = arr;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["DecimalPlaces"] != null) DecimalPlaces = obj["DecimalPlaces"].Value<int>();
-                if (obj["FontSize"] != null) FontSize = obj["FontSize"].Value<int>();
-                if (obj["OK_Label"] != null) OK_Label = obj["OK_Label"].ToString();
-                if (obj["NG_Label"] != null) NG_Label = obj["NG_Label"].ToString();
-                if (obj["IsBlod"] != null) IsBlod = obj["IsBlod"].Value<bool>();
-                if (obj["TextModels"] != null)
-                {
-                    JArray arr = (JArray)obj["TextModels"];
-                    TextModels.Clear();
-                    foreach (var item in arr)
-                    {
-                        TextModels.Add(new TextModel()
-                        {
-                            ID = item["ID"]?.Value<int>() ?? 0,
-                            X_Pos = item["X_Pos"]?.Value<int>() ?? 0,
-                            Y_Pos = item["Y_Pos"]?.Value<int>() ?? 0,
-                            StatusLink = item["StatusLink"]?.ToString() ?? "True",
-                            DispContent = item["DispContent"]?.ToString() ?? "",
-                            Prefix = item["Prefix"]?.ToString() ?? "",
-                            Suffix = item["Suffix"]?.ToString() ?? ""
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"DisplayDataViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-
         #region Command
         public override void Loaded()
         {
@@ -461,6 +391,78 @@ namespace Plugin.DiplayData.ViewModels
 
         #region Method
 
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["DecimalPlaces"] = DecimalPlaces;
+            obj["FontSize"] = FontSize;
+            obj["OK_Label"] = OK_Label ?? "OK";
+            obj["NG_Label"] = NG_Label ?? "NG";
+            obj["IsBlod"] = IsBlod;
+            JArray arr = new JArray();
+            if (TextModels != null)
+            {
+                foreach (var item in TextModels)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["X_Pos"] = item.X_Pos;
+                    itemObj["Y_Pos"] = item.Y_Pos;
+                    itemObj["StatusLink"] = item.StatusLink ?? "True";
+                    itemObj["DispContent"] = item.DispContent ?? "";
+                    itemObj["Prefix"] = item.Prefix ?? "";
+                    itemObj["Suffix"] = item.Suffix ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["TextModels"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["DecimalPlaces"] != null) DecimalPlaces = obj["DecimalPlaces"].Value<int>();
+                if (obj["FontSize"] != null) FontSize = obj["FontSize"].Value<int>();
+                if (obj["OK_Label"] != null) OK_Label = obj["OK_Label"].ToString();
+                if (obj["NG_Label"] != null) NG_Label = obj["NG_Label"].ToString();
+                if (obj["IsBlod"] != null) IsBlod = obj["IsBlod"].Value<bool>();
+                if (obj["TextModels"] != null)
+                {
+                    JArray arr = (JArray)obj["TextModels"];
+                    TextModels.Clear();
+                    foreach (var item in arr)
+                    {
+                        TextModels.Add(new TextModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            X_Pos = item["X_Pos"]?.Value<int>() ?? 0,
+                            Y_Pos = item["Y_Pos"]?.Value<int>() ?? 0,
+                            StatusLink = item["StatusLink"]?.ToString() ?? "True",
+                            DispContent = item["DispContent"]?.ToString() ?? "",
+                            Prefix = item["Prefix"]?.ToString() ?? "",
+                            Suffix = item["Suffix"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DisplayDataViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
 
     }

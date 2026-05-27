@@ -325,105 +325,6 @@ namespace Plugin.MeasureCircle.ViewModels
         }
         #endregion
 
-        #region Serialize
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["ShowResultPoint"] = ShowResultPoint;
-            obj["ShowMeasContour"] = ShowMeasContour;
-            obj["ShowResultCircle"] = ShowResultCircle;
-            obj["Scale"] = Scale;
-            obj["OutPutRealCoordFlag"] = OutPutRealCoordFlag;
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["InitCenterX"] = InitCenterX?.Text ?? "";
-            obj["InitCenterY"] = InitCenterY?.Text ?? "";
-            obj["InitRadius"] = InitRadius?.Text ?? "";
-            obj["ShieldRegion"] = (int)ShieldRegion;
-            JObject measObj = new JObject();
-            if (MeasInfo != null)
-            {
-                measObj["MeasDis"] = MeasInfo.MeasDis;
-                measObj["Length1"] = MeasInfo.Length1;
-                measObj["Length2"] = MeasInfo.Length2;
-                measObj["Threshold"] = MeasInfo.Threshold;
-                measObj["MeasMode"] = (int)MeasInfo.MeasMode;
-                measObj["MeasSelect"] = (int)MeasInfo.MeasSelect;
-                measObj["PointsOrder"] = MeasInfo.PointsOrder;
-            }
-            obj["MeasInfo"] = measObj;
-            obj["InitCircle"] = SerializeCircle(InitCircle);
-            obj["TempCircle"] = SerializeCircle(TempCircle);
-            obj["TranCircle"] = SerializeCircle(TranCircle);
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
-                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
-                if (obj["ShowResultCircle"] != null) ShowResultCircle = obj["ShowResultCircle"].Value<bool>();
-                if (obj["Scale"] != null) Scale = obj["Scale"].Value<double>();
-                if (obj["OutPutRealCoordFlag"] != null) OutPutRealCoordFlag = obj["OutPutRealCoordFlag"].Value<bool>();
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["InitCenterX"] != null && InitCenterX != null) InitCenterX.Text = obj["InitCenterX"].ToString();
-                if (obj["InitCenterY"] != null && InitCenterY != null) InitCenterY.Text = obj["InitCenterY"].ToString();
-                if (obj["InitRadius"] != null && InitRadius != null) InitRadius.Text = obj["InitRadius"].ToString();
-                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
-                if (obj["MeasInfo"] != null && MeasInfo != null)
-                {
-                    JObject measObj = (JObject)obj["MeasInfo"];
-                    if (measObj["MeasDis"] != null) MeasInfo.MeasDis = measObj["MeasDis"].Value<double>();
-                    if (measObj["Length1"] != null) MeasInfo.Length1 = measObj["Length1"].Value<double>();
-                    if (measObj["Length2"] != null) MeasInfo.Length2 = measObj["Length2"].Value<double>();
-                    if (measObj["Threshold"] != null) MeasInfo.Threshold = measObj["Threshold"].Value<double>();
-                    if (measObj["MeasMode"] != null) MeasInfo.MeasMode = (eMeasMode)measObj["MeasMode"].Value<int>();
-                    if (measObj["MeasSelect"] != null) MeasInfo.MeasSelect = (eMeasSelect)measObj["MeasSelect"].Value<int>();
-                    if (measObj["PointsOrder"] != null) MeasInfo.PointsOrder = measObj["PointsOrder"].Value<int>();
-                }
-                if (obj["InitCircle"] != null) DeserializeCircle((JObject)obj["InitCircle"], InitCircle);
-                if (obj["TempCircle"] != null) DeserializeCircle((JObject)obj["TempCircle"], TempCircle);
-                if (obj["TranCircle"] != null) DeserializeCircle((JObject)obj["TranCircle"], TranCircle);
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"MeasureCircleViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        private JObject SerializeCircle(ROICircle circle)
-        {
-            if (circle == null) return null;
-            JObject obj = new JObject();
-            obj["CenterX"] = circle.CenterX;
-            obj["CenterY"] = circle.CenterY;
-            obj["Radius"] = circle.Radius;
-            obj["Status"] = circle.Status;
-            obj["PointOrder"] = circle.PointOrder ?? "";
-            obj["StartPhi"] = circle.StartPhi;
-            obj["EndPhi"] = circle.EndPhi;
-            return obj;
-        }
-
-        private void DeserializeCircle(JObject obj, ROICircle circle)
-        {
-            if (obj == null || circle == null) return;
-            if (obj["CenterX"] != null) circle.CenterX = obj["CenterX"].Value<double>();
-            if (obj["CenterY"] != null) circle.CenterY = obj["CenterY"].Value<double>();
-            if (obj["Radius"] != null) circle.Radius = obj["Radius"].Value<double>();
-            if (obj["Status"] != null) circle.Status = obj["Status"].Value<bool>();
-            if (obj["PointOrder"] != null) circle.PointOrder = obj["PointOrder"].ToString();
-            if (obj["StartPhi"] != null) circle.StartPhi = obj["StartPhi"].Value<double>();
-            if (obj["EndPhi"] != null) circle.EndPhi = obj["EndPhi"].Value<double>();
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -1020,6 +921,106 @@ out HTuple hv_Radius)
                 throw HDevExpDefaultException;
             }
         }
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowResultCircle"] = ShowResultCircle;
+            obj["Scale"] = Scale;
+            obj["OutPutRealCoordFlag"] = OutPutRealCoordFlag;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InitCenterX"] = InitCenterX?.Text ?? "";
+            obj["InitCenterY"] = InitCenterY?.Text ?? "";
+            obj["InitRadius"] = InitRadius?.Text ?? "";
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            JObject measObj = new JObject();
+            if (MeasInfo != null)
+            {
+                measObj["MeasDis"] = MeasInfo.MeasDis;
+                measObj["Length1"] = MeasInfo.Length1;
+                measObj["Length2"] = MeasInfo.Length2;
+                measObj["Threshold"] = MeasInfo.Threshold;
+                measObj["MeasMode"] = (int)MeasInfo.MeasMode;
+                measObj["MeasSelect"] = (int)MeasInfo.MeasSelect;
+                measObj["PointsOrder"] = MeasInfo.PointsOrder;
+            }
+            obj["MeasInfo"] = measObj;
+            obj["InitCircle"] = SerializeCircle(InitCircle);
+            obj["TempCircle"] = SerializeCircle(TempCircle);
+            obj["TranCircle"] = SerializeCircle(TranCircle);
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowResultCircle"] != null) ShowResultCircle = obj["ShowResultCircle"].Value<bool>();
+                if (obj["Scale"] != null) Scale = obj["Scale"].Value<double>();
+                if (obj["OutPutRealCoordFlag"] != null) OutPutRealCoordFlag = obj["OutPutRealCoordFlag"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InitCenterX"] != null && InitCenterX != null) InitCenterX.Text = obj["InitCenterX"].ToString();
+                if (obj["InitCenterY"] != null && InitCenterY != null) InitCenterY.Text = obj["InitCenterY"].ToString();
+                if (obj["InitRadius"] != null && InitRadius != null) InitRadius.Text = obj["InitRadius"].ToString();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+                if (obj["MeasInfo"] != null && MeasInfo != null)
+                {
+                    JObject measObj = (JObject)obj["MeasInfo"];
+                    if (measObj["MeasDis"] != null) MeasInfo.MeasDis = measObj["MeasDis"].Value<double>();
+                    if (measObj["Length1"] != null) MeasInfo.Length1 = measObj["Length1"].Value<double>();
+                    if (measObj["Length2"] != null) MeasInfo.Length2 = measObj["Length2"].Value<double>();
+                    if (measObj["Threshold"] != null) MeasInfo.Threshold = measObj["Threshold"].Value<double>();
+                    if (measObj["MeasMode"] != null) MeasInfo.MeasMode = (eMeasMode)measObj["MeasMode"].Value<int>();
+                    if (measObj["MeasSelect"] != null) MeasInfo.MeasSelect = (eMeasSelect)measObj["MeasSelect"].Value<int>();
+                    if (measObj["PointsOrder"] != null) MeasInfo.PointsOrder = measObj["PointsOrder"].Value<int>();
+                }
+                if (obj["InitCircle"] != null) DeserializeCircle((JObject)obj["InitCircle"], InitCircle);
+                if (obj["TempCircle"] != null) DeserializeCircle((JObject)obj["TempCircle"], TempCircle);
+                if (obj["TranCircle"] != null) DeserializeCircle((JObject)obj["TranCircle"], TranCircle);
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"MeasureCircleViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        private JObject SerializeCircle(ROICircle circle)
+        {
+            if (circle == null) return null;
+            JObject obj = new JObject();
+            obj["CenterX"] = circle.CenterX;
+            obj["CenterY"] = circle.CenterY;
+            obj["Radius"] = circle.Radius;
+            obj["Status"] = circle.Status;
+            obj["PointOrder"] = circle.PointOrder ?? "";
+            obj["StartPhi"] = circle.StartPhi;
+            obj["EndPhi"] = circle.EndPhi;
+            return obj;
+        }
+
+        private void DeserializeCircle(JObject obj, ROICircle circle)
+        {
+            if (obj == null || circle == null) return;
+            if (obj["CenterX"] != null) circle.CenterX = obj["CenterX"].Value<double>();
+            if (obj["CenterY"] != null) circle.CenterY = obj["CenterY"].Value<double>();
+            if (obj["Radius"] != null) circle.Radius = obj["Radius"].Value<double>();
+            if (obj["Status"] != null) circle.Status = obj["Status"].Value<bool>();
+            if (obj["PointOrder"] != null) circle.PointOrder = obj["PointOrder"].ToString();
+            if (obj["StartPhi"] != null) circle.StartPhi = obj["StartPhi"].Value<double>();
+            if (obj["EndPhi"] != null) circle.EndPhi = obj["EndPhi"].Value<double>();
+        }
+        #endregion
+
     }
 
 

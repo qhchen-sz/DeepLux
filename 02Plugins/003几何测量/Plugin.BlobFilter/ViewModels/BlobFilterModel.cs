@@ -271,45 +271,6 @@ namespace Plugin.BlobFilter.ViewModels
         }
         #endregion
 
-        #region 序列化
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["MinArea"] = MinArea;
-            obj["MaxArea"] = MaxArea;
-            obj["FilterMode"] = (int)FilterMode;
-            obj["ShowFilteredImage"] = ShowFilteredImage;
-            obj["ShowRegion"] = ShowRegion;
-            obj["ShowAreaText"] = ShowAreaText;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["MinArea"] != null) MinArea = obj["MinArea"].Value<double>();
-                if (obj["MaxArea"] != null) MaxArea = obj["MaxArea"].Value<double>();
-                if (obj["FilterMode"] != null) FilterMode = (eFilterMode)obj["FilterMode"].Value<int>();
-                if (obj["ShowFilteredImage"] != null) ShowFilteredImage = obj["ShowFilteredImage"].Value<bool>();
-                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
-                if (obj["ShowAreaText"] != null) ShowAreaText = obj["ShowAreaText"].Value<bool>();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"BlobFilterModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -411,5 +372,45 @@ namespace Plugin.BlobFilter.ViewModels
             }
         }
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["MinArea"] = MinArea;
+            obj["MaxArea"] = MaxArea;
+            obj["FilterMode"] = (int)FilterMode;
+            obj["ShowFilteredImage"] = ShowFilteredImage;
+            obj["ShowRegion"] = ShowRegion;
+            obj["ShowAreaText"] = ShowAreaText;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["MinArea"] != null) MinArea = obj["MinArea"].Value<double>();
+                if (obj["MaxArea"] != null) MaxArea = obj["MaxArea"].Value<double>();
+                if (obj["FilterMode"] != null) FilterMode = (eFilterMode)obj["FilterMode"].Value<int>();
+                if (obj["ShowFilteredImage"] != null) ShowFilteredImage = obj["ShowFilteredImage"].Value<bool>();
+                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
+                if (obj["ShowAreaText"] != null) ShowAreaText = obj["ShowAreaText"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"BlobFilterModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

@@ -383,45 +383,6 @@ namespace Plugin.AreaOperations.ViewModels
         }
         #endregion
 
-        #region Serialize
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["ShowRegion"] = ShowRegion;
-            obj["FillDisplay"] = FillDisplay;
-            obj["OutputRegionImage"] = OutputRegionImage;
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["InputRegion1LinkText"] = InputRegion1LinkText ?? "";
-            obj["InputRegion2LinkText"] = InputRegion2LinkText ?? "";
-            obj["SelectedOperationType"] = (int)SelectedOperationType;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
-                if (obj["FillDisplay"] != null) FillDisplay = obj["FillDisplay"].Value<bool>();
-                if (obj["OutputRegionImage"] != null) OutputRegionImage = obj["OutputRegionImage"].Value<bool>();
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["InputRegion1LinkText"] != null) InputRegion1LinkText = obj["InputRegion1LinkText"].ToString();
-                if (obj["InputRegion2LinkText"] != null) InputRegion2LinkText = obj["InputRegion2LinkText"].ToString();
-                if (obj["SelectedOperationType"] != null) SelectedOperationType = (OperationType)obj["SelectedOperationType"].Value<int>();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"AreaOperationsViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -543,6 +504,46 @@ namespace Plugin.AreaOperations.ViewModels
             }
         }
 
+        #endregion
+
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowRegion"] = ShowRegion;
+            obj["FillDisplay"] = FillDisplay;
+            obj["OutputRegionImage"] = OutputRegionImage;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InputRegion1LinkText"] = InputRegion1LinkText ?? "";
+            obj["InputRegion2LinkText"] = InputRegion2LinkText ?? "";
+            obj["SelectedOperationType"] = (int)SelectedOperationType;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
+                if (obj["FillDisplay"] != null) FillDisplay = obj["FillDisplay"].Value<bool>();
+                if (obj["OutputRegionImage"] != null) OutputRegionImage = obj["OutputRegionImage"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InputRegion1LinkText"] != null) InputRegion1LinkText = obj["InputRegion1LinkText"].ToString();
+                if (obj["InputRegion2LinkText"] != null) InputRegion2LinkText = obj["InputRegion2LinkText"].ToString();
+                if (obj["SelectedOperationType"] != null) SelectedOperationType = (OperationType)obj["SelectedOperationType"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"AreaOperationsViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
 
     }

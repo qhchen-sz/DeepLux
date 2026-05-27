@@ -534,77 +534,6 @@ namespace Plugin.GrayMeasure.ViewModels
         private ROICircle _roiCircle;
         #endregion
 
-        #region Serialize
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["RoiMode"] = (int)RoiMode;
-            obj["CenterX"] = CenterX;
-            obj["CenterY"] = CenterY;
-            obj["Radius"] = Radius;
-            obj["Length1"] = Length1;
-            obj["Length2"] = Length2;
-            obj["MeasNum"] = MeasNum;
-            obj["ArrayRows"] = ArrayRows;
-            obj["ArrayCols"] = ArrayCols;
-            obj["ArrayRowSpacing"] = ArrayRowSpacing;
-            obj["ArrayColSpacing"] = ArrayColSpacing;
-            obj["RectLength1"] = RectLength1;
-            obj["RectLength2"] = RectLength2;
-            obj["RectAngle"] = RectAngle;
-            obj["ShowMeasContour"] = ShowMeasContour;
-            obj["ShowGrayValue"] = ShowGrayValue;
-            obj["ShowCirclePath"] = ShowCirclePath;
-            obj["ShowCircleArray"] = ShowCircleArray;
-            obj["EnableMaxGrayCheck"] = EnableMaxGrayCheck;
-            obj["MaxGrayThreshold"] = MaxGrayThreshold;
-            obj["EnableMinGrayCheck"] = EnableMinGrayCheck;
-            obj["MinGrayThreshold"] = MinGrayThreshold;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["RoiMode"] != null) RoiMode = (eRoiMode)obj["RoiMode"].Value<int>();
-                if (obj["CenterX"] != null) CenterX = obj["CenterX"].Value<double>();
-                if (obj["CenterY"] != null) CenterY = obj["CenterY"].Value<double>();
-                if (obj["Radius"] != null) Radius = obj["Radius"].Value<double>();
-                if (obj["Length1"] != null) Length1 = obj["Length1"].Value<double>();
-                if (obj["Length2"] != null) Length2 = obj["Length2"].Value<double>();
-                if (obj["MeasNum"] != null) MeasNum = obj["MeasNum"].Value<int>();
-                if (obj["ArrayRows"] != null) ArrayRows = obj["ArrayRows"].Value<int>();
-                if (obj["ArrayCols"] != null) ArrayCols = obj["ArrayCols"].Value<int>();
-                if (obj["ArrayRowSpacing"] != null) ArrayRowSpacing = obj["ArrayRowSpacing"].Value<double>();
-                if (obj["ArrayColSpacing"] != null) ArrayColSpacing = obj["ArrayColSpacing"].Value<double>();
-                if (obj["RectLength1"] != null) RectLength1 = obj["RectLength1"].Value<double>();
-                if (obj["RectLength2"] != null) RectLength2 = obj["RectLength2"].Value<double>();
-                if (obj["RectAngle"] != null) RectAngle = obj["RectAngle"].Value<double>();
-                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
-                if (obj["ShowGrayValue"] != null) ShowGrayValue = obj["ShowGrayValue"].Value<bool>();
-                if (obj["ShowCirclePath"] != null) ShowCirclePath = obj["ShowCirclePath"].Value<bool>();
-                if (obj["ShowCircleArray"] != null) ShowCircleArray = obj["ShowCircleArray"].Value<bool>();
-                if (obj["EnableMaxGrayCheck"] != null) EnableMaxGrayCheck = obj["EnableMaxGrayCheck"].Value<bool>();
-                if (obj["MaxGrayThreshold"] != null) MaxGrayThreshold = obj["MaxGrayThreshold"].Value<double>();
-                if (obj["EnableMinGrayCheck"] != null) EnableMinGrayCheck = obj["EnableMinGrayCheck"].Value<bool>();
-                if (obj["MinGrayThreshold"] != null) MinGrayThreshold = obj["MinGrayThreshold"].Value<double>();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"GrayMeasureViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -782,5 +711,76 @@ namespace Plugin.GrayMeasure.ViewModels
             }
         }
         #endregion
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["RoiMode"] = (int)RoiMode;
+            obj["CenterX"] = CenterX;
+            obj["CenterY"] = CenterY;
+            obj["Radius"] = Radius;
+            obj["Length1"] = Length1;
+            obj["Length2"] = Length2;
+            obj["MeasNum"] = MeasNum;
+            obj["ArrayRows"] = ArrayRows;
+            obj["ArrayCols"] = ArrayCols;
+            obj["ArrayRowSpacing"] = ArrayRowSpacing;
+            obj["ArrayColSpacing"] = ArrayColSpacing;
+            obj["RectLength1"] = RectLength1;
+            obj["RectLength2"] = RectLength2;
+            obj["RectAngle"] = RectAngle;
+            obj["ShowMeasContour"] = ShowMeasContour;
+            obj["ShowGrayValue"] = ShowGrayValue;
+            obj["ShowCirclePath"] = ShowCirclePath;
+            obj["ShowCircleArray"] = ShowCircleArray;
+            obj["EnableMaxGrayCheck"] = EnableMaxGrayCheck;
+            obj["MaxGrayThreshold"] = MaxGrayThreshold;
+            obj["EnableMinGrayCheck"] = EnableMinGrayCheck;
+            obj["MinGrayThreshold"] = MinGrayThreshold;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["RoiMode"] != null) RoiMode = (eRoiMode)obj["RoiMode"].Value<int>();
+                if (obj["CenterX"] != null) CenterX = obj["CenterX"].Value<double>();
+                if (obj["CenterY"] != null) CenterY = obj["CenterY"].Value<double>();
+                if (obj["Radius"] != null) Radius = obj["Radius"].Value<double>();
+                if (obj["Length1"] != null) Length1 = obj["Length1"].Value<double>();
+                if (obj["Length2"] != null) Length2 = obj["Length2"].Value<double>();
+                if (obj["MeasNum"] != null) MeasNum = obj["MeasNum"].Value<int>();
+                if (obj["ArrayRows"] != null) ArrayRows = obj["ArrayRows"].Value<int>();
+                if (obj["ArrayCols"] != null) ArrayCols = obj["ArrayCols"].Value<int>();
+                if (obj["ArrayRowSpacing"] != null) ArrayRowSpacing = obj["ArrayRowSpacing"].Value<double>();
+                if (obj["ArrayColSpacing"] != null) ArrayColSpacing = obj["ArrayColSpacing"].Value<double>();
+                if (obj["RectLength1"] != null) RectLength1 = obj["RectLength1"].Value<double>();
+                if (obj["RectLength2"] != null) RectLength2 = obj["RectLength2"].Value<double>();
+                if (obj["RectAngle"] != null) RectAngle = obj["RectAngle"].Value<double>();
+                if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
+                if (obj["ShowGrayValue"] != null) ShowGrayValue = obj["ShowGrayValue"].Value<bool>();
+                if (obj["ShowCirclePath"] != null) ShowCirclePath = obj["ShowCirclePath"].Value<bool>();
+                if (obj["ShowCircleArray"] != null) ShowCircleArray = obj["ShowCircleArray"].Value<bool>();
+                if (obj["EnableMaxGrayCheck"] != null) EnableMaxGrayCheck = obj["EnableMaxGrayCheck"].Value<bool>();
+                if (obj["MaxGrayThreshold"] != null) MaxGrayThreshold = obj["MaxGrayThreshold"].Value<double>();
+                if (obj["EnableMinGrayCheck"] != null) EnableMinGrayCheck = obj["EnableMinGrayCheck"].Value<bool>();
+                if (obj["MinGrayThreshold"] != null) MinGrayThreshold = obj["MinGrayThreshold"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"GrayMeasureViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

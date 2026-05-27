@@ -876,6 +876,8 @@ namespace Plugin.FitPlane.ViewModels
             }
         }
 
+        #endregion
+        #region 序列化
         public override string HVSerialize()
         {
             JObject obj = JObject.Parse(base.HVSerialize());

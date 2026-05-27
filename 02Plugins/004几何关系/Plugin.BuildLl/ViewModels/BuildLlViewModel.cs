@@ -228,43 +228,6 @@ namespace Plugin.BuildLl.ViewModels
         }
         #endregion
 
-        #region 序列化
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["ShowResultPoint"] = ShowResultPoint;
-            obj["ShowResultLine"] = ShowResultLine;
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["Line1LinkText"] = Line1LinkText ?? "";
-            obj["Line2LinkText"] = Line2LinkText ?? "";
-            obj["ShieldRegion"] = (int)ShieldRegion;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
-                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
-                if (obj["Line2LinkText"] != null) Line2LinkText = obj["Line2LinkText"].ToString();
-                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"BuildLlViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -400,5 +363,43 @@ namespace Plugin.BuildLl.ViewModels
         #region Method
 
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultPoint"] = ShowResultPoint;
+            obj["ShowResultLine"] = ShowResultLine;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["Line1LinkText"] = Line1LinkText ?? "";
+            obj["Line2LinkText"] = Line2LinkText ?? "";
+            obj["ShieldRegion"] = (int)ShieldRegion;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
+                if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
+                if (obj["Line2LinkText"] != null) Line2LinkText = obj["Line2LinkText"].ToString();
+                if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"BuildLlViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

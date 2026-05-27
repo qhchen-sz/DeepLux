@@ -374,131 +374,6 @@ namespace Plugin.PerProcessing.ViewModels
         }
         #endregion
 
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["SelectedIndex"] = SelectedIndex;
-            obj["SelectedROIType"] = (int)SelectedROIType;
-            obj["InputRoiLinkText"] = InputRoiLinkText ?? "";
-            JArray arr = new JArray();
-            if (m_ToolList != null)
-            {
-                foreach (var item in m_ToolList)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["m_enable"] = item.m_enable;
-                    itemObj["m_name"] = (int)item.m_name;
-                    itemObj["m_TransImageType"] = (int)item.m_TransImageType;
-                    itemObj["m_TransImageChannel"] = (int)item.m_TransImageChannel;
-                    itemObj["m_MirrorImageType"] = (int)item.m_MirrorImageType;
-                    itemObj["m_RotateImageAngle"] = (int)item.m_RotateImageAngle;
-                    itemObj["m_ChangeImageWidth"] = item.m_ChangeImageWidth;
-                    itemObj["m_ChangeImageHeight"] = item.m_ChangeImageHeight;
-                    itemObj["m_MeanImageWidth"] = item.m_MeanImageWidth;
-                    itemObj["m_MeanImageHeight"] = item.m_MeanImageHeight;
-                    itemObj["m_MedianImageWidth"] = item.m_MedianImageWidth;
-                    itemObj["m_MedianImageHeight"] = item.m_MedianImageHeight;
-                    itemObj["m_GaussImageSize"] = item.m_GaussImageSize;
-                    itemObj["m_GrayDilationWidth"] = item.m_GrayDilationWidth;
-                    itemObj["m_GrayDilationHeight"] = item.m_GrayDilationHeight;
-                    itemObj["m_GrayErosionWidth"] = item.m_GrayErosionWidth;
-                    itemObj["m_GrayErosionHeight"] = item.m_GrayErosionHeight;
-                    itemObj["m_EmphaSizeWidth"] = item.m_EmphaSizeWidth;
-                    itemObj["m_EmphaSizeHeight"] = item.m_EmphaSizeHeight;
-                    itemObj["m_EmphaSizeFactor"] = item.m_EmphaSizeFactor;
-                    itemObj["m_IlluminateWidth"] = item.m_IlluminateWidth;
-                    itemObj["m_IlluminateHeight"] = item.m_IlluminateHeight;
-                    itemObj["m_IlluminateFactor"] = item.m_IlluminateFactor;
-                    itemObj["m_ScaleImageMult"] = item.m_ScaleImageMult;
-                    itemObj["m_ScaleImageAdd"] = item.m_ScaleImageAdd;
-                    itemObj["m_OpeningWidth"] = item.m_OpeningWidth;
-                    itemObj["m_OpeningHeight"] = item.m_OpeningHeight;
-                    itemObj["m_ClosingWidth"] = item.m_ClosingWidth;
-                    itemObj["m_ClosingHeight"] = item.m_ClosingHeight;
-                    itemObj["m_InvertImageLogic"] = item.m_InvertImageLogic;
-                    itemObj["m_ThresholdLow"] = item.m_ThresholdLow;
-                    itemObj["m_ThresholdHight"] = item.m_ThresholdHight;
-                    itemObj["m_ThresholdReverse"] = item.m_ThresholdReverse;
-                    itemObj["m_VarThresholdWidth"] = item.m_VarThresholdWidth;
-                    itemObj["m_VarThresholdHeight"] = item.m_VarThresholdHeight;
-                    itemObj["m_VarThresholdSkew"] = item.m_VarThresholdSkew;
-                    itemObj["m_VarThresholdType"] = (int)item.m_VarThresholdType;
-                    arr.Add(itemObj);
-                }
-            }
-            obj["m_ToolList"] = arr;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["SelectedIndex"] != null) SelectedIndex = obj["SelectedIndex"].Value<int>();
-                if (obj["SelectedROIType"] != null) SelectedROIType = (eRoiType)obj["SelectedROIType"].Value<int>();
-                if (obj["InputRoiLinkText"] != null) InputRoiLinkText = obj["InputRoiLinkText"].ToString();
-                if (obj["m_ToolList"] != null)
-                {
-                    JArray arr = (JArray)obj["m_ToolList"];
-                    m_ToolList.Clear();
-                    foreach (var item in arr)
-                    {
-                        PerProcessing.Models.ModelData md = new PerProcessing.Models.ModelData();
-                        if (item["m_enable"] != null) md.m_enable = item["m_enable"].Value<bool>();
-                        if (item["m_name"] != null) md.m_name = (PerProcessing.Models.eOperatorType)item["m_name"].Value<int>();
-                        if (item["m_TransImageType"] != null) md.m_TransImageType = (PerProcessing.Models.eTransImageType)item["m_TransImageType"].Value<int>();
-                        if (item["m_TransImageChannel"] != null) md.m_TransImageChannel = (PerProcessing.Models.eTransImageChannel)item["m_TransImageChannel"].Value<int>();
-                        if (item["m_MirrorImageType"] != null) md.m_MirrorImageType = (PerProcessing.Models.eMirrorImageType)item["m_MirrorImageType"].Value<int>();
-                        if (item["m_RotateImageAngle"] != null) md.m_RotateImageAngle = (PerProcessing.Models.eRotateImageAngle)item["m_RotateImageAngle"].Value<int>();
-                        if (item["m_ChangeImageWidth"] != null) md.m_ChangeImageWidth = item["m_ChangeImageWidth"].Value<int>();
-                        if (item["m_ChangeImageHeight"] != null) md.m_ChangeImageHeight = item["m_ChangeImageHeight"].Value<int>();
-                        if (item["m_MeanImageWidth"] != null) md.m_MeanImageWidth = item["m_MeanImageWidth"].Value<int>();
-                        if (item["m_MeanImageHeight"] != null) md.m_MeanImageHeight = item["m_MeanImageHeight"].Value<int>();
-                        if (item["m_MedianImageWidth"] != null) md.m_MedianImageWidth = item["m_MedianImageWidth"].Value<int>();
-                        if (item["m_MedianImageHeight"] != null) md.m_MedianImageHeight = item["m_MedianImageHeight"].Value<int>();
-                        if (item["m_GaussImageSize"] != null) md.m_GaussImageSize = item["m_GaussImageSize"].Value<int>();
-                        if (item["m_GrayDilationWidth"] != null) md.m_GrayDilationWidth = item["m_GrayDilationWidth"].Value<int>();
-                        if (item["m_GrayDilationHeight"] != null) md.m_GrayDilationHeight = item["m_GrayDilationHeight"].Value<int>();
-                        if (item["m_GrayErosionWidth"] != null) md.m_GrayErosionWidth = item["m_GrayErosionWidth"].Value<int>();
-                        if (item["m_GrayErosionHeight"] != null) md.m_GrayErosionHeight = item["m_GrayErosionHeight"].Value<int>();
-                        if (item["m_EmphaSizeWidth"] != null) md.m_EmphaSizeWidth = item["m_EmphaSizeWidth"].Value<int>();
-                        if (item["m_EmphaSizeHeight"] != null) md.m_EmphaSizeHeight = item["m_EmphaSizeHeight"].Value<int>();
-                        if (item["m_EmphaSizeFactor"] != null) md.m_EmphaSizeFactor = item["m_EmphaSizeFactor"].Value<double>();
-                        if (item["m_IlluminateWidth"] != null) md.m_IlluminateWidth = item["m_IlluminateWidth"].Value<int>();
-                        if (item["m_IlluminateHeight"] != null) md.m_IlluminateHeight = item["m_IlluminateHeight"].Value<int>();
-                        if (item["m_IlluminateFactor"] != null) md.m_IlluminateFactor = item["m_IlluminateFactor"].Value<double>();
-                        if (item["m_ScaleImageMult"] != null) md.m_ScaleImageMult = item["m_ScaleImageMult"].Value<double>();
-                        if (item["m_ScaleImageAdd"] != null) md.m_ScaleImageAdd = item["m_ScaleImageAdd"].Value<int>();
-                        if (item["m_OpeningWidth"] != null) md.m_OpeningWidth = item["m_OpeningWidth"].Value<int>();
-                        if (item["m_OpeningHeight"] != null) md.m_OpeningHeight = item["m_OpeningHeight"].Value<int>();
-                        if (item["m_ClosingWidth"] != null) md.m_ClosingWidth = item["m_ClosingWidth"].Value<int>();
-                        if (item["m_ClosingHeight"] != null) md.m_ClosingHeight = item["m_ClosingHeight"].Value<int>();
-                        if (item["m_InvertImageLogic"] != null) md.m_InvertImageLogic = item["m_InvertImageLogic"].Value<bool>();
-                        if (item["m_ThresholdLow"] != null) md.m_ThresholdLow = item["m_ThresholdLow"].Value<int>();
-                        if (item["m_ThresholdHight"] != null) md.m_ThresholdHight = item["m_ThresholdHight"].Value<int>();
-                        if (item["m_ThresholdReverse"] != null) md.m_ThresholdReverse = item["m_ThresholdReverse"].Value<bool>();
-                        if (item["m_VarThresholdWidth"] != null) md.m_VarThresholdWidth = item["m_VarThresholdWidth"].Value<int>();
-                        if (item["m_VarThresholdHeight"] != null) md.m_VarThresholdHeight = item["m_VarThresholdHeight"].Value<int>();
-                        if (item["m_VarThresholdSkew"] != null) md.m_VarThresholdSkew = item["m_VarThresholdSkew"].Value<int>();
-                        if (item["m_VarThresholdType"] != null) md.m_VarThresholdType = (PerProcessing.Models.eVarThresholdType)item["m_VarThresholdType"].Value<int>();
-                        m_ToolList.Add(md);
-                    }
-                }
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"PerProcessingViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-
         #region command
         public override void Loaded()
         {
@@ -692,6 +567,133 @@ namespace Plugin.PerProcessing.ViewModels
                     });
                 }
                 return _LinkCommand;
+            }
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["SelectedIndex"] = SelectedIndex;
+            obj["SelectedROIType"] = (int)SelectedROIType;
+            obj["InputRoiLinkText"] = InputRoiLinkText ?? "";
+            JArray arr = new JArray();
+            if (m_ToolList != null)
+            {
+                foreach (var item in m_ToolList)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["m_enable"] = item.m_enable;
+                    itemObj["m_name"] = (int)item.m_name;
+                    itemObj["m_TransImageType"] = (int)item.m_TransImageType;
+                    itemObj["m_TransImageChannel"] = (int)item.m_TransImageChannel;
+                    itemObj["m_MirrorImageType"] = (int)item.m_MirrorImageType;
+                    itemObj["m_RotateImageAngle"] = (int)item.m_RotateImageAngle;
+                    itemObj["m_ChangeImageWidth"] = item.m_ChangeImageWidth;
+                    itemObj["m_ChangeImageHeight"] = item.m_ChangeImageHeight;
+                    itemObj["m_MeanImageWidth"] = item.m_MeanImageWidth;
+                    itemObj["m_MeanImageHeight"] = item.m_MeanImageHeight;
+                    itemObj["m_MedianImageWidth"] = item.m_MedianImageWidth;
+                    itemObj["m_MedianImageHeight"] = item.m_MedianImageHeight;
+                    itemObj["m_GaussImageSize"] = item.m_GaussImageSize;
+                    itemObj["m_GrayDilationWidth"] = item.m_GrayDilationWidth;
+                    itemObj["m_GrayDilationHeight"] = item.m_GrayDilationHeight;
+                    itemObj["m_GrayErosionWidth"] = item.m_GrayErosionWidth;
+                    itemObj["m_GrayErosionHeight"] = item.m_GrayErosionHeight;
+                    itemObj["m_EmphaSizeWidth"] = item.m_EmphaSizeWidth;
+                    itemObj["m_EmphaSizeHeight"] = item.m_EmphaSizeHeight;
+                    itemObj["m_EmphaSizeFactor"] = item.m_EmphaSizeFactor;
+                    itemObj["m_IlluminateWidth"] = item.m_IlluminateWidth;
+                    itemObj["m_IlluminateHeight"] = item.m_IlluminateHeight;
+                    itemObj["m_IlluminateFactor"] = item.m_IlluminateFactor;
+                    itemObj["m_ScaleImageMult"] = item.m_ScaleImageMult;
+                    itemObj["m_ScaleImageAdd"] = item.m_ScaleImageAdd;
+                    itemObj["m_OpeningWidth"] = item.m_OpeningWidth;
+                    itemObj["m_OpeningHeight"] = item.m_OpeningHeight;
+                    itemObj["m_ClosingWidth"] = item.m_ClosingWidth;
+                    itemObj["m_ClosingHeight"] = item.m_ClosingHeight;
+                    itemObj["m_InvertImageLogic"] = item.m_InvertImageLogic;
+                    itemObj["m_ThresholdLow"] = item.m_ThresholdLow;
+                    itemObj["m_ThresholdHight"] = item.m_ThresholdHight;
+                    itemObj["m_ThresholdReverse"] = item.m_ThresholdReverse;
+                    itemObj["m_VarThresholdWidth"] = item.m_VarThresholdWidth;
+                    itemObj["m_VarThresholdHeight"] = item.m_VarThresholdHeight;
+                    itemObj["m_VarThresholdSkew"] = item.m_VarThresholdSkew;
+                    itemObj["m_VarThresholdType"] = (int)item.m_VarThresholdType;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["m_ToolList"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["SelectedIndex"] != null) SelectedIndex = obj["SelectedIndex"].Value<int>();
+                if (obj["SelectedROIType"] != null) SelectedROIType = (eRoiType)obj["SelectedROIType"].Value<int>();
+                if (obj["InputRoiLinkText"] != null) InputRoiLinkText = obj["InputRoiLinkText"].ToString();
+                if (obj["m_ToolList"] != null)
+                {
+                    JArray arr = (JArray)obj["m_ToolList"];
+                    m_ToolList.Clear();
+                    foreach (var item in arr)
+                    {
+                        PerProcessing.Models.ModelData md = new PerProcessing.Models.ModelData();
+                        if (item["m_enable"] != null) md.m_enable = item["m_enable"].Value<bool>();
+                        if (item["m_name"] != null) md.m_name = (PerProcessing.Models.eOperatorType)item["m_name"].Value<int>();
+                        if (item["m_TransImageType"] != null) md.m_TransImageType = (PerProcessing.Models.eTransImageType)item["m_TransImageType"].Value<int>();
+                        if (item["m_TransImageChannel"] != null) md.m_TransImageChannel = (PerProcessing.Models.eTransImageChannel)item["m_TransImageChannel"].Value<int>();
+                        if (item["m_MirrorImageType"] != null) md.m_MirrorImageType = (PerProcessing.Models.eMirrorImageType)item["m_MirrorImageType"].Value<int>();
+                        if (item["m_RotateImageAngle"] != null) md.m_RotateImageAngle = (PerProcessing.Models.eRotateImageAngle)item["m_RotateImageAngle"].Value<int>();
+                        if (item["m_ChangeImageWidth"] != null) md.m_ChangeImageWidth = item["m_ChangeImageWidth"].Value<int>();
+                        if (item["m_ChangeImageHeight"] != null) md.m_ChangeImageHeight = item["m_ChangeImageHeight"].Value<int>();
+                        if (item["m_MeanImageWidth"] != null) md.m_MeanImageWidth = item["m_MeanImageWidth"].Value<int>();
+                        if (item["m_MeanImageHeight"] != null) md.m_MeanImageHeight = item["m_MeanImageHeight"].Value<int>();
+                        if (item["m_MedianImageWidth"] != null) md.m_MedianImageWidth = item["m_MedianImageWidth"].Value<int>();
+                        if (item["m_MedianImageHeight"] != null) md.m_MedianImageHeight = item["m_MedianImageHeight"].Value<int>();
+                        if (item["m_GaussImageSize"] != null) md.m_GaussImageSize = item["m_GaussImageSize"].Value<int>();
+                        if (item["m_GrayDilationWidth"] != null) md.m_GrayDilationWidth = item["m_GrayDilationWidth"].Value<int>();
+                        if (item["m_GrayDilationHeight"] != null) md.m_GrayDilationHeight = item["m_GrayDilationHeight"].Value<int>();
+                        if (item["m_GrayErosionWidth"] != null) md.m_GrayErosionWidth = item["m_GrayErosionWidth"].Value<int>();
+                        if (item["m_GrayErosionHeight"] != null) md.m_GrayErosionHeight = item["m_GrayErosionHeight"].Value<int>();
+                        if (item["m_EmphaSizeWidth"] != null) md.m_EmphaSizeWidth = item["m_EmphaSizeWidth"].Value<int>();
+                        if (item["m_EmphaSizeHeight"] != null) md.m_EmphaSizeHeight = item["m_EmphaSizeHeight"].Value<int>();
+                        if (item["m_EmphaSizeFactor"] != null) md.m_EmphaSizeFactor = item["m_EmphaSizeFactor"].Value<double>();
+                        if (item["m_IlluminateWidth"] != null) md.m_IlluminateWidth = item["m_IlluminateWidth"].Value<int>();
+                        if (item["m_IlluminateHeight"] != null) md.m_IlluminateHeight = item["m_IlluminateHeight"].Value<int>();
+                        if (item["m_IlluminateFactor"] != null) md.m_IlluminateFactor = item["m_IlluminateFactor"].Value<double>();
+                        if (item["m_ScaleImageMult"] != null) md.m_ScaleImageMult = item["m_ScaleImageMult"].Value<double>();
+                        if (item["m_ScaleImageAdd"] != null) md.m_ScaleImageAdd = item["m_ScaleImageAdd"].Value<int>();
+                        if (item["m_OpeningWidth"] != null) md.m_OpeningWidth = item["m_OpeningWidth"].Value<int>();
+                        if (item["m_OpeningHeight"] != null) md.m_OpeningHeight = item["m_OpeningHeight"].Value<int>();
+                        if (item["m_ClosingWidth"] != null) md.m_ClosingWidth = item["m_ClosingWidth"].Value<int>();
+                        if (item["m_ClosingHeight"] != null) md.m_ClosingHeight = item["m_ClosingHeight"].Value<int>();
+                        if (item["m_InvertImageLogic"] != null) md.m_InvertImageLogic = item["m_InvertImageLogic"].Value<bool>();
+                        if (item["m_ThresholdLow"] != null) md.m_ThresholdLow = item["m_ThresholdLow"].Value<int>();
+                        if (item["m_ThresholdHight"] != null) md.m_ThresholdHight = item["m_ThresholdHight"].Value<int>();
+                        if (item["m_ThresholdReverse"] != null) md.m_ThresholdReverse = item["m_ThresholdReverse"].Value<bool>();
+                        if (item["m_VarThresholdWidth"] != null) md.m_VarThresholdWidth = item["m_VarThresholdWidth"].Value<int>();
+                        if (item["m_VarThresholdHeight"] != null) md.m_VarThresholdHeight = item["m_VarThresholdHeight"].Value<int>();
+                        if (item["m_VarThresholdSkew"] != null) md.m_VarThresholdSkew = item["m_VarThresholdSkew"].Value<int>();
+                        if (item["m_VarThresholdType"] != null) md.m_VarThresholdType = (PerProcessing.Models.eVarThresholdType)item["m_VarThresholdType"].Value<int>();
+                        m_ToolList.Add(md);
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PerProcessingViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

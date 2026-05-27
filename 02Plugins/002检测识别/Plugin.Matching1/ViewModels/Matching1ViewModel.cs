@@ -402,72 +402,6 @@ namespace Plugin.Matching1.ViewModels
 
         #endregion
 
-        #region Serialize
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["ShowSearchRegion"] = ShowSearchRegion;
-            obj["ShowResultContour"] = ShowResultContour;
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["SearchRegionSource"] = (int)SearchRegionSource;
-            obj["ModelType"] = (int)ModelType;
-            obj["Levels"] = Levels;
-            obj["MathNum"] = MathNum?.Text ?? "10";
-            obj["MaxOverlap"] = MaxOverlap;
-            obj["GreedDeg"] = GreedDeg;
-            obj["MinScore"] = MinScore;
-            obj["AreaOffset"] = AreaOffset;
-            obj["ModelOverLapArea"] = ModelOverLapArea;
-            JObject searchRegionObj = new JObject();
-            if (Rectangle1SearchRegion != null)
-            {
-                searchRegionObj["Row1"] = Rectangle1SearchRegion.Row1;
-                searchRegionObj["Col1"] = Rectangle1SearchRegion.Col1;
-                searchRegionObj["Row2"] = Rectangle1SearchRegion.Row2;
-                searchRegionObj["Col2"] = Rectangle1SearchRegion.Col2;
-            }
-            obj["Rectangle1SearchRegion"] = searchRegionObj;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["ShowSearchRegion"] != null) ShowSearchRegion = obj["ShowSearchRegion"].Value<bool>();
-                if (obj["ShowResultContour"] != null) ShowResultContour = obj["ShowResultContour"].Value<bool>();
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["SearchRegionSource"] != null) SearchRegionSource = (eSearchRegion)obj["SearchRegionSource"].Value<int>();
-                if (obj["ModelType"] != null) ModelType = (eModelType)obj["ModelType"].Value<int>();
-                if (obj["Levels"] != null) Levels = obj["Levels"].Value<int>();
-                if (obj["MathNum"] != null && MathNum != null) MathNum.Text = obj["MathNum"].ToString();
-                if (obj["MaxOverlap"] != null) MaxOverlap = obj["MaxOverlap"].Value<double>();
-                if (obj["GreedDeg"] != null) GreedDeg = obj["GreedDeg"].Value<double>();
-                if (obj["MinScore"] != null) MinScore = obj["MinScore"].Value<double>();
-                if (obj["AreaOffset"] != null) AreaOffset = obj["AreaOffset"].Value<double>();
-                if (obj["ModelOverLapArea"] != null) ModelOverLapArea = obj["ModelOverLapArea"].Value<double>();
-                if (obj["Rectangle1SearchRegion"] != null && Rectangle1SearchRegion != null)
-                {
-                    JObject srObj = (JObject)obj["Rectangle1SearchRegion"];
-                    if (srObj["Row1"] != null) Rectangle1SearchRegion.Row1 = srObj["Row1"].Value<double>();
-                    if (srObj["Col1"] != null) Rectangle1SearchRegion.Col1 = srObj["Col1"].Value<double>();
-                    if (srObj["Row2"] != null) Rectangle1SearchRegion.Row2 = srObj["Row2"].Value<double>();
-                    if (srObj["Col2"] != null) Rectangle1SearchRegion.Col2 = srObj["Col2"].Value<double>();
-                }
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"Matching1ViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-        #endregion
-
         #region Command
         public override void Loaded()
         {
@@ -858,5 +792,71 @@ namespace Plugin.Matching1.ViewModels
             }
         }
         #endregion
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowSearchRegion"] = ShowSearchRegion;
+            obj["ShowResultContour"] = ShowResultContour;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["SearchRegionSource"] = (int)SearchRegionSource;
+            obj["ModelType"] = (int)ModelType;
+            obj["Levels"] = Levels;
+            obj["MathNum"] = MathNum?.Text ?? "10";
+            obj["MaxOverlap"] = MaxOverlap;
+            obj["GreedDeg"] = GreedDeg;
+            obj["MinScore"] = MinScore;
+            obj["AreaOffset"] = AreaOffset;
+            obj["ModelOverLapArea"] = ModelOverLapArea;
+            JObject searchRegionObj = new JObject();
+            if (Rectangle1SearchRegion != null)
+            {
+                searchRegionObj["Row1"] = Rectangle1SearchRegion.Row1;
+                searchRegionObj["Col1"] = Rectangle1SearchRegion.Col1;
+                searchRegionObj["Row2"] = Rectangle1SearchRegion.Row2;
+                searchRegionObj["Col2"] = Rectangle1SearchRegion.Col2;
+            }
+            obj["Rectangle1SearchRegion"] = searchRegionObj;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowSearchRegion"] != null) ShowSearchRegion = obj["ShowSearchRegion"].Value<bool>();
+                if (obj["ShowResultContour"] != null) ShowResultContour = obj["ShowResultContour"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["SearchRegionSource"] != null) SearchRegionSource = (eSearchRegion)obj["SearchRegionSource"].Value<int>();
+                if (obj["ModelType"] != null) ModelType = (eModelType)obj["ModelType"].Value<int>();
+                if (obj["Levels"] != null) Levels = obj["Levels"].Value<int>();
+                if (obj["MathNum"] != null && MathNum != null) MathNum.Text = obj["MathNum"].ToString();
+                if (obj["MaxOverlap"] != null) MaxOverlap = obj["MaxOverlap"].Value<double>();
+                if (obj["GreedDeg"] != null) GreedDeg = obj["GreedDeg"].Value<double>();
+                if (obj["MinScore"] != null) MinScore = obj["MinScore"].Value<double>();
+                if (obj["AreaOffset"] != null) AreaOffset = obj["AreaOffset"].Value<double>();
+                if (obj["ModelOverLapArea"] != null) ModelOverLapArea = obj["ModelOverLapArea"].Value<double>();
+                if (obj["Rectangle1SearchRegion"] != null && Rectangle1SearchRegion != null)
+                {
+                    JObject srObj = (JObject)obj["Rectangle1SearchRegion"];
+                    if (srObj["Row1"] != null) Rectangle1SearchRegion.Row1 = srObj["Row1"].Value<double>();
+                    if (srObj["Col1"] != null) Rectangle1SearchRegion.Col1 = srObj["Col1"].Value<double>();
+                    if (srObj["Row2"] != null) Rectangle1SearchRegion.Row2 = srObj["Row2"].Value<double>();
+                    if (srObj["Col2"] != null) Rectangle1SearchRegion.Col2 = srObj["Col2"].Value<double>();
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"Matching1ViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

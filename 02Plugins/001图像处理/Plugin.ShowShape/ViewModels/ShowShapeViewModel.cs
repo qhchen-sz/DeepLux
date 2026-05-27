@@ -628,228 +628,6 @@ namespace Plugin.ShowShape.ViewModels
         }
         #endregion
 
-        public override string HVSerialize()
-        {
-            JObject obj = JObject.Parse(base.HVSerialize());
-            obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["nSelectLineIndex"] = nSelectLineIndex;
-            obj["nSelectCircleIndex"] = nSelectCircleIndex;
-            obj["nSelectRect1Index"] = nSelectRect1Index;
-            obj["nSelectRect2Index"] = nSelectRect2Index;
-            obj["nSelectRoiIndex"] = nSelectRoiIndex;
-            obj["ShowResultRoi"] = ShowResultRoi;
-            obj["ShowImage"] = ShowImage;
-            obj["ShowOkLog"] = ShowOkLog;
-            obj["ShowNgLog"] = ShowNgLog;
-            JArray lineArr = new JArray();
-            if (LineParams != null)
-            {
-                foreach (var item in LineParams)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Index"] = item.Index;
-                    itemObj["StartX"] = item.StartX?.Text ?? "0";
-                    itemObj["StartY"] = item.StartY?.Text ?? "0";
-                    itemObj["EndX"] = item.EndX?.Text ?? "100";
-                    itemObj["EndY"] = item.EndY?.Text ?? "100";
-                    itemObj["Color"] = item.Color ?? "green";
-                    itemObj["IsFill"] = item.IsFill;
-                    lineArr.Add(itemObj);
-                }
-            }
-            obj["LineParams"] = lineArr;
-            JArray circleArr = new JArray();
-            if (CircleParams != null)
-            {
-                foreach (var item in CircleParams)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Index"] = item.Index;
-                    itemObj["CenterX"] = item.CenterX?.Text ?? "100";
-                    itemObj["CenterY"] = item.CenterY?.Text ?? "100";
-                    itemObj["Radius"] = item.Radius?.Text ?? "50";
-                    itemObj["Color"] = item.Color ?? "green";
-                    itemObj["IsFill"] = item.IsFill;
-                    circleArr.Add(itemObj);
-                }
-            }
-            obj["CircleParams"] = circleArr;
-            JArray rect1Arr = new JArray();
-            if (Rect1Params != null)
-            {
-                foreach (var item in Rect1Params)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Index"] = item.Index;
-                    itemObj["Row1"] = item.Row1?.Text ?? "50";
-                    itemObj["Col1"] = item.Col1?.Text ?? "50";
-                    itemObj["Row2"] = item.Row2?.Text ?? "150";
-                    itemObj["Col2"] = item.Col2?.Text ?? "150";
-                    itemObj["Color"] = item.Color ?? "green";
-                    itemObj["IsFill"] = item.IsFill;
-                    rect1Arr.Add(itemObj);
-                }
-            }
-            obj["Rect1Params"] = rect1Arr;
-            JArray rect2Arr = new JArray();
-            if (Rect2Params != null)
-            {
-                foreach (var item in Rect2Params)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Index"] = item.Index;
-                    itemObj["MidR"] = item.MidR?.Text ?? "100";
-                    itemObj["MidC"] = item.MidC?.Text ?? "100";
-                    itemObj["Phi"] = item.Phi?.Text ?? "0";
-                    itemObj["Length1"] = item.Length1?.Text ?? "50";
-                    itemObj["Length2"] = item.Length2?.Text ?? "30";
-                    itemObj["Color"] = item.Color ?? "green";
-                    itemObj["IsFill"] = item.IsFill;
-                    rect2Arr.Add(itemObj);
-                }
-            }
-            obj["Rect2Params"] = rect2Arr;
-            JArray roiArr = new JArray();
-            if (RoiParam != null)
-            {
-                foreach (var item in RoiParam)
-                {
-                    JObject itemObj = new JObject();
-                    itemObj["Index"] = item.Index;
-                    itemObj["InputRoi"] = item.InputRoi?.Text ?? "";
-                    itemObj["RoiColor"] = item.RoiColor ?? "green";
-                    itemObj["IsFill"] = item.IsFill;
-                    roiArr.Add(itemObj);
-                }
-            }
-            obj["RoiParam"] = roiArr;
-            return obj.ToString();
-        }
-
-        public override void HVDeserialize(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return;
-            base.HVDeserialize(json);
-            try
-            {
-                JObject obj = JObject.Parse(json);
-                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["nSelectLineIndex"] != null) nSelectLineIndex = obj["nSelectLineIndex"].Value<int>();
-                if (obj["nSelectCircleIndex"] != null) nSelectCircleIndex = obj["nSelectCircleIndex"].Value<int>();
-                if (obj["nSelectRect1Index"] != null) nSelectRect1Index = obj["nSelectRect1Index"].Value<int>();
-                if (obj["nSelectRect2Index"] != null) nSelectRect2Index = obj["nSelectRect2Index"].Value<int>();
-                if (obj["nSelectRoiIndex"] != null) nSelectRoiIndex = obj["nSelectRoiIndex"].Value<int>();
-                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
-                if (obj["ShowImage"] != null) ShowImage = obj["ShowImage"].Value<bool>();
-                if (obj["ShowOkLog"] != null) ShowOkLog = obj["ShowOkLog"].Value<bool>();
-                if (obj["ShowNgLog"] != null) ShowNgLog = obj["ShowNgLog"].Value<bool>();
-                if (obj["LineParams"] != null)
-                {
-                    JArray arr = (JArray)obj["LineParams"];
-                    LineParams.Clear();
-                    foreach (var item in arr)
-                    {
-                        LineParams.Add(new LineParams()
-                        {
-                            Index = item["Index"]?.Value<int>() ?? 0,
-                            Color = item["Color"]?.ToString() ?? "green",
-                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
-                            LinkCommand = LinkCommand
-                        });
-                        var lp = LineParams.Last();
-                        if (item["StartX"] != null && lp.StartX != null) lp.StartX.Text = item["StartX"].ToString();
-                        if (item["StartY"] != null && lp.StartY != null) lp.StartY.Text = item["StartY"].ToString();
-                        if (item["EndX"] != null && lp.EndX != null) lp.EndX.Text = item["EndX"].ToString();
-                        if (item["EndY"] != null && lp.EndY != null) lp.EndY.Text = item["EndY"].ToString();
-                    }
-                }
-                if (obj["CircleParams"] != null)
-                {
-                    JArray arr = (JArray)obj["CircleParams"];
-                    CircleParams.Clear();
-                    foreach (var item in arr)
-                    {
-                        CircleParams.Add(new CircleParams()
-                        {
-                            Index = item["Index"]?.Value<int>() ?? 0,
-                            Color = item["Color"]?.ToString() ?? "green",
-                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
-                            LinkCommand = LinkCommand
-                        });
-                        var cp = CircleParams.Last();
-                        if (item["CenterX"] != null && cp.CenterX != null) cp.CenterX.Text = item["CenterX"].ToString();
-                        if (item["CenterY"] != null && cp.CenterY != null) cp.CenterY.Text = item["CenterY"].ToString();
-                        if (item["Radius"] != null && cp.Radius != null) cp.Radius.Text = item["Radius"].ToString();
-                    }
-                }
-                if (obj["Rect1Params"] != null)
-                {
-                    JArray arr = (JArray)obj["Rect1Params"];
-                    Rect1Params.Clear();
-                    foreach (var item in arr)
-                    {
-                        Rect1Params.Add(new Rect1Params()
-                        {
-                            Index = item["Index"]?.Value<int>() ?? 0,
-                            Color = item["Color"]?.ToString() ?? "green",
-                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
-                            LinkCommand = LinkCommand
-                        });
-                        var rp = Rect1Params.Last();
-                        if (item["Row1"] != null && rp.Row1 != null) rp.Row1.Text = item["Row1"].ToString();
-                        if (item["Col1"] != null && rp.Col1 != null) rp.Col1.Text = item["Col1"].ToString();
-                        if (item["Row2"] != null && rp.Row2 != null) rp.Row2.Text = item["Row2"].ToString();
-                        if (item["Col2"] != null && rp.Col2 != null) rp.Col2.Text = item["Col2"].ToString();
-                    }
-                }
-                if (obj["Rect2Params"] != null)
-                {
-                    JArray arr = (JArray)obj["Rect2Params"];
-                    Rect2Params.Clear();
-                    foreach (var item in arr)
-                    {
-                        Rect2Params.Add(new Rect2Params()
-                        {
-                            Index = item["Index"]?.Value<int>() ?? 0,
-                            Color = item["Color"]?.ToString() ?? "green",
-                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
-                            LinkCommand = LinkCommand
-                        });
-                        var rp = Rect2Params.Last();
-                        if (item["MidR"] != null && rp.MidR != null) rp.MidR.Text = item["MidR"].ToString();
-                        if (item["MidC"] != null && rp.MidC != null) rp.MidC.Text = item["MidC"].ToString();
-                        if (item["Phi"] != null && rp.Phi != null) rp.Phi.Text = item["Phi"].ToString();
-                        if (item["Length1"] != null && rp.Length1 != null) rp.Length1.Text = item["Length1"].ToString();
-                        if (item["Length2"] != null && rp.Length2 != null) rp.Length2.Text = item["Length2"].ToString();
-                    }
-                }
-                if (obj["RoiParam"] != null)
-                {
-                    JArray arr = (JArray)obj["RoiParam"];
-                    RoiParam.Clear();
-                    foreach (var item in arr)
-                    {
-                        RoiParam.Add(new RoiParams()
-                        {
-                            Index = item["Index"]?.Value<int>() ?? 0,
-                            RoiColor = item["RoiColor"]?.ToString() ?? "green",
-                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
-                            LinkCommand = LinkCommand
-                        });
-                        var rp = RoiParam.Last();
-                        if (item["InputRoi"] != null && rp.InputRoi != null) rp.InputRoi.Text = item["InputRoi"].ToString();
-                    }
-                }
-            }
-            catch (Exception ex)
-
-            {
-
-                  Logger.AddLog($"ShowShapeViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
-            }
-        }
-
         #region Command
         public override void Loaded()
         {
@@ -1252,6 +1030,227 @@ namespace Plugin.ShowShape.ViewModels
                     }
                 }
             }));
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["nSelectLineIndex"] = nSelectLineIndex;
+            obj["nSelectCircleIndex"] = nSelectCircleIndex;
+            obj["nSelectRect1Index"] = nSelectRect1Index;
+            obj["nSelectRect2Index"] = nSelectRect2Index;
+            obj["nSelectRoiIndex"] = nSelectRoiIndex;
+            obj["ShowResultRoi"] = ShowResultRoi;
+            obj["ShowImage"] = ShowImage;
+            obj["ShowOkLog"] = ShowOkLog;
+            obj["ShowNgLog"] = ShowNgLog;
+            JArray lineArr = new JArray();
+            if (LineParams != null)
+            {
+                foreach (var item in LineParams)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["StartX"] = item.StartX?.Text ?? "0";
+                    itemObj["StartY"] = item.StartY?.Text ?? "0";
+                    itemObj["EndX"] = item.EndX?.Text ?? "100";
+                    itemObj["EndY"] = item.EndY?.Text ?? "100";
+                    itemObj["Color"] = item.Color ?? "green";
+                    itemObj["IsFill"] = item.IsFill;
+                    lineArr.Add(itemObj);
+                }
+            }
+            obj["LineParams"] = lineArr;
+            JArray circleArr = new JArray();
+            if (CircleParams != null)
+            {
+                foreach (var item in CircleParams)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["CenterX"] = item.CenterX?.Text ?? "100";
+                    itemObj["CenterY"] = item.CenterY?.Text ?? "100";
+                    itemObj["Radius"] = item.Radius?.Text ?? "50";
+                    itemObj["Color"] = item.Color ?? "green";
+                    itemObj["IsFill"] = item.IsFill;
+                    circleArr.Add(itemObj);
+                }
+            }
+            obj["CircleParams"] = circleArr;
+            JArray rect1Arr = new JArray();
+            if (Rect1Params != null)
+            {
+                foreach (var item in Rect1Params)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["Row1"] = item.Row1?.Text ?? "50";
+                    itemObj["Col1"] = item.Col1?.Text ?? "50";
+                    itemObj["Row2"] = item.Row2?.Text ?? "150";
+                    itemObj["Col2"] = item.Col2?.Text ?? "150";
+                    itemObj["Color"] = item.Color ?? "green";
+                    itemObj["IsFill"] = item.IsFill;
+                    rect1Arr.Add(itemObj);
+                }
+            }
+            obj["Rect1Params"] = rect1Arr;
+            JArray rect2Arr = new JArray();
+            if (Rect2Params != null)
+            {
+                foreach (var item in Rect2Params)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["MidR"] = item.MidR?.Text ?? "100";
+                    itemObj["MidC"] = item.MidC?.Text ?? "100";
+                    itemObj["Phi"] = item.Phi?.Text ?? "0";
+                    itemObj["Length1"] = item.Length1?.Text ?? "50";
+                    itemObj["Length2"] = item.Length2?.Text ?? "30";
+                    itemObj["Color"] = item.Color ?? "green";
+                    itemObj["IsFill"] = item.IsFill;
+                    rect2Arr.Add(itemObj);
+                }
+            }
+            obj["Rect2Params"] = rect2Arr;
+            JArray roiArr = new JArray();
+            if (RoiParam != null)
+            {
+                foreach (var item in RoiParam)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["InputRoi"] = item.InputRoi?.Text ?? "";
+                    itemObj["RoiColor"] = item.RoiColor ?? "green";
+                    itemObj["IsFill"] = item.IsFill;
+                    roiArr.Add(itemObj);
+                }
+            }
+            obj["RoiParam"] = roiArr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["nSelectLineIndex"] != null) nSelectLineIndex = obj["nSelectLineIndex"].Value<int>();
+                if (obj["nSelectCircleIndex"] != null) nSelectCircleIndex = obj["nSelectCircleIndex"].Value<int>();
+                if (obj["nSelectRect1Index"] != null) nSelectRect1Index = obj["nSelectRect1Index"].Value<int>();
+                if (obj["nSelectRect2Index"] != null) nSelectRect2Index = obj["nSelectRect2Index"].Value<int>();
+                if (obj["nSelectRoiIndex"] != null) nSelectRoiIndex = obj["nSelectRoiIndex"].Value<int>();
+                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
+                if (obj["ShowImage"] != null) ShowImage = obj["ShowImage"].Value<bool>();
+                if (obj["ShowOkLog"] != null) ShowOkLog = obj["ShowOkLog"].Value<bool>();
+                if (obj["ShowNgLog"] != null) ShowNgLog = obj["ShowNgLog"].Value<bool>();
+                if (obj["LineParams"] != null)
+                {
+                    JArray arr = (JArray)obj["LineParams"];
+                    LineParams.Clear();
+                    foreach (var item in arr)
+                    {
+                        LineParams.Add(new LineParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Color = item["Color"]?.ToString() ?? "green",
+                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
+                            LinkCommand = LinkCommand
+                        });
+                        var lp = LineParams.Last();
+                        if (item["StartX"] != null && lp.StartX != null) lp.StartX.Text = item["StartX"].ToString();
+                        if (item["StartY"] != null && lp.StartY != null) lp.StartY.Text = item["StartY"].ToString();
+                        if (item["EndX"] != null && lp.EndX != null) lp.EndX.Text = item["EndX"].ToString();
+                        if (item["EndY"] != null && lp.EndY != null) lp.EndY.Text = item["EndY"].ToString();
+                    }
+                }
+                if (obj["CircleParams"] != null)
+                {
+                    JArray arr = (JArray)obj["CircleParams"];
+                    CircleParams.Clear();
+                    foreach (var item in arr)
+                    {
+                        CircleParams.Add(new CircleParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Color = item["Color"]?.ToString() ?? "green",
+                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
+                            LinkCommand = LinkCommand
+                        });
+                        var cp = CircleParams.Last();
+                        if (item["CenterX"] != null && cp.CenterX != null) cp.CenterX.Text = item["CenterX"].ToString();
+                        if (item["CenterY"] != null && cp.CenterY != null) cp.CenterY.Text = item["CenterY"].ToString();
+                        if (item["Radius"] != null && cp.Radius != null) cp.Radius.Text = item["Radius"].ToString();
+                    }
+                }
+                if (obj["Rect1Params"] != null)
+                {
+                    JArray arr = (JArray)obj["Rect1Params"];
+                    Rect1Params.Clear();
+                    foreach (var item in arr)
+                    {
+                        Rect1Params.Add(new Rect1Params()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Color = item["Color"]?.ToString() ?? "green",
+                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
+                            LinkCommand = LinkCommand
+                        });
+                        var rp = Rect1Params.Last();
+                        if (item["Row1"] != null && rp.Row1 != null) rp.Row1.Text = item["Row1"].ToString();
+                        if (item["Col1"] != null && rp.Col1 != null) rp.Col1.Text = item["Col1"].ToString();
+                        if (item["Row2"] != null && rp.Row2 != null) rp.Row2.Text = item["Row2"].ToString();
+                        if (item["Col2"] != null && rp.Col2 != null) rp.Col2.Text = item["Col2"].ToString();
+                    }
+                }
+                if (obj["Rect2Params"] != null)
+                {
+                    JArray arr = (JArray)obj["Rect2Params"];
+                    Rect2Params.Clear();
+                    foreach (var item in arr)
+                    {
+                        Rect2Params.Add(new Rect2Params()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Color = item["Color"]?.ToString() ?? "green",
+                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
+                            LinkCommand = LinkCommand
+                        });
+                        var rp = Rect2Params.Last();
+                        if (item["MidR"] != null && rp.MidR != null) rp.MidR.Text = item["MidR"].ToString();
+                        if (item["MidC"] != null && rp.MidC != null) rp.MidC.Text = item["MidC"].ToString();
+                        if (item["Phi"] != null && rp.Phi != null) rp.Phi.Text = item["Phi"].ToString();
+                        if (item["Length1"] != null && rp.Length1 != null) rp.Length1.Text = item["Length1"].ToString();
+                        if (item["Length2"] != null && rp.Length2 != null) rp.Length2.Text = item["Length2"].ToString();
+                    }
+                }
+                if (obj["RoiParam"] != null)
+                {
+                    JArray arr = (JArray)obj["RoiParam"];
+                    RoiParam.Clear();
+                    foreach (var item in arr)
+                    {
+                        RoiParam.Add(new RoiParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            RoiColor = item["RoiColor"]?.ToString() ?? "green",
+                            IsFill = item["IsFill"]?.Value<bool>() ?? false,
+                            LinkCommand = LinkCommand
+                        });
+                        var rp = RoiParam.Last();
+                        if (item["InputRoi"] != null && rp.InputRoi != null) rp.InputRoi.Text = item["InputRoi"].ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"ShowShapeViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+            }
         }
         #endregion
     }
