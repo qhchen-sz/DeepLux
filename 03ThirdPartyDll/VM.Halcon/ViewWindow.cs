@@ -124,6 +124,10 @@ namespace VM.Halcon
         {
             this._roiController.genRect2(name, row, col, phi, length1, length2, ref rois);
         }
+        public void genRect2Custom(string name, double row, double col, double phi, double length1, double length2, ref Dictionary<string, ROI> rois)
+        {
+            this._roiController.genRect2Custom(name, row, col, phi, length1, length2, ref rois);
+        }
         public void genCoordLine(string name, double beginRow, double beginCol, double endRow, double endCol, ref Dictionary<string, ROI> rois)
         {
             this._roiController.genCoordLine(name, beginRow, beginCol, endRow, endCol, ref rois);

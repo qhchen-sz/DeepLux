@@ -109,6 +109,7 @@
     <Compile Include="Helper\NotifyPropertyBase.cs" />
     <Compile Include="Model\ROICoordLine.cs" />
     <Compile Include="Model\ROIInfo.cs" />
+    <Compile Include="Model\ROIRectangle2Custom.cs" />
     <Compile Include="Model\Text.cs" />
     <Compile Include="Model\TR.cs" />
     <Compile Include="VMHWindowControl.cs">

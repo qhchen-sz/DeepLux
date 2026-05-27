@@ -20,6 +20,7 @@ namespace VM.Halcon.Model
         void genCoordLine(string name, double beginRow, double beginCol, double endRow, double endCol, ref Dictionary<string, ROI> rois);
         void genRect1(string name, double row1, double col1, double row2, double col2, ref Dictionary<string, ROI> rois);
         void genRect2(string name, double row, double col, double phi, double length1, double length2, ref Dictionary<string, ROI> rois);
+        void genRect2Custom(string name, double row, double col, double phi, double length1, double length2, ref Dictionary<string, ROI> rois);
         ROI smallestActiveROI(out string name, out string index);
         ROI smallestActiveROI(out List<double> data, out string index);
         void selectROI(string index);
