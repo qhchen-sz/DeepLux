@@ -1159,6 +1159,46 @@ namespace HV.Core
             Prj.GetParamByName(varName).Value = Value;
         }
 
+        public List<double> GetDoubleAry(string varName)
+        {
+            return (List<double>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<int> GetIntAry(string varName)
+        {
+            return (List<int>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<bool> GetBoolAry(string varName)
+        {
+            return (List<bool>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<string> GetStringAry(string varName)
+        {
+            return (List<string>)Prj.GetParamByName(varName).Value;
+        }
+
+        public void SetDoubleAry(string varName, List<double> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetIntAry(string varName, List<int> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetBoolAry(string varName, List<bool> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetStringAry(string varName, List<string> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
         #region ROI显示
         /// <summary>显示Roi</summary>
         public void ShowHRoi(HRoi ROI)
