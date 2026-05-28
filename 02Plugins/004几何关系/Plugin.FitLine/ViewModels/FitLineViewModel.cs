@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.UI.WebControls;
 using System.Windows;
 using System.Windows.Forms;
 using VM.Halcon;
@@ -33,7 +33,9 @@ namespace Plugin.FitLine.ViewModels
     {
         InputImageLinkText,
         LinkX,
-        LinkY
+        LinkY,
+        LinkXArray,
+        LinkYArray
     }
     #endregion
 
@@ -54,13 +56,28 @@ namespace Plugin.FitLine.ViewModels
             if (InputImageLinkText == null)
                 InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
         }
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (_LinkXArray == null)
+                _LinkXArray = new LinkVarModel();
+            if (_LinkYArray == null)
+                _LinkYArray = new LinkVarModel();
+            if (_CoordinateXY != null)
+            {
+                foreach (var item in _CoordinateXY)
+                {
+                    item.LinkCommand = LinkCommand;
+                }
+            }
+        }
         public override bool ExeModule()
         {
             Stopwatch.Restart();
             try
             {
                 DispImage.mHRoi.Clear();
-                if (InputImageLinkText == null || InputImageLinkText == "")
+                if (string.IsNullOrEmpty(InputImageLinkText))
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
@@ -71,27 +88,67 @@ namespace Plugin.FitLine.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                if (CoordinateXY.Count < 2)
+
+                List<double> xPoints = new List<double>();
+                List<double> yPoints = new List<double>();
+
+                if (UseArrayInput)
+                {
+                    var xList = GetLinkValue(LinkXArray) as List<double>;
+                    var yList = GetLinkValue(LinkYArray) as List<double>;
+                    if (xList == null || yList == null || xList.Count == 0)
+                    {
+                        var messageView1 = MessageView.Ins;
+                        messageView1.MessageBoxShow("数组数据无效或为空", eMsgType.Warn, MessageBoxButton.OK);
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+                    int count = Math.Min(xList.Count, yList.Count);
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!double.IsNaN(xList[i]) && !double.IsNaN(yList[i]))
+                        {
+                            xPoints.Add(xList[i]);
+                            yPoints.Add(yList[i]);
+                        }
+                    }
+                }
+                else
+                {
+                    if (CoordinateXY.Count < 2)
+                    {
+                        var messageView1 = MessageView.Ins;
+                        messageView1.MessageBoxShow("坐标点需要3个以上", eMsgType.Warn, MessageBoxButton.OK);
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+                    for (int i = 0; i < CoordinateXY.Count; i++)
+                    {
+                        xPoints.Add(Convert.ToDouble(GetLinkValue(CoordinateXY[i].LinkX)));
+                        yPoints.Add(Convert.ToDouble(GetLinkValue(CoordinateXY[i].LinkY)));
+                    }
+                }
+
+                if (xPoints.Count < 2)
                 {
                     var messageView1 = MessageView.Ins;
-                    messageView1.MessageBoxShow("坐标点需要3个以上", eMsgType.Warn, MessageBoxButton.OK);
+                    messageView1.MessageBoxShow("有效坐标点不足", eMsgType.Warn, MessageBoxButton.OK);
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                double[] X = new double[CoordinateXY.Count];
-                double[] Y = new double[CoordinateXY.Count];
+
+                double[] X = xPoints.ToArray();
+                double[] Y = yPoints.ToArray();
                 HTuple r = 45;
-                for (int i = 0; i < CoordinateXY.Count; i++)
+                if (ShowCoordinateXY)
                 {
-                    X[i] = Convert.ToDouble(GetLinkValue(CoordinateXY[i].LinkX));
-                    Y[i] = Convert.ToDouble(GetLinkValue(CoordinateXY[i].LinkY));
-                    if (ShowCoordinateXY)
+                    for (int i = 0; i < X.Length; i++)
                     {
                         HOperatorSet.GenCrossContourXld(out HObject Cross, Y[i], X[i], 6, r.TupleRad());
                         DispImage.ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.参考坐标, "green", new HObject(Cross)));
                     }
                 }
-                r = 360;
+
                 HOperatorSet.GenContourPolygonXld(out HObject Contour, Y, X);
                 HOperatorSet.FitLineContourXld(Contour, "tukey", -1, 0, 5, 2, out HTuple hv_RowBegin, out HTuple hv_ColBegin, out HTuple hv_RowEnd
                    , out HTuple hv_ColEnd, out HTuple hv_nr, out HTuple hv_nc, out HTuple hv_Dist);
@@ -100,9 +157,11 @@ namespace Plugin.FitLine.ViewModels
                 ResultLineY1 = Math.Round(hv_RowBegin.D, 5);
                 ResultLineX2 = Math.Round(hv_ColEnd.D, 5);
                 ResultLineY2 = Math.Round(hv_RowEnd.D, 5);
-                HOperatorSet.GenRegionLine(out HObject ho_Line, hv_ColBegin, hv_RowBegin, hv_ColEnd, hv_RowEnd);
                 if (ShowResultLine)
+                {
+                    HOperatorSet.GenRegionLine(out HObject ho_Line, hv_ColBegin, hv_RowBegin, hv_ColEnd, hv_RowEnd);
                     DispImage.ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "green", new HObject(ho_Line)));
+                }
                 ShowHRoi();
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
@@ -226,6 +285,44 @@ namespace Plugin.FitLine.ViewModels
                 Set(ref _ShowNgLog, value);
             }
         }
+
+        private bool _UseArrayInput;
+        /// <summary>
+        /// 使用数组输入（true=数组模式，false=手动模式）
+        /// </summary>
+        public bool UseArrayInput
+        {
+            get { return _UseArrayInput; }
+            set
+            {
+                Set(ref _UseArrayInput, value);
+                RaisePropertyChanged(nameof(IsManualMode));
+                RaisePropertyChanged(nameof(IsArrayMode));
+            }
+        }
+
+        public bool IsManualMode => !_UseArrayInput;
+        public bool IsArrayMode => _UseArrayInput;
+
+        private LinkVarModel _LinkXArray = new LinkVarModel();
+        /// <summary>
+        /// 坐标X数组链接
+        /// </summary>
+        public LinkVarModel LinkXArray
+        {
+            get { return _LinkXArray; }
+            set { _LinkXArray = value; RaisePropertyChanged(); }
+        }
+
+        private LinkVarModel _LinkYArray = new LinkVarModel();
+        /// <summary>
+        /// 坐标Y数组链接
+        /// </summary>
+        public LinkVarModel LinkYArray
+        {
+            get { return _LinkYArray; }
+            set { _LinkYArray = value; RaisePropertyChanged(); }
+        }
         #endregion
 
         #region Command
@@ -300,6 +397,12 @@ namespace Plugin.FitLine.ViewModels
                 case "LinkY":
                     CoordinateXY[nSelectIndex].LinkY.Text = obj.LinkName;
                     break;
+                case "LinkXArray":
+                    LinkXArray.Text = obj.LinkName;
+                    break;
+                case "LinkYArray":
+                    LinkYArray.Text = obj.LinkName;
+                    break;
                 default:
                     break;
             }
@@ -320,12 +423,13 @@ namespace Plugin.FitLine.ViewModels
                         switch (linkCommand)
                         {
                             case eLinkCommand.LinkX:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int,double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},LinkX");
-                                break;
                             case eLinkCommand.LinkY:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int,double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},LinkY");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},{linkCommand}");
+                                break;
+                            case eLinkCommand.LinkXArray:
+                            case eLinkCommand.LinkYArray:
+                                OpenDoubleArrayLink($"{ModuleGuid},{linkCommand}");
                                 break;
                             case eLinkCommand.InputImageLinkText:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
@@ -400,6 +504,19 @@ namespace Plugin.FitLine.ViewModels
                     mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor);
                 }
             }
+        }
+        private void OpenDoubleArrayLink(string eventParam)
+        {
+            CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "");
+            foreach (var module in VarLinkViewModel.Ins.Modules.ToList())
+            {
+                var toRemove = module.VarModels.Where(v => v.DataType != "double[]").ToList();
+                foreach (var v in toRemove)
+                    module.VarModels.Remove(v);
+                if (module.VarModels.Count == 0)
+                    VarLinkViewModel.Ins.Modules.Remove(module);
+            }
+            EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish(eventParam);
         }
         #endregion
 

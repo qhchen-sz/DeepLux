@@ -34,6 +34,8 @@
                     <Grid x:Name="gd">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="80"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Border Grid.Row="0">
@@ -48,7 +50,48 @@
                                 </StackPanel>
                             </GroupBox>
                         </Border>
-                        <Border Grid.Row="1">
+                        <CheckBox Grid.Row="1" Content="使用数组输入" IsChecked="{Binding UseArrayInput}" Margin="5 5 5 0"/>
+                        <Border Grid.Row="2" Margin="0 5 0 0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsArrayMode}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <GroupBox Header="数组链接">
+                                <StackPanel Margin="5">
+                                    <StackPanel Orientation="Horizontal" Margin="0 3">
+                                        <TextBlock Text="坐标X数组" VerticalAlignment="Center" Width="70"/>
+                                        <TextBox VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                                 Style="{StaticResource LinkTextBox}"
+                                                 Text="{Binding LinkXArray.Text}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LinkXArray}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0 3">
+                                        <TextBlock Text="坐标Y数组" VerticalAlignment="Center" Width="70"/>
+                                        <TextBox VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                                 Style="{StaticResource LinkTextBox}"
+                                                 Text="{Binding LinkYArray.Text}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LinkYArray}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="3">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsManualMode}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <GroupBox Header="坐标参数">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -56,21 +99,21 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5 0">
-                                        <Button  Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                        <Button  Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18"
                                                  Background="{StaticResource MahApps.Brushes.Accent4}"
-                                                 BorderBrush="{StaticResource MahApps.Brushes.Accent4}" 
+                                                 BorderBrush="{StaticResource MahApps.Brushes.Accent4}"
                                                  ToolTip="添加" Command="{Binding DataOperateCommand}" CommandParameter="Add"/>
-                                        <Button  Content="&#xe692;"  Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                        <Button  Content="&#xe692;"  Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18"
                                                  Background="{StaticResource MahApps.Brushes.Accent4}"
-                                                 BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0" 
+                                                 BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0"
                                                  ToolTip="删除" Command="{Binding DataOperateCommand}" CommandParameter="Delete"/>
                                     </StackPanel>
                                     <DataGrid Grid.Row="1" AutoGenerateColumns="False" x:Name="dg"
                   EnableColumnVirtualization="True"
                   EnableRowVirtualization="True"
                   VirtualizingPanel.IsVirtualizing="True"
-                  ItemsSource="{Binding CoordinateXY}" 
-                  FontSize="12" 
+                  ItemsSource="{Binding CoordinateXY}"
+                  FontSize="12"
                   RowHeaderWidth="20"
                   SelectionUnit="FullRow"
                   HeadersVisibility="Column"
