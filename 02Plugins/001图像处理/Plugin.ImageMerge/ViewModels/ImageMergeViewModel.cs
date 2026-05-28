@@ -127,13 +127,17 @@ namespace Plugin.ImageMerge.ViewModels
                     throw new InvalidOperationException("画布尺寸无效。");
                 }
 
-                // 创建全0背景画布
-                canvas = new HImage();
-                canvas.GenImageConst(pixelType, canvasWidth, canvasHeight);
-
-                // 获取画布指针
-                IntPtr canvasPtr = canvas.GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
+                // 创建全0背景画布（支持多通道）
+                int channelCount = imageDataList[0].image.CountChannels();
                 int pixelBytes = GetPixelBytes(pixelType);
+                HImage[] channelCanvases = new HImage[channelCount];
+                IntPtr[] channelCanvasPtrs = new IntPtr[channelCount];
+                for (int ch = 0; ch < channelCount; ch++)
+                {
+                    channelCanvases[ch] = new HImage();
+                    channelCanvases[ch].GenImageConst(pixelType, canvasWidth, canvasHeight);
+                    channelCanvasPtrs[ch] = channelCanvases[ch].GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
+                }
 
                 // 第二遍：裁剪并叠加到画布
                 foreach (var (inputImage, item, imgWidth, imgHeight) in imageDataList)
@@ -153,24 +157,65 @@ namespace Plugin.ImageMerge.ViewModels
 
                     _cropImageList.Add(new RImage(cropImage.CopyObj(1, -1)));
 
-                    // 获取裁剪图尺寸和指针
                     cropImage.GetImageSize(out int cropW, out int cropH);
-                    IntPtr cropPtr = cropImage.GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
 
                     int rowOffset = (int)Math.Round(item.Row1);
                     int colOffset = (int)Math.Round(item.Col1);
                     int rowBytes = cropW * pixelBytes;
                     int canvasRowBytes = canvasWidth * pixelBytes;
 
-                    // 逐行 memcpy 复制到画布的 (colOffset, rowOffset) 位置
-                    for (int r = 0; r < cropH; r++)
+                    // 逐通道 memcpy 到画布的 (colOffset, rowOffset) 位置
+                    for (int ch = 0; ch < channelCount; ch++)
                     {
-                        IntPtr src = new IntPtr(cropPtr.ToInt64() + r * rowBytes);
-                        IntPtr dst = new IntPtr(canvasPtr.ToInt64() + (rowOffset + r) * canvasRowBytes + colOffset * pixelBytes);
-                        CopyMemory(dst, src, (UIntPtr)rowBytes);
+                        HImage chCrop = cropImage.AccessChannel(ch + 1);
+                        IntPtr cropPtr = chCrop.GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
+
+                        for (int r = 0; r < cropH; r++)
+                        {
+                            IntPtr src = new IntPtr(cropPtr.ToInt64() + r * rowBytes);
+                            IntPtr dst = new IntPtr(channelCanvasPtrs[ch].ToInt64() + (rowOffset + r) * canvasRowBytes + colOffset * pixelBytes);
+                            CopyMemory(dst, src, (UIntPtr)rowBytes);
+                        }
+                        chCrop.Dispose();
                     }
 
                     cropImage.Dispose();
+                }
+
+                // 合成多通道结果
+                if (channelCount == 1)
+                {
+                    canvas = channelCanvases[0];
+                }
+                else if (channelCount == 2)
+                {
+                    HOperatorSet.Compose2(channelCanvases[0], channelCanvases[1], out HObject composed);
+                    canvas = new HImage(composed);
+                }
+                else if (channelCount == 3)
+                {
+                    HOperatorSet.Compose3(channelCanvases[0], channelCanvases[1], channelCanvases[2], out HObject composed);
+                    canvas = new HImage(composed);
+                }
+                else
+                {
+                    // >3通道：用 AppendChannel 逐个追加通道
+                    HImage temp = channelCanvases[0];
+                    for (int i = 1; i < channelCount; i++)
+                    {
+                        HImage appended = temp.AppendChannel(channelCanvases[i]);
+                        if (temp != channelCanvases[0])
+                            temp.Dispose();
+                        temp = appended;
+                    }
+                    canvas = temp;
+                }
+
+                // 清理不再需要的通道画布
+                for (int i = 0; i < channelCount; i++)
+                {
+                    if (channelCanvases[i] != canvas)
+                        channelCanvases[i]?.Dispose();
                 }
 
                 ResultImage = new RImage(canvas.CopyObj(1, -1));
