@@ -924,7 +924,10 @@ namespace HV.Core
             }
             else
             {
-                result = this.Prj.GetParamByName(var.Text).Value;
+                if(this.Prj.GetParamByName(var.Text) != null)
+                {
+                    result = this.Prj.GetParamByName(var.Text).Value;
+                }
             }
             return result;
         }
