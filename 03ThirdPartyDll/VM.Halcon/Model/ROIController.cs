@@ -262,8 +262,11 @@ namespace VM.Halcon.Model
         {//TODO:ROI¼¤»î¾àÀë
             string idxROI = "";
             double max = 10000, dist = 0;
-            double epsilon = 15.0;          //maximal shortest distance to one of
-                                            //the handles
+            HWindow window = viewController.ViewPort.HalconWindow;
+            window.GetPart(out int row1, out int col1, out int row2, out int col2);
+            window.GetWindowExtents(out int _, out int _, out int winW, out int _);
+            double zoom = winW > 0 ? (col2 - col1) / (double)winW : 1.0;
+            double epsilon = Math.Max(15.0 * zoom, 8.0);
 
             if (ROIMode != null)             //either a new ROI object is created
             {

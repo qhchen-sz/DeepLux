@@ -69,7 +69,7 @@ namespace VM.Halcon.Model
         private bool MousePressed = false;
         private double StartX, StartY;
         /// <summary>HALCON window</summary>
-        private HWindowControl ViewPort;
+        internal HWindowControl ViewPort;
         /// <summary>ROIController��ʵ����������ROI����</summary>
         private ROIController ROIManager;
         /// <summary>�������̺��Ƿ���Ӧ����¼� </summary>
