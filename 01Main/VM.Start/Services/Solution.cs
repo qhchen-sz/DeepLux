@@ -666,8 +666,8 @@ namespace HV.Services
                     {
                         JObject projObj = (JObject)projectArr[i];
                         Project proj = new Project();
-                        proj.HVDeserialize(projObj.ToString());
                         ProjectList.Add(proj);
+                        proj.HVDeserialize(projObj.ToString());
                     }
                 }
             }
