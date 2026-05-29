@@ -328,7 +328,7 @@ namespace Plugin.GrayMeasure.ViewModels
             AddOutputParam("平均灰度", "double", AverageGray);
             AddOutputParam("最大灰度", "double", MaxGray);
             AddOutputParam("最小灰度", "double", MinGray);
-            for (int i = 0; i < GrayValueList.Count; i++)
+            for (int i = 0; GrayValueList != null && i < GrayValueList.Count; i++)
             {
                 AddOutputParam($"灰度值_{i + 1}", "double", GrayValueList[i]);
             }
@@ -738,6 +738,20 @@ namespace Plugin.GrayMeasure.ViewModels
             obj["MaxGrayThreshold"] = MaxGrayThreshold;
             obj["EnableMinGrayCheck"] = EnableMinGrayCheck;
             obj["MinGrayThreshold"] = MinGrayThreshold;
+            JArray roiArray = new JArray();
+            foreach (var kvp in RoiList)
+            {
+                HTuple data = kvp.Value.GetModelData();
+                JObject roiObj = new JObject
+                {
+                    ["Key"] = kvp.Key,
+                    ["Type"] = kvp.Value.Type.ToString(),
+                    ["Color"] = kvp.Value.Color,
+                    ["ModelData"] = new JArray(data.ToDArr().Select(d => d))
+                };
+                roiArray.Add(roiObj);
+            }
+            obj["RoiList"] = roiArray;
             return obj.ToString();
         }
 
@@ -771,6 +785,26 @@ namespace Plugin.GrayMeasure.ViewModels
                 if (obj["MaxGrayThreshold"] != null) MaxGrayThreshold = obj["MaxGrayThreshold"].Value<double>();
                 if (obj["EnableMinGrayCheck"] != null) EnableMinGrayCheck = obj["EnableMinGrayCheck"].Value<bool>();
                 if (obj["MinGrayThreshold"] != null) MinGrayThreshold = obj["MinGrayThreshold"].Value<double>();
+                if (obj["RoiList"] != null)
+                {
+                    RoiList.Clear();
+                    foreach (JToken token in (JArray)obj["RoiList"])
+                    {
+                        string key = token["Key"]?.ToString();
+                        string type = token["Type"]?.ToString();
+                        string color = token["Color"]?.ToString() ?? "yellow";
+                        JArray dataArr = (JArray)token["ModelData"];
+                        if (string.IsNullOrEmpty(key) || dataArr == null)
+                            continue;
+                        double[] data = dataArr.Select(d => d.Value<double>()).ToArray();
+                        ROI roi = CreateROIFromData(type, data);
+                        if (roi != null)
+                        {
+                            roi.Color = color;
+                            RoiList[key] = roi;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
 
@@ -779,6 +813,29 @@ namespace Plugin.GrayMeasure.ViewModels
                   Logger.AddLog($"GrayMeasureViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
 
             }
+        }
+        private ROI CreateROIFromData(string type, double[] data)
+        {
+            switch (type)
+            {
+                case "Circle":
+                    if (data.Length >= 3)
+                        return new ROICircle(data[0], data[1], data[2]);
+                    break;
+                case "Line":
+                    if (data.Length >= 4)
+                        return new ROILine(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle1":
+                    if (data.Length >= 4)
+                        return new ROIRectangle1(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle2":
+                    if (data.Length >= 5)
+                        return new ROIRectangle2(data[0], data[1], data[2], data[3], data[4]);
+                    break;
+            }
+            return null;
         }
         #endregion
 

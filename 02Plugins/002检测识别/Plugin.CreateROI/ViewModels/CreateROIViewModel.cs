@@ -865,6 +865,20 @@ namespace Plugin.CreateROI.ViewModels
             obj["CircleX"] = CircleX?.Text ?? "100";
             obj["CircleY"] = CircleY?.Text ?? "100";
             obj["CircleRadius"] = CircleRadius?.Text ?? "30";
+            JArray roiArray = new JArray();
+            foreach (var kvp in RoiList)
+            {
+                HTuple data = kvp.Value.GetModelData();
+                JObject roiObj = new JObject
+                {
+                    ["Key"] = kvp.Key,
+                    ["Type"] = kvp.Value.Type.ToString(),
+                    ["Color"] = kvp.Value.Color,
+                    ["ModelData"] = new JArray(data.ToDArr().Select(d => d))
+                };
+                roiArray.Add(roiObj);
+            }
+            obj["RoiList"] = roiArray;
             return obj.ToString();
         }
 
@@ -888,6 +902,26 @@ namespace Plugin.CreateROI.ViewModels
                 if (obj["CircleX"] != null && CircleX != null) CircleX.Text = obj["CircleX"].ToString();
                 if (obj["CircleY"] != null && CircleY != null) CircleY.Text = obj["CircleY"].ToString();
                 if (obj["CircleRadius"] != null && CircleRadius != null) CircleRadius.Text = obj["CircleRadius"].ToString();
+                if (obj["RoiList"] != null)
+                {
+                    RoiList.Clear();
+                    foreach (JToken token in (JArray)obj["RoiList"])
+                    {
+                        string key = token["Key"]?.ToString();
+                        string type = token["Type"]?.ToString();
+                        string color = token["Color"]?.ToString() ?? "yellow";
+                        JArray dataArr = (JArray)token["ModelData"];
+                        if (string.IsNullOrEmpty(key) || dataArr == null)
+                            continue;
+                        double[] data = dataArr.Select(d => d.Value<double>()).ToArray();
+                        ROI roi = CreateROIFromData(type, data);
+                        if (roi != null)
+                        {
+                            roi.Color = color;
+                            RoiList[key] = roi;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
 
@@ -896,6 +930,29 @@ namespace Plugin.CreateROI.ViewModels
                   Logger.AddLog($"CreateROIViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
 
             }
+        }
+        private ROI CreateROIFromData(string type, double[] data)
+        {
+            switch (type)
+            {
+                case "Circle":
+                    if (data.Length >= 3)
+                        return new ROICircle(data[0], data[1], data[2]);
+                    break;
+                case "Line":
+                    if (data.Length >= 4)
+                        return new ROILine(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle1":
+                    if (data.Length >= 4)
+                        return new ROIRectangle1(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle2":
+                    if (data.Length >= 5)
+                        return new ROIRectangle2(data[0], data[1], data[2], data[3], data[4]);
+                    break;
+            }
+            return null;
         }
         #endregion
 
