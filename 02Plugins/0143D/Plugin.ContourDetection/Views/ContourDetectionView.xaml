@@ -189,7 +189,8 @@
 
                                     <!-- 轮廓索引 -->
                                     <TextBlock Text="轮廓索引:" VerticalAlignment="Center" Grid.Row="2" Grid.Column="0"/>
-                                    <mah:NumericUpDown Grid.Row="2" Grid.Column="1" Width="100" Minimum="0" Maximum="9999"
+                                    <mah:NumericUpDown Grid.Row="2" Grid.Column="1" Width="100" Minimum="0"
+                                               Maximum="{Binding MaxContourIndex, Mode=OneWay}"
                                                Value="{Binding ContourIndex}"/>
                                 </Grid>
                             </GroupBox>

@@ -127,6 +127,21 @@ namespace Plugin.ContourDetection.ViewModels
         }
     }
 
+    public class ContourStripData
+    {
+        public double[] PointY;
+        public double[] PointX;
+        public double[] ZValues;
+        public double ResultRow;
+        public double ResultCol;
+        public double ResultValue;
+        public double CenterRow;
+        public double CenterCol;
+        public double Phi;
+        public double Length1;
+        public double HalfWidth;
+    }
+
     public class ContourResultItem : NotifyPropertyBase
     {
         private int _Index;
@@ -255,10 +270,10 @@ namespace Plugin.ContourDetection.ViewModels
                         break;
                 }
 
-                // 在子窗口中显示截面数据
-                ShowSubWindow();
-
                 ShowHRoi();
+
+                // 执行完成后自动应用当前索引的高亮和子窗口散点图
+                UpdateContourHighlight();
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -339,6 +354,8 @@ namespace Plugin.ContourDetection.ViewModels
         {
             _ContourResults = new ObservableCollection<ContourResultItem>();
             _WorkflowItems = new ObservableCollection<WorkflowItem>();
+            _contourStripDataMap = new Dictionary<int, ContourStripData>();
+            _contourRectMap = new Dictionary<int, HObject>();
         }
 
         #endregion
@@ -440,7 +457,14 @@ namespace Plugin.ContourDetection.ViewModels
         public int ContourIndex
         {
             get { return _ContourIndex; }
-            set { Set(ref _ContourIndex, value); }
+            set { Set(ref _ContourIndex, value, UpdateContourHighlight); }
+        }
+
+        private int _MaxContourIndex = 0;
+        public int MaxContourIndex
+        {
+            get { return _MaxContourIndex; }
+            set { Set(ref _MaxContourIndex, value); }
         }
 
         private bool _IsFixedInterval = false;
@@ -548,6 +572,18 @@ namespace Plugin.ContourDetection.ViewModels
 
         private bool IsLoad = false;
         public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
+
+        /// <summary>
+        /// 存储每条小轮廓的完整原始数据（按 localOffsets 索引）
+        /// </summary>
+        [NonSerialized]
+        private Dictionary<int, ContourStripData> _contourStripDataMap = new Dictionary<int, ContourStripData>();
+
+        /// <summary>
+        /// 存储每条小轮廓的矩形 HObject（用于主窗口黄色高亮）
+        /// </summary>
+        [NonSerialized]
+        private Dictionary<int, HObject> _contourRectMap = new Dictionary<int, HObject>();
 
         #endregion
 
@@ -883,6 +919,14 @@ namespace Plugin.ContourDetection.ViewModels
             HObject allCrosses = new HObject();
             allCrosses.GenEmptyObj();
 
+            // 清除上次保存的小轮廓数据
+            _contourStripDataMap.Clear();
+            foreach (var kv in _contourRectMap)
+            {
+                if (kv.Value != null) kv.Value.Dispose();
+            }
+            _contourRectMap.Clear();
+
             for (int i = 0; i < localOffsets.Count; i++)
             {
                 double localOffset = localOffsets[i];
@@ -896,6 +940,9 @@ namespace Plugin.ContourDetection.ViewModels
                 HOperatorSet.GenRectangle2ContourXld(out contourRect, stripeCenterRow, stripeCenterCol,
                     -roiPhi, roiLength1, halfWidth);
                 HOperatorSet.ConcatObj(allContourRegions, contourRect, out allContourRegions);
+
+                // 保存轮廓矩形（用于后续索引高亮）
+                _contourRectMap[i] = contourRect.Clone();
 
                 // 生成旋转的条纹区域
                 HRegion subRegion = new HRegion();
@@ -960,6 +1007,22 @@ namespace Plugin.ContourDetection.ViewModels
                     Col = resultCol
                 });
 
+                // 保存小轮廓原始数据（用于索引高亮和子窗口过滤显示）
+                _contourStripDataMap[i] = new ContourStripData
+                {
+                    PointY = pointY.ToDArr(),
+                    PointX = pointX.ToDArr(),
+                    ZValues = zValues.ToDArr(),
+                    ResultRow = resultRow,
+                    ResultCol = resultCol,
+                    ResultValue = resultVal,
+                    CenterRow = stripeCenterRow,
+                    CenterCol = stripeCenterCol,
+                    Phi = -roiPhi,
+                    Length1 = roiLength1,
+                    HalfWidth = halfWidth
+                };
+
                 subRegion.Dispose();
                 reducedImage.Dispose();
                 domain.Dispose();
@@ -999,6 +1062,9 @@ namespace Plugin.ContourDetection.ViewModels
                 ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
                     HRoiType.检测结果, "cyan", new HObject(allContourRegions)));
             }
+
+            // 更新最大索引值（用于UI绑定Maximum）
+            MaxContourIndex = localOffsets.Count - 1;
         }
 
         /// <summary>
@@ -1026,6 +1092,215 @@ namespace Plugin.ContourDetection.ViewModels
                     {
                         view.SubWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor);
                     }
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        /// <summary>
+        /// ContourIndex 变化时更新主窗口黄色高亮和子窗口过滤显示
+        /// </summary>
+        private void UpdateContourHighlight()
+        {
+            var view = ModuleView as ContourDetectionView;
+            if (view == null || view.IsClosed) return;
+
+            // 索引超出范围则不做任何操作
+            if (_contourStripDataMap == null || !_contourStripDataMap.ContainsKey(ContourIndex))
+                return;
+
+            // === 主窗口：黄色高亮选中索引的小轮廓 ===
+            try
+            {
+                // 先正常渲染（包含所有 cyan 小轮廓）
+                ShowHRoi();
+
+                // 在主窗口叠加选中索引的黄色高亮
+                if (_contourRectMap != null && _contourRectMap.ContainsKey(ContourIndex))
+                {
+                    var mainWin = view.mWindowH;
+                    if (mainWin != null)
+                    {
+                        mainWin.WindowH.DispHobject(_contourRectMap[ContourIndex], "yellow");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            // === 子窗口：只显示选中索引的检测点所在行数据（散点图） ===
+            try
+            {
+                if (view.SubWindowH == null) return;
+
+                var stripData = _contourStripDataMap[ContourIndex];
+                if (stripData.PointY == null || stripData.PointY.Length == 0) return;
+                if (double.IsNaN(stripData.ResultValue)) return;
+
+                // 筛选检测点所在行的所有点（Row坐标相同）
+                int targetRow = (int)Math.Round(stripData.ResultRow);
+                List<double> filterCols = new List<double>();
+                List<double> filterZ = new List<double>();
+
+                for (int i = 0; i < stripData.PointY.Length; i++)
+                {
+                    if ((int)Math.Round(stripData.PointY[i]) == targetRow)
+                    {
+                        filterCols.Add(stripData.PointX[i]);
+                        filterZ.Add(stripData.ZValues[i]);
+                    }
+                }
+
+                if (filterCols.Count == 0) return;
+
+                // 计算数据范围
+                double minCol = filterCols.Min();
+                double maxCol = filterCols.Max();
+                double minZ = filterZ.Min();
+                double maxZ = filterZ.Max();
+                double colRange = maxCol - minCol;
+                double zRange = maxZ - minZ;
+                if (colRange < 1) colRange = 1;
+                if (zRange < 0.001) zRange = 0.001;
+
+                // 创建黑色画布图像，通过 HobjectToHimage 初始化子窗口坐标系
+                // 画布坐标系: Row 0..canvasH, Col 0..canvasW（图像像素坐标）
+                int canvasW = 800;
+                int canvasH = 600;
+                HImage canvas = new HImage();
+                canvas.GenImageConst("byte", canvasW, canvasH);
+                view.SubWindowH.ClearWindow();
+                view.SubWindowH.HobjectToHimage(canvas);
+                canvas.Dispose();
+
+                // 绘图区域（画布像素坐标，留边距给坐标轴和刻度文字）
+                int margin = 60;
+                double plotW = canvasW - 2 * margin;
+                double plotH = canvasH - 2 * margin;
+
+                // ========== 第一阶段：所有持久对象（DispHobject，Repaint 不丢失） ==========
+
+                // --- X轴（底部水平线） ---
+                HObject xAxis;
+                HOperatorSet.GenContourPolygonXld(out xAxis,
+                    new HTuple(new double[] { canvasH - margin, canvasH - margin }),
+                    new HTuple(new double[] { margin, canvasW - margin }));
+                view.SubWindowH.WindowH.DispHobject(xAxis, "white");
+                xAxis.Dispose();
+
+                // --- Y轴（左侧垂直线） ---
+                HObject yAxis;
+                HOperatorSet.GenContourPolygonXld(out yAxis,
+                    new HTuple(new double[] { margin, canvasH - margin }),
+                    new HTuple(new double[] { margin, margin }));
+                view.SubWindowH.WindowH.DispHobject(yAxis, "white");
+                yAxis.Dispose();
+
+                // --- X轴刻度线 ---
+                for (int t = 0; t <= 5; t++)
+                {
+                    double px = margin + t * plotW / 5;
+                    HObject tick;
+                    HOperatorSet.GenContourPolygonXld(out tick,
+                        new HTuple(new double[] { canvasH - margin, canvasH - margin + 8 }),
+                        new HTuple(new double[] { px, px }));
+                    view.SubWindowH.WindowH.DispHobject(tick, "white");
+                    tick.Dispose();
+                }
+
+                // --- Y轴刻度线 ---
+                for (int t = 0; t <= 5; t++)
+                {
+                    double py = (canvasH - margin) - t * plotH / 5;
+                    HObject tick;
+                    HOperatorSet.GenContourPolygonXld(out tick,
+                        new HTuple(new double[] { py, py }),
+                        new HTuple(new double[] { margin - 8, margin }));
+                    view.SubWindowH.WindowH.DispHobject(tick, "white");
+                    tick.Dispose();
+                }
+
+                // --- 找到检测点在过滤列表中的索引 ---
+                int detectionIdx = -1;
+                double minDist = double.MaxValue;
+                for (int i = 0; i < filterCols.Count; i++)
+                {
+                    double dc = Math.Abs(filterCols[i] - stripData.ResultCol);
+                    double dz = Math.Abs(filterZ[i] - stripData.ResultValue);
+                    if (dc + dz < minDist)
+                    {
+                        minDist = dc + dz;
+                        detectionIdx = i;
+                    }
+                }
+
+                // --- 数据点（绿色小十字） ---
+                HTuple pointRows = new HTuple();
+                HTuple pointCols = new HTuple();
+                for (int i = 0; i < filterCols.Count; i++)
+                {
+                    double px = margin + (filterCols[i] - minCol) / colRange * plotW;
+                    double py = (canvasH - margin) - (filterZ[i] - minZ) / zRange * plotH;
+                    pointRows.Append(py);
+                    pointCols.Append(px);
+                }
+
+                if (pointCols.Length > 0)
+                {
+                    HObject greenPoints;
+                    HOperatorSet.GenCrossContourXld(out greenPoints, pointRows, pointCols, 4, 0.785398);
+                    view.SubWindowH.WindowH.DispHobject(greenPoints, "green");
+                    greenPoints.Dispose();
+                }
+
+                // --- 检测点（红色大十字） ---
+                if (detectionIdx >= 0 && detectionIdx < filterCols.Count)
+                {
+                    double detPx = margin + (filterCols[detectionIdx] - minCol) / colRange * plotW;
+                    double detPy = (canvasH - margin) - (filterZ[detectionIdx] - minZ) / zRange * plotH;
+                    HObject detCross;
+                    HOperatorSet.GenCrossContourXld(out detCross, detPy, detPx, 10, 0.785398);
+                    view.SubWindowH.WindowH.DispHobject(detCross, "red");
+                    detCross.Dispose();
+                }
+
+                // ========== 第二阶段：刻度文字（DispText 持久化到 roiTextList，缩放/平移不丢失） ==========
+                try
+                {
+                    // ShowTool.SetMsg 内部参数约定：hv_Row(第4参数)=X(col), hv_Col(第5参数)=Y(row)
+                    // HText 坐标约定与之一致：row=图像col(X), col=图像row(Y)
+                    // 使用 DispText 方法将文字加入持久化列表，窗口重绘时自动恢复
+
+                    // X轴刻度值（底部水平轴，col随刻度水平居中，row在轴下方紧贴）
+                    for (int t = 0; t <= 5; t++)
+                    {
+                        double px = margin + t * plotW / 5;
+                        double val = minCol + t * colRange / 5;
+                        view.SubWindowH.WindowH.DispText(new HText("white",
+                            Math.Round(val, 1).ToString(),
+                            (int)px - 10,              // row = X(col): 刻度线水平居中
+                            canvasH - margin + 14,      // col = Y(row): X轴下方紧贴
+                            12));
+                    }
+
+                    // Y轴刻度值（左侧垂直轴，col在轴左侧紧贴，row随刻度垂直居中）
+                    for (int t = 0; t <= 5; t++)
+                    {
+                        double py = (canvasH - margin) - t * plotH / 5;
+                        double val = minZ + t * zRange / 5;
+                        view.SubWindowH.WindowH.DispText(new HText("white",
+                            Math.Round(val, 2).ToString(),
+                            margin - 40,               // row = X(col): Y轴左侧紧贴
+                            (int)py - 4,               // col = Y(row): 刻度线垂直居中
+                            12));
+                    }
+                }
+                catch (Exception)
+                {
+                    // 文字绘制失败不影响数据点和坐标轴显示
                 }
             }
             catch (Exception)
