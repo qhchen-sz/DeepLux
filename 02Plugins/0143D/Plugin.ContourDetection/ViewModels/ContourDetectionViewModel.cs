@@ -353,10 +353,10 @@ namespace Plugin.ContourDetection.ViewModels
         private void OnDeserialized(StreamingContext context)
         {
             _ContourResults = new ObservableCollection<ContourResultItem>();
-            _WorkflowItems = new ObservableCollection<WorkflowItem>();
             _contourStripDataMap = new Dictionary<int, ContourStripData>();
             _contourRectMap = new Dictionary<int, HObject>();
         }
+        //_WorkflowItems = new ObservableCollection<WorkflowItem>();
 
         #endregion
 
@@ -500,7 +500,7 @@ namespace Plugin.ContourDetection.ViewModels
 
         #region Properties - Parameter Settings
 
-        [NonSerialized]
+        // [NonSerialized]
         private ObservableCollection<WorkflowItem> _WorkflowItems = new ObservableCollection<WorkflowItem>();
         public ObservableCollection<WorkflowItem> WorkflowItems
         {
@@ -566,6 +566,12 @@ namespace Plugin.ContourDetection.ViewModels
             set { Set(ref _ShowResultPoints, value); }
         }
 
+        private bool _ShowResultRois = true;
+        public bool ShowResultRois
+        {
+            get { return _ShowResultRois; }
+            set { Set(ref _ShowResultRois, value); }
+        }
         #endregion
 
         #region Fields
@@ -1057,7 +1063,7 @@ namespace Plugin.ContourDetection.ViewModels
             }
 
             // 绘制小轮廓矩形框（与ROI颜色一致）
-            if (ShowResultPoints && allContourRegions.CountObj() > 0)
+            if (ShowResultRois && allContourRegions.CountObj() > 0)
             {
                 ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
                     HRoiType.检测结果, "cyan", new HObject(allContourRegions)));
@@ -1155,6 +1161,44 @@ namespace Plugin.ContourDetection.ViewModels
                 }
 
                 if (filterCols.Count == 0) return;
+
+                // 最大点数采样：均匀下采样保留首尾+检测目标点，只降密度不裁剪范围
+                if (filterCols.Count > ShowMaxPoints)
+                {
+                    int n = filterCols.Count;
+
+                    // 找到检测目标点（红叉）在原始数据中的索引
+                    int detIdx = 0;
+                    double minDistSample = double.MaxValue;
+                    for (int i = 0; i < n; i++)
+                    {
+                        double dc = Math.Abs(filterCols[i] - stripData.ResultCol);
+                        double dz = Math.Abs(filterZ[i] - stripData.ResultValue);
+                        double dist = dc + dz;
+                        if (dist < minDistSample) { minDistSample = dist; detIdx = i; }
+                    }
+
+                    // 必须保留的索引：首点、尾点、检测目标点
+                    var keepSet = new HashSet<int> { 0, n - 1, detIdx };
+
+                    // 剩余名额从其余位置均匀采样
+                    int remaining = ShowMaxPoints - keepSet.Count;
+                    if (remaining > 0)
+                    {
+                        double step = (double)(n - 1) / (remaining + 1);
+                        for (int i = 1; i <= remaining; i++)
+                        {
+                            int idx = (int)Math.Round(i * step);
+                            idx = Math.Max(0, Math.Min(n - 1, idx));
+                            keepSet.Add(idx);
+                        }
+                    }
+
+                    // 按原始顺序提取采样后数据
+                    var sortedIndices = keepSet.OrderBy(i => i).ToList();
+                    filterCols = sortedIndices.Select(i => filterCols[i]).ToList();
+                    filterZ   = sortedIndices.Select(i => filterZ[i]).ToList();
+                }
 
                 // 计算数据范围
                 double minCol = filterCols.Min();
