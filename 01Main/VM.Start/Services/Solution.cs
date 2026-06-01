@@ -13,6 +13,8 @@ using HV.Common;
 using HV.Common.Enums;
 using HV.Common.Extension;
 using HV.Common.Helper;
+using Newtonsoft.Json.Linq;
+using HV.Common.Provide;
 using HV.Common.RightControl;
 using HV.Communacation;
 using HV.Core;
@@ -601,6 +603,94 @@ namespace HV.Services
             ProjectList.FirstOrDefault(c => c.ProjectInfo.ProjectID == projectID).RunMode =
                 eRunMode.None; //停止
             ProjectList.FirstOrDefault(c => c.ProjectInfo.ProjectID == projectID).Stop();
+        }
+        #endregion
+
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["CurrentProjectID"] = CurrentProjectID;
+            obj["QuickMode"] = QuickMode;
+            obj["ViewMode"] = (int)ViewMode;
+            obj["ChartViewMode"] = (int)ChartViewMode;
+            obj["IsUseUIDesign"] = IsUseUIDesign;
+            obj["UIDesignText"] = UIDesignText ?? "";
+            obj["ChartType1"] = (int)ChartType1;
+            obj["ChartType2"] = (int)ChartType2;
+            obj["ChartType3"] = (int)ChartType3;
+            obj["ChartType4"] = (int)ChartType4;
+            obj["ChartType5"] = (int)ChartType5;
+            obj["ChartType6"] = (int)ChartType6;
+            obj["ChartType7"] = (int)ChartType7;
+            obj["ChartType8"] = (int)ChartType8;
+            obj["ChartType9"] = (int)ChartType9;
+            // 流程列表
+            JArray projectArr = new JArray();
+            foreach (var proj in ProjectList)
+            {
+                if (proj != null)
+                    projectArr.Add(JObject.Parse(proj.HVSerialize()));
+            }
+            obj["ProjectList"] = projectArr;
+            JArray sysVarArr = new JArray();
+            foreach (var v in SysVar)
+            {
+                if (v != null)
+                    sysVarArr.Add(JObject.Parse(v.HVSerialize()));
+            }
+            obj["SysVar"] = sysVarArr;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["CurrentProjectID"] != null) CurrentProjectID = obj["CurrentProjectID"].Value<int>();
+                if (obj["QuickMode"] != null) QuickMode = obj["QuickMode"].Value<bool>();
+                if (obj["ViewMode"] != null) ViewMode = (eViewMode)obj["ViewMode"].Value<int>();
+                if (obj["ChartViewMode"] != null) ChartViewMode = (eViewMode)obj["ChartViewMode"].Value<int>();
+                if (obj["IsUseUIDesign"] != null) IsUseUIDesign = obj["IsUseUIDesign"].Value<bool>();
+                if (obj["UIDesignText"] != null) UIDesignText = obj["UIDesignText"].ToString();
+                if (obj["ChartType1"] != null) ChartType1 = (Types)obj["ChartType1"].Value<int>();
+                if (obj["ChartType2"] != null) ChartType2 = (Types)obj["ChartType2"].Value<int>();
+                if (obj["ChartType3"] != null) ChartType3 = (Types)obj["ChartType3"].Value<int>();
+                if (obj["ChartType4"] != null) ChartType4 = (Types)obj["ChartType4"].Value<int>();
+                if (obj["ChartType5"] != null) ChartType5 = (Types)obj["ChartType5"].Value<int>();
+                if (obj["ChartType6"] != null) ChartType6 = (Types)obj["ChartType6"].Value<int>();
+                if (obj["ChartType7"] != null) ChartType7 = (Types)obj["ChartType7"].Value<int>();
+                if (obj["ChartType8"] != null) ChartType8 = (Types)obj["ChartType8"].Value<int>();
+                if (obj["ChartType9"] != null) ChartType9 = (Types)obj["ChartType9"].Value<int>();
+                if (obj["ProjectList"] != null)
+                {
+                    JArray projectArr = (JArray)obj["ProjectList"];
+                    ProjectList.Clear();
+                    for (int i = 0; i < projectArr.Count; i++)
+                    {
+                        JObject projObj = (JObject)projectArr[i];
+                        Project proj = new Project();
+                        ProjectList.Add(proj);
+                        proj.HVDeserialize(projObj.ToString());
+                    }
+                }
+                if (obj["SysVar"] != null)
+                {
+                    SysVar.Clear();
+                    foreach (JToken token in (JArray)obj["SysVar"])
+                    {
+                        VarModel v = new VarModel();
+                        v.HVDeserialize(token.ToString());
+                        SysVar.Add(v);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                  Logger.AddLog($"Solution.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+            }
         }
         #endregion
     }

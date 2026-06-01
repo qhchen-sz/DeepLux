@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace
 
@@ -38,5 +41,37 @@ namespace
         /// 程序集名称
         /// </summary>
         public string Assembly { get; set; }
+
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["ModuleName"] = ModuleName ?? "";
+            obj["ImageName"] = ImageName ?? "";
+            obj["Category"] = Category ?? "";
+            obj["Assembly"] = Assembly ?? "";
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ModuleName"] != null) ModuleName = obj["ModuleName"].ToString();
+                if (obj["ImageName"] != null) ImageName = obj["ImageName"].ToString();
+                if (obj["Category"] != null) Category = obj["Category"].ToString();
+                if (obj["Assembly"] != null) Assembly = obj["Assembly"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PluginsInfo.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }

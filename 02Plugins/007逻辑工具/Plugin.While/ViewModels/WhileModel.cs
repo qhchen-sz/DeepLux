@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.While.Views;
 using System;
 using System.Collections.Generic;
@@ -297,6 +298,35 @@ namespace Plugin.While.ViewModels
         public void OnEachIteration()
         {
             UpdateDoubleOutputs();
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["Start"] = Start?.Text ?? "";
+            obj["End"] = End?.Text ?? "";
+            obj["LoopMode"] = (int)LoopMode;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Start"] != null && Start != null) Start.Text = obj["Start"].ToString();
+                if (obj["End"] != null && End != null) End.Text = obj["End"].ToString();
+                if (obj["LoopMode"] != null) LoopMode = (eLoopMode)obj["LoopMode"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"WhileModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
     }
 }

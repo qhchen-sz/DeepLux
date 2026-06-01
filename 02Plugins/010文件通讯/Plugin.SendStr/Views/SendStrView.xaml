@@ -61,9 +61,9 @@
                 <RadioButton Content="无" Margin="10 0" IsChecked="{Binding eEnableEndstr,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:eEnableEndStr.No } }" />
                 <RadioButton Content="\r\n" Margin="10 0" IsChecked="{Binding eEnableEndstr,Converter={StaticResource EnumConverter},ConverterParameter={x:Static vm:eEnableEndStr.Have } }" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" >
-                <CheckBox Content="以16进制发送" IsChecked="{Binding IsSendByHex}" Height="40" Width="100"/>
-                <CheckBox Content="Continue" IsChecked="{Binding Continue}" Height="40"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <CheckBox Content="以16进制发送(例:0D 0A)" IsChecked="{Binding IsSendByHex}" Height="40" Margin="10 0"/>
+                <CheckBox Content="Continue" IsChecked="{Binding Continue}" Height="40" Margin="10 0"/>
             </StackPanel>
             
         </StackPanel>

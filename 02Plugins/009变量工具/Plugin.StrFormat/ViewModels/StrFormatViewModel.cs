@@ -1,6 +1,7 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
 using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
 using Plugin.StrFormat.Views;
 using Plugin.GrabImage.Model;
 using System;
@@ -282,6 +283,66 @@ namespace Plugin.StrFormat.ViewModels
         #endregion
 
         #region Method
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DecimalPlaces"] = DecimalPlaces;
+            JArray arr = new JArray();
+            if (TextModels != null)
+            {
+                foreach (var item in TextModels)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["X_Pos"] = item.X_Pos;
+                    itemObj["Y_Pos"] = item.Y_Pos;
+                    itemObj["StatusLink"] = item.StatusLink ?? "";
+                    itemObj["DispContent"] = item.DispContent ?? "";
+                    itemObj["Prefix"] = item.Prefix ?? "";
+                    itemObj["Suffix"] = item.Suffix ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["TextModels"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DecimalPlaces"] != null) DecimalPlaces = obj["DecimalPlaces"].Value<int>();
+                if (obj["TextModels"] != null)
+                {
+                    JArray arr = (JArray)obj["TextModels"];
+                    TextModels.Clear();
+                    foreach (var item in arr)
+                    {
+                        TextModels.Add(new TextModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            X_Pos = item["X_Pos"]?.Value<int>() ?? 0,
+                            Y_Pos = item["Y_Pos"]?.Value<int>() ?? 0,
+                            StatusLink = item["StatusLink"]?.ToString() ?? "",
+                            DispContent = item["DispContent"]?.ToString() ?? "",
+                            Prefix = item["Prefix"]?.ToString() ?? "",
+                            Suffix = item["Suffix"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"StrFormatViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
         #endregion
     }

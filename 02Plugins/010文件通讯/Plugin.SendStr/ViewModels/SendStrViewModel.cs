@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.SendStr.Views;
 using System;
 using System.Collections.Generic;
@@ -240,5 +241,42 @@ namespace Plugin.SendStr.ViewModels
         }
 
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["Continue"] = Continue;
+            obj["SendStr"] = SendStr?.Text ?? "";
+            obj["IsSendByHex"] = IsSendByHex;
+            obj["IsEnableTimeOut"] = IsEnableTimeOut;
+            obj["eEnableEndstr"] = (int)eEnableEndstr;
+            obj["CurKey"] = CurKey ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Continue"] != null) Continue = obj["Continue"].Value<bool>();
+                if (obj["SendStr"] != null && SendStr != null) SendStr.Text = obj["SendStr"].ToString();
+                if (obj["IsSendByHex"] != null) IsSendByHex = obj["IsSendByHex"].Value<bool>();
+                if (obj["IsEnableTimeOut"] != null) IsEnableTimeOut = obj["IsEnableTimeOut"].Value<bool>();
+                if (obj["eEnableEndstr"] != null) eEnableEndstr = (eEnableEndStr)obj["eEnableEndstr"].Value<int>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SendStrViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

@@ -34,6 +34,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.CreatePoints.ViewModels
 {
@@ -277,6 +278,7 @@ namespace Plugin.CreatePoints.ViewModels
         public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
 
         #endregion
+
         #region Command
         public override void Loaded()
         {
@@ -731,6 +733,73 @@ namespace Plugin.CreatePoints.ViewModels
         }
 
 
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["LengthLinkText"] = LengthLinkText ?? "";
+            obj["PointsShowSelectIndex"] = PointsShowSelectIndex;
+            obj["ShowResultPoints"] = ShowResultPoints;
+            obj["ShowResultNum"] = ShowResultNum;
+            obj["ColorLinkText"] = _ColorLinkText ?? "";
+            JArray arr = new JArray();
+            if (Points != null)
+            {
+                foreach (var item in Points)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["PointX"] = item.PointX;
+                    itemObj["PointY"] = item.PointY;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["Points"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["LengthLinkText"] != null) LengthLinkText = obj["LengthLinkText"].ToString();
+                if (obj["PointsShowSelectIndex"] != null) PointsShowSelectIndex = obj["PointsShowSelectIndex"].Value<int>();
+                if (obj["ShowResultPoints"] != null) ShowResultPoints = obj["ShowResultPoints"].Value<bool>();
+                if (obj["ShowResultNum"] != null) ShowResultNum = obj["ShowResultNum"].Value<bool>();
+                if (obj["ColorLinkText"] != null) _ColorLinkText = obj["ColorLinkText"].ToString();
+                if (obj["Points"] != null)
+                {
+                    JArray arr = (JArray)obj["Points"];
+                    Points.Clear();
+                    TranPoints.Clear();
+                    TempPoints.Clear();
+                    foreach (var item in arr)
+                    {
+                        var point = new PointsParamModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            PointX = item["PointX"]?.Value<double>() ?? 0,
+                            PointY = item["PointY"]?.Value<double>() ?? 0
+                        };
+                        Points.Add(point);
+                        TranPoints.Add(new PointsParamModel() { ID = point.ID, PointX = point.PointX, PointY = point.PointY });
+                        TempPoints.Add(new PointsParamModel() { ID = point.ID, PointX = point.PointX, PointY = point.PointY });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CreatePointsViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 }

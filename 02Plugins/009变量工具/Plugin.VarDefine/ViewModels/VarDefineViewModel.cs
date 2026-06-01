@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.VarDefine.Views;
 using System;
 using System.Collections.Generic;
@@ -562,5 +563,62 @@ namespace Plugin.VarDefine.ViewModels
 
         [NonSerialized]
         private CommandBase _MoveCommand;
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsAlwaysExe"] = IsAlwaysExe;
+            JArray arr = new JArray();
+            if (LocalVar != null)
+            {
+                foreach (var item in LocalVar)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["DataType"] = item.DataType ?? "";
+                    itemObj["Value"] = item.Value?.ToString() ?? "";
+                    itemObj["Expression"] = item.Expression ?? "";
+                    itemObj["Note"] = item.Note ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["LocalVar"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsAlwaysExe"] != null) IsAlwaysExe = obj["IsAlwaysExe"].Value<bool>();
+                if (obj["LocalVar"] != null)
+                {
+                    JArray arr = (JArray)obj["LocalVar"];
+                    LocalVar.Clear();
+                    foreach (var item in arr)
+                    {
+                        LocalVar.Add(new VarModel()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            Name = item["Name"]?.ToString() ?? "",
+                            DataType = item["DataType"]?.ToString() ?? "",
+                            Expression = item["Expression"]?.ToString() ?? "",
+                            Note = item["Note"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"VarDefineViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

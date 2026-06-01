@@ -30,6 +30,7 @@ using HV.Models;
 using HV.ViewModels;
 using HV.Events;
 using HV.Common;
+using Newtonsoft.Json.Linq;
 using EventMgrLib;
 using System.Windows;
 using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
@@ -648,6 +649,7 @@ namespace Plugin.GrabImage.ViewModels
                     break;
             }
         }
+
         [NonSerialized]
         private CommandBase _ImagePathCommand;
         public CommandBase ImagePathCommand
@@ -901,5 +903,98 @@ namespace Plugin.GrabImage.ViewModels
 
         #endregion
 
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsShow"] = IsShow;
+            obj["SelectedIndex"] = SelectedIndex;
+            obj["ShowIndex"] = ShowIndex;
+            obj["IsCyclicRead"] = IsCyclicRead;
+            obj["IsSelectAll"] = IsSelectAll;
+            obj["OutputHeiImage"] = OutputHeiImage;
+            obj["ImagePath"] = ImagePath ?? "";
+            obj["FilePath"] = FilePath ?? "";
+            obj["ImageSource"] = (int)ImageSource;
+            obj["ContentHeader"] = ContentHeader ?? "";
+            obj["SpecifiedImage_SelectFile"] = SpecifiedImage_SelectFile;
+            obj["SpecifiedImage_LinkPath"] = SpecifiedImage_LinkPath;
+            obj["AcquisitionMode"] = (int)AcquisitionMode;
+            obj["ExposureTime"] = ExposureTime?.Text ?? "";
+            obj["Gain"] = Gain?.Text ?? "";
+            obj["DelayTime"] = DelayTime?.Text ?? "";
+            obj["ImageHeight"] = ImageHeight?.Text ?? "";
+            obj["CameraSerialNo"] = SelectedCameraModel?.SerialNo ?? "";
+            JArray arr = new JArray();
+            if (ImageNameModels != null)
+            {
+                foreach (var item in ImageNameModels)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["IsSelected"] = item.IsSelected;
+                    itemObj["ImageName"] = item.ImageName ?? "";
+                    itemObj["ImagePath"] = item.ImagePath ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["ImageNameModels"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            base.HVDeserialize(json);
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsShow"] != null) IsShow = obj["IsShow"].Value<bool>();
+                if (obj["SelectedIndex"] != null) SelectedIndex = obj["SelectedIndex"].Value<int>();
+                if (obj["ShowIndex"] != null) ShowIndex = obj["ShowIndex"].Value<int>();
+                if (obj["IsCyclicRead"] != null) IsCyclicRead = obj["IsCyclicRead"].Value<bool>();
+                if (obj["IsSelectAll"] != null) IsSelectAll = obj["IsSelectAll"].Value<bool>();
+                if (obj["OutputHeiImage"] != null) OutputHeiImage = obj["OutputHeiImage"].Value<bool>();
+                if (obj["ImagePath"] != null) ImagePath = obj["ImagePath"].ToString();
+                if (obj["FilePath"] != null) FilePath = obj["FilePath"].ToString();
+                if (obj["ImageSource"] != null) ImageSource = (eImageSource)obj["ImageSource"].Value<int>();
+                if (obj["ContentHeader"] != null) ContentHeader = obj["ContentHeader"].ToString();
+                if (obj["SpecifiedImage_SelectFile"] != null) SpecifiedImage_SelectFile = obj["SpecifiedImage_SelectFile"].Value<bool>();
+                if (obj["SpecifiedImage_LinkPath"] != null) SpecifiedImage_LinkPath = obj["SpecifiedImage_LinkPath"].Value<bool>();
+                if (obj["AcquisitionMode"] != null) AcquisitionMode = (eTrigMode)obj["AcquisitionMode"].Value<int>();
+                if (obj["ExposureTime"] != null && ExposureTime != null) ExposureTime.Text = obj["ExposureTime"].ToString();
+                if (obj["Gain"] != null && Gain != null) Gain.Text = obj["Gain"].ToString();
+                if (obj["DelayTime"] != null && DelayTime != null) DelayTime.Text = obj["DelayTime"].ToString();
+                if (obj["ImageHeight"] != null && ImageHeight != null) ImageHeight.Text = obj["ImageHeight"].ToString();
+                if (obj["CameraSerialNo"] != null)
+                {
+                    string serialNo = obj["CameraSerialNo"].ToString();
+                    if (!string.IsNullOrEmpty(serialNo))
+                    {
+                        SelectedCameraModel = CameraModels?.FirstOrDefault(c => c.SerialNo == serialNo) ?? SelectedCameraModel;
+                    }
+                }
+                if (obj["ImageNameModels"] != null)
+                {
+                    JArray arr = (JArray)obj["ImageNameModels"];
+                    ImageNameModels.Clear();
+                    foreach (var item in arr)
+                    {
+                        ImageNameModels.Add(new ImageNameModel()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            IsSelected = item["IsSelected"]?.Value<bool>() ?? true,
+                            ImageName = item["ImageName"]?.ToString() ?? "",
+                            ImagePath = item["ImagePath"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"GrabImageViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+            }
+        }
+        #endregion
     }
 }

@@ -21,6 +21,7 @@ using HV.Models;
 using HV.ViewModels;
 using HV.Views.Dock;
 using System.Collections.ObjectModel;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.CalibrationConversion.ViewModels
 {
@@ -322,5 +323,49 @@ namespace Plugin.CalibrationConversion.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["MHomMat2DTransl"] = MHomMat2DTransl?.Text ?? "";
+            obj["RotateCenterX"] = RotateCenterX?.Text ?? "";
+            obj["RotateCenterY"] = RotateCenterY?.Text ?? "";
+            obj["RotatePointX"] = RotatePointX?.Text ?? "";
+            obj["RotatePointY"] = RotatePointY?.Text ?? "";
+            obj["RotateAngle"] = RotateAngle?.Text ?? "";
+            obj["InvertAngle"] = InvertAngle;
+            obj["CalibrationConversionX"] = CalibrationConversionX;
+            obj["CalibrationConversionY"] = CalibrationConversionY;
+            obj["CalibrationConversionR"] = CalibrationConversionR;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["MHomMat2DTransl"] != null && MHomMat2DTransl != null) MHomMat2DTransl.Text = obj["MHomMat2DTransl"].ToString();
+                if (obj["RotateCenterX"] != null && RotateCenterX != null) RotateCenterX.Text = obj["RotateCenterX"].ToString();
+                if (obj["RotateCenterY"] != null && RotateCenterY != null) RotateCenterY.Text = obj["RotateCenterY"].ToString();
+                if (obj["RotatePointX"] != null && RotatePointX != null) RotatePointX.Text = obj["RotatePointX"].ToString();
+                if (obj["RotatePointY"] != null && RotatePointY != null) RotatePointY.Text = obj["RotatePointY"].ToString();
+                if (obj["RotateAngle"] != null && RotateAngle != null) RotateAngle.Text = obj["RotateAngle"].ToString();
+                if (obj["InvertAngle"] != null) InvertAngle = obj["InvertAngle"].Value<bool>();
+                if (obj["CalibrationConversionX"] != null) CalibrationConversionX = obj["CalibrationConversionX"].Value<double>();
+                if (obj["CalibrationConversionY"] != null) CalibrationConversionY = obj["CalibrationConversionY"].Value<double>();
+                if (obj["CalibrationConversionR"] != null) CalibrationConversionR = obj["CalibrationConversionR"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CalibrationConversionViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+
     }
 }

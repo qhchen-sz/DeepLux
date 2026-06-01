@@ -25,6 +25,7 @@ using HV.Events;
 using HV.Models;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.FitCircle.ViewModels
 {
@@ -403,6 +404,73 @@ namespace Plugin.FitCircle.ViewModels
                 {
                     mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor);
                 }
+            }
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["nSelectIndex"] = nSelectIndex;
+            obj["ShowCoordinateXY"] = ShowCoordinateXY;
+            obj["ShowResultCircle"] = ShowResultCircle;
+            obj["ShowCenter"] = ShowCenter;
+            obj["ShowOkLog"] = ShowOkLog;
+            obj["ShowNgLog"] = ShowNgLog;
+            JArray arr = new JArray();
+            if (CoordinateXY != null)
+            {
+                foreach (var item in CoordinateXY)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["LinkX"] = item.LinkX?.Text ?? "";
+                    itemObj["LinkY"] = item.LinkY?.Text ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["CoordinateXY"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["nSelectIndex"] != null) nSelectIndex = obj["nSelectIndex"].Value<int>();
+                if (obj["ShowCoordinateXY"] != null) ShowCoordinateXY = obj["ShowCoordinateXY"].Value<bool>();
+                if (obj["ShowResultCircle"] != null) ShowResultCircle = obj["ShowResultCircle"].Value<bool>();
+                if (obj["ShowCenter"] != null) ShowCenter = obj["ShowCenter"].Value<bool>();
+                if (obj["ShowOkLog"] != null) ShowOkLog = obj["ShowOkLog"].Value<bool>();
+                if (obj["ShowNgLog"] != null) ShowNgLog = obj["ShowNgLog"].Value<bool>();
+                if (obj["CoordinateXY"] != null)
+                {
+                    JArray arr = (JArray)obj["CoordinateXY"];
+                    CoordinateXY.Clear();
+                    foreach (var item in arr)
+                    {
+                        CoordinateXY.Add(new CoordinateParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            LinkX = new LinkVarModel() { Text = item["LinkX"]?.ToString() ?? "" },
+                            LinkY = new LinkVarModel() { Text = item["LinkY"]?.ToString() ?? "" },
+                            LinkCommand = LinkCommand
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"FitCircleViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

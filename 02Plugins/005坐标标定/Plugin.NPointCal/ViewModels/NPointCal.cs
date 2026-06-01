@@ -22,6 +22,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 using Plugin.NPointCal.Views;
 
 namespace Plugin.NPointCal.ViewModels
@@ -952,6 +953,100 @@ namespace Plugin.NPointCal.ViewModels
 
         /// <summary>平移矩阵</summary>
         public HTuple MHomMat2DTransl { get => mHomMat2DTransl; set => mHomMat2DTransl = value; }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["MPointType"] = (int)MPointType;
+            obj["MCamerFix"] = MCamerFix;
+            obj["InputPixelXLinkText"] = InputPixelXLinkText ?? "";
+            obj["InputPixelYLinkText"] = InputPixelYLinkText ?? "";
+            obj["InputRealXLinkText"] = InputRealXLinkText ?? "";
+            obj["InputRealYLinkText"] = InputRealYLinkText ?? "";
+            obj["MBaseAngle"] = MBaseAngle;
+            obj["MAngleNot"] = MAngleNot;
+            obj["CurrentRow"] = CurrentRow;
+            obj["testImagex"] = testImagex;
+            obj["testImagey"] = testImagey;
+            obj["testrealx"] = testrealx;
+            obj["testrealy"] = testrealy;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["mAutoCalCounter"] = mAutoCalCounter;
+            obj["mAutoClear"] = mAutoClear;
+            obj["ImageX_S"] = new JArray(ImageX_S);
+            obj["ImageY_S"] = new JArray(ImageY_S);
+            obj["RobotX_S"] = new JArray(RobotX_S);
+            obj["RobotY_S"] = new JArray(RobotY_S);
+            JArray arr = new JArray();
+            if (NPointCalParams != null)
+            {
+                foreach (var item in NPointCalParams)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["ImageX"] = item.ImageX;
+                    itemObj["ImageY"] = item.ImageY;
+                    itemObj["RealX"] = item.RealX;
+                    itemObj["RealY"] = item.RealY;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["NPointCalParams"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["MPointType"] != null) MPointType = (PointType)obj["MPointType"].Value<int>();
+                if (obj["MCamerFix"] != null) MCamerFix = obj["MCamerFix"].Value<bool>();
+                if (obj["InputPixelXLinkText"] != null) InputPixelXLinkText = obj["InputPixelXLinkText"].ToString();
+                if (obj["InputPixelYLinkText"] != null) InputPixelYLinkText = obj["InputPixelYLinkText"].ToString();
+                if (obj["InputRealXLinkText"] != null) InputRealXLinkText = obj["InputRealXLinkText"].ToString();
+                if (obj["InputRealYLinkText"] != null) InputRealYLinkText = obj["InputRealYLinkText"].ToString();
+                if (obj["MBaseAngle"] != null) MBaseAngle = obj["MBaseAngle"].Value<double>();
+                if (obj["MAngleNot"] != null) MAngleNot = obj["MAngleNot"].Value<bool>();
+                if (obj["CurrentRow"] != null) CurrentRow = obj["CurrentRow"].Value<int>();
+                if (obj["testImagex"] != null) testImagex = obj["testImagex"].Value<double>();
+                if (obj["testImagey"] != null) testImagey = obj["testImagey"].Value<double>();
+                if (obj["testrealx"] != null) testrealx = obj["testrealx"].Value<double>();
+                if (obj["testrealy"] != null) testrealy = obj["testrealy"].Value<double>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["mAutoCalCounter"] != null) mAutoCalCounter = obj["mAutoCalCounter"].Value<int>();
+                if (obj["mAutoClear"] != null) mAutoClear = obj["mAutoClear"].Value<bool>();
+                if (obj["ImageX_S"] != null) ImageX_S = obj["ImageX_S"].Values<double>().ToArray();
+                if (obj["ImageY_S"] != null) ImageY_S = obj["ImageY_S"].Values<double>().ToArray();
+                if (obj["RobotX_S"] != null) RobotX_S = obj["RobotX_S"].Values<double>().ToArray();
+                if (obj["RobotY_S"] != null) RobotY_S = obj["RobotY_S"].Values<double>().ToArray();
+                if (obj["NPointCalParams"] != null)
+                {
+                    JArray arr = (JArray)obj["NPointCalParams"];
+                    NPointCalParams.Clear();
+                    foreach (var item in arr)
+                    {
+                        NPointCalParams.Add(new NPointCalParam()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            ImageX = item["ImageX"]?.Value<double>() ?? 0,
+                            ImageY = item["ImageY"]?.Value<double>() ?? 0,
+                            RealX = item["RealX"]?.Value<double>() ?? 0,
+                            RealY = item["RealY"]?.Value<double>() ?? 0
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"NPointCal.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 

@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -11,6 +12,7 @@ using HV.Common.Enums;
 using HV.Common.Helper;
 using HV.Events;
 using HV.ViewModels;
+using HV.Common.Provide;
 
 namespace HV.Models
 {
@@ -41,5 +43,39 @@ namespace HV.Models
         }
         public CommandBase LinkCommand { get; set; }
 
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["Name"] = Name ?? "";
+            obj["Type"] = (int)Type;
+            if (Var != null)
+                obj["Var"] = Var != null ? JObject.Parse(Var.HVSerialize()) : null;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Name"] != null) Name = obj["Name"].ToString();
+                if (obj["Type"] != null) Type = (eTypes)obj["Type"].Value<int>();
+                if (obj["Var"] != null)
+                {
+                    Var = new LinkVarModel();
+                    Var.HVDeserialize(obj["Var"].ToString());
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"InputVarModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }

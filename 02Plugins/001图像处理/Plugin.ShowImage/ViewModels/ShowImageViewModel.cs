@@ -24,6 +24,7 @@ using HV.Events;
 using HV.Models;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.ShowImage.ViewModels
 {
@@ -882,6 +883,70 @@ HTuple hv_DispGrade)
                 throw HDevExpDefaultException;
             }
         }
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["nImageIndex"] = nImageIndex?.Text ?? "0";
+            obj["nSelectIndex"] = nSelectIndex;
+            obj["ShowResultRoi"] = ShowResultRoi;
+            obj["ShowImage"] = ShowImage;
+            obj["ShowOkLog"] = ShowOkLog;
+            obj["ShowNgLog"] = ShowNgLog;
+            JArray arr = new JArray();
+            if (ImageParam != null)
+            {
+                foreach (var item in ImageParam)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Index"] = item.Index;
+                    itemObj["InputImage"] = item.InputImage?.Text ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["ImageParam"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["nImageIndex"] != null && nImageIndex != null) nImageIndex.Text = obj["nImageIndex"].ToString();
+                if (obj["nSelectIndex"] != null) nSelectIndex = obj["nSelectIndex"].Value<int>();
+                if (obj["ShowResultRoi"] != null) ShowResultRoi = obj["ShowResultRoi"].Value<bool>();
+                if (obj["ShowImage"] != null) ShowImage = obj["ShowImage"].Value<bool>();
+                if (obj["ShowOkLog"] != null) ShowOkLog = obj["ShowOkLog"].Value<bool>();
+                if (obj["ShowNgLog"] != null) ShowNgLog = obj["ShowNgLog"].Value<bool>();
+                if (obj["ImageParam"] != null)
+                {
+                    JArray arr = (JArray)obj["ImageParam"];
+                    ImageParam.Clear();
+                    foreach (var item in arr)
+                    {
+                        ImageParams imageParams = new ImageParams()
+                        {
+                            Index = item["Index"]?.Value<int>() ?? 0,
+                            LinkCommand = LinkCommand
+                        };
+                        if (item["InputImage"] != null && imageParams.InputImage != null) imageParams.InputImage.Text = item["InputImage"].ToString();
+                        ImageParam.Add(imageParams);
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ShowImageViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
     [Serializable]
     public class ImageParams : NotifyPropertyBase

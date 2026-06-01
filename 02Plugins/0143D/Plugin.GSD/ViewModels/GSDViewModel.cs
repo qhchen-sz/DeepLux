@@ -22,6 +22,7 @@ using VM.Halcon.Model;
 using HV.Common.Enums;
 using static Plugin.GSD.ViewModels.GSDA;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.GSD.ViewModels
 {
@@ -401,6 +402,45 @@ namespace Plugin.GSD.ViewModels
             }
         }
 
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["TransformationMatrixX"] = TransformationMatrixX;
+            obj["TransformationMatrixY"] = TransformationMatrixY;
+            obj["TransformationMatrixZ"] = TransformationMatrixZ;
+            obj["HeightThreshold"] = HeightThreshold;
+            obj["DeepMode"] = DeepMode;
+            obj["DebugMode"] = DebugMode;
+            obj["DebugPath"] = DebugPath ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["TransformationMatrixX"] != null) TransformationMatrixX = obj["TransformationMatrixX"].Value<double>();
+                if (obj["TransformationMatrixY"] != null) TransformationMatrixY = obj["TransformationMatrixY"].Value<double>();
+                if (obj["TransformationMatrixZ"] != null) TransformationMatrixZ = obj["TransformationMatrixZ"].Value<double>();
+                if (obj["HeightThreshold"] != null) HeightThreshold = obj["HeightThreshold"].Value<double>();
+                if (obj["DeepMode"] != null) DeepMode = obj["DeepMode"].Value<bool>();
+                if (obj["DebugMode"] != null) DebugMode = obj["DebugMode"].Value<bool>();
+                if (obj["DebugPath"] != null) DebugPath = obj["DebugPath"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"GSDViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 }

@@ -18,6 +18,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.Delay.ViewModels
 {
@@ -141,6 +142,33 @@ namespace Plugin.Delay.ViewModels
             }
         }
 
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["DelayTime"] = DelayTime?.Text ?? "10";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["DelayTime"] != null && DelayTime != null) DelayTime.Text = obj["DelayTime"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"DelayViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 }

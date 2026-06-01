@@ -33,6 +33,7 @@ using System.Collections.ObjectModel;
 using Application = System.Windows.Application;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.FreeformSurface.ViewModels
 {
@@ -542,6 +543,47 @@ namespace Plugin.FreeformSurface.ViewModels
             }
         }
 
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["MPScale"] = MPScale;
+            obj["ShieldWidth"] = ShieldWidth;
+            obj["ShieldHeight"] = ShieldHeight;
+            obj["PartitionHeight"] = PartitionHeight;
+            obj["ZLSelect"] = ZLSelect;
+            obj["ZHSelect"] = ZHSelect;
+            obj["ShowDefectsContour"] = ShowDefectsContour;
+            obj["ShowDefectsArea"] = ShowDefectsArea;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["MPScale"] != null) MPScale = obj["MPScale"].Value<double>();
+                if (obj["ShieldWidth"] != null) ShieldWidth = obj["ShieldWidth"].Value<double>();
+                if (obj["ShieldHeight"] != null) ShieldHeight = obj["ShieldHeight"].Value<double>();
+                if (obj["PartitionHeight"] != null) PartitionHeight = obj["PartitionHeight"].Value<double>();
+                if (obj["ZLSelect"] != null) ZLSelect = obj["ZLSelect"].Value<double>();
+                if (obj["ZHSelect"] != null) ZHSelect = obj["ZHSelect"].Value<double>();
+                if (obj["ShowDefectsContour"] != null) ShowDefectsContour = obj["ShowDefectsContour"].Value<bool>();
+                if (obj["ShowDefectsArea"] != null) ShowDefectsArea = obj["ShowDefectsArea"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"FreeformSurfaceViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 }

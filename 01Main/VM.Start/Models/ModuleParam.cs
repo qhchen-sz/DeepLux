@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using
     HV.Common.Enums;
 using HV.Common.Helper;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace HV.Models
 {
@@ -89,5 +92,48 @@ namespace HV.Models
 
         public int ProjectID { get; set; } = -1;
 
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["ModuleName"] = ModuleName ?? "";
+            obj["ModuleNo"] = ModuleNo;
+            obj["CyclicCount"] = CyclicCount;
+            obj["Remarks"] = Remarks ?? "";
+            obj["ModuleEncode"] = ModuleEncode;
+            obj["PluginName"] = PluginName ?? "";
+            obj["IsUse"] = IsUse;
+            obj["IsEnableBreakPoint"] = IsEnableBreakPoint;
+            obj["IsUseSuperTool"] = IsUseSuperTool;
+            obj["ProjectID"] = ProjectID;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ModuleName"] != null) ModuleName = obj["ModuleName"].ToString();
+                if (obj["ModuleNo"] != null) ModuleNo = obj["ModuleNo"].Value<int>();
+                if (obj["CyclicCount"] != null) CyclicCount = obj["CyclicCount"].Value<int>();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["ModuleEncode"] != null) ModuleEncode = obj["ModuleEncode"].Value<int>();
+                if (obj["PluginName"] != null) PluginName = obj["PluginName"].ToString();
+                if (obj["IsUse"] != null) IsUse = obj["IsUse"].Value<bool>();
+                if (obj["IsEnableBreakPoint"] != null) IsEnableBreakPoint = obj["IsEnableBreakPoint"].Value<bool>();
+                if (obj["IsUseSuperTool"] != null) IsUseSuperTool = obj["IsUseSuperTool"].Value<bool>();
+                if (obj["ProjectID"] != null) ProjectID = obj["ProjectID"].Value<int>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ModuleParam.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }

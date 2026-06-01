@@ -1,6 +1,7 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using Newtonsoft.Json.Linq;
 using Plugin.WriteText.Views;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,8 @@ using VM.Start.Events;
 using VM.Start.Models;
 using VM.Start.ViewModels;
 using VM.Start.Views.Dock;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace Plugin.WriteText.ViewModels
 {
@@ -545,6 +548,78 @@ namespace Plugin.WriteText.ViewModels
         }
         #endregion
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["nSelectIndex"] = nSelectIndex;
+            obj["FilePath"] = FilePath ?? "";
+            obj["bClearFile"] = bClearFile;
+            obj["nDay"] = nDay;
+            obj["InputLinkName"] = InputLinkName?.Text ?? "";
+            obj["bTimeName"] = bTimeName;
+            obj["Extensions"] = Extensions ?? "";
+            obj["bCover"] = bCover;
+            obj["EndSelectedIndex"] = EndSelectedIndex;
+            obj["SplitSelectedIndex"] = SplitSelectedIndex;
+            obj["DeleteFlag"] = DeleteFlag;
+            JArray arr = new JArray();
+            if (DataParams != null)
+            {
+                foreach (var item in DataParams)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["ID"] = item.ID;
+                    itemObj["Title"] = item.Title ?? "";
+                    itemObj["Value"] = item.Value ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["DataParams"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["nSelectIndex"] != null) nSelectIndex = obj["nSelectIndex"].Value<int>();
+                if (obj["FilePath"] != null) FilePath = obj["FilePath"].ToString();
+                if (obj["bClearFile"] != null) bClearFile = obj["bClearFile"].Value<bool>();
+                if (obj["nDay"] != null) nDay = obj["nDay"].Value<int>();
+                if (obj["InputLinkName"] != null && InputLinkName != null) InputLinkName.Text = obj["InputLinkName"].ToString();
+                if (obj["bTimeName"] != null) bTimeName = obj["bTimeName"].Value<bool>();
+                if (obj["Extensions"] != null) Extensions = obj["Extensions"].ToString();
+                if (obj["bCover"] != null) bCover = obj["bCover"].Value<bool>();
+                if (obj["EndSelectedIndex"] != null) EndSelectedIndex = obj["EndSelectedIndex"].Value<int>();
+                if (obj["SplitSelectedIndex"] != null) SplitSelectedIndex = obj["SplitSelectedIndex"].Value<int>();
+                if (obj["DeleteFlag"] != null) DeleteFlag = obj["DeleteFlag"].Value<bool>();
+                if (obj["DataParams"] != null)
+                {
+                    JArray arr = (JArray)obj["DataParams"];
+                    DataParams.Clear();
+                    foreach (var item in arr)
+                    {
+                        DataParams.Add(new TxtParams()
+                        {
+                            ID = item["ID"]?.Value<int>() ?? 0,
+                            Title = item["Title"]?.ToString() ?? "",
+                            Value = item["Value"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"Csv.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
     [Serializable]
     public class TxtParams : NotifyPropertyBase

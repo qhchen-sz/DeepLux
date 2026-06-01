@@ -33,6 +33,7 @@ using System.Collections.ObjectModel;
 using Application = System.Windows.Application;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.JiErHanDefectsDet.ViewModels
 {
@@ -688,6 +689,53 @@ namespace Plugin.JiErHanDefectsDet.ViewModels
             }
         }
 
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["MPScale"] = MPScale;
+            obj["NormalDegree"] = NormalDegree;
+            obj["CurvatureThreshold"] = CurvatureThreshold;
+            obj["MinDefectsSize"] = MinDefectsSize;
+            obj["ZThreshold"] = ZThreshold;
+            obj["Radius"] = Radius;
+            obj["SurfaceThreshold"] = SurfaceThreshold;
+            obj["SampleStep"] = SampleStep;
+            obj["DetectType"] = DetectType;
+            obj["ShowDefectsContour"] = ShowDefectsContour;
+            obj["ShowDefectsArea"] = ShowDefectsArea;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["MPScale"] != null) MPScale = obj["MPScale"].Value<double>();
+                if (obj["NormalDegree"] != null) NormalDegree = (float)obj["NormalDegree"].Value<double>();
+                if (obj["CurvatureThreshold"] != null) CurvatureThreshold = (float)obj["CurvatureThreshold"].Value<double>();
+                if (obj["MinDefectsSize"] != null) MinDefectsSize = obj["MinDefectsSize"].Value<int>();
+                if (obj["ZThreshold"] != null) ZThreshold = (float)obj["ZThreshold"].Value<double>();
+                if (obj["Radius"] != null) Radius = (float)obj["Radius"].Value<double>();
+                if (obj["SurfaceThreshold"] != null) SurfaceThreshold = (float)obj["SurfaceThreshold"].Value<double>();
+                if (obj["SampleStep"] != null) SampleStep = obj["SampleStep"].Value<int>();
+                if (obj["DetectType"] != null) DetectType = obj["DetectType"].Value<int>();
+                if (obj["ShowDefectsContour"] != null) ShowDefectsContour = obj["ShowDefectsContour"].Value<bool>();
+                if (obj["ShowDefectsArea"] != null) ShowDefectsArea = obj["ShowDefectsArea"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"JiErHanDefectsDetViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
         #endregion
     }
 }

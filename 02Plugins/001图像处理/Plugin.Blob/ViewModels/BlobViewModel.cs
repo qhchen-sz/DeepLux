@@ -23,6 +23,7 @@ using HV.ViewModels;
 using VM.Halcon.Config;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
 using HandyControl.Tools.Extension;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.Blob.ViewModels
 {
@@ -1264,6 +1265,146 @@ namespace Plugin.Blob.ViewModels
                     });
                 }
                 return _LinkCommand;
+            }
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["SelectedIndex"] = SelectedIndex;
+            obj["IsDisp"] = IsDisp;
+            obj["ShowSearchRegion"] = ShowSearchRegion;
+            obj["ShowResultRegion"] = ShowResultRegion;
+            obj["ThresholdMin"] = ThresholdMin;
+            obj["ThresholdMax"] = ThresholdMax;
+            obj["IsAdjustingMinThreshold"] = IsAdjustingMinThreshold;
+            obj["CurrentRow"] = CurrentRow;
+            obj["SelectedROIType"] = (int)SelectedROIType;
+            obj["InputRoiLinkText"] = InputRoiLinkText ?? "";
+            JArray arr = new JArray();
+            if (m_ToolList != null)
+            {
+                foreach (var item in m_ToolList)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["m_enable"] = item.m_enable;
+                    itemObj["m_name"] = (int)item.m_name;
+                    itemObj["m_id"] = item.m_id;
+                    itemObj["m_ConditionalRelationship"] = (int)item.m_ConditionalRelationship;
+                    itemObj["m_FilterConditions"] = (int)item.m_FilterConditions;
+                    itemObj["m_StructuralElements"] = (int)item.m_StructuralElements;
+                    itemObj["m_Union1Index"] = item.m_Union1Index ?? "上一个区域";
+                    itemObj["m_ComplementIndex"] = item.m_ComplementIndex ?? "上一个区域";
+                    itemObj["m_DifferenceIndex"] = item.m_DifferenceIndex ?? "上一个区域";
+                    itemObj["m_DifferenceIndex2"] = item.m_DifferenceIndex2 ?? "上一个区域";
+                    itemObj["m_IntersectionIndex"] = item.m_IntersectionIndex ?? "上一个区域";
+                    itemObj["m_IntersectionIndex2"] = item.m_IntersectionIndex2 ?? "上一个区域";
+                    itemObj["m_FillIndex"] = item.m_FillIndex ?? "上一个区域";
+                    itemObj["m_OpenIndex"] = item.m_OpenIndex ?? "上一个区域";
+                    itemObj["m_OpenWidth"] = item.m_OpenWidth;
+                    itemObj["m_OpenHeight"] = item.m_OpenHeight;
+                    itemObj["m_OpenRadius"] = item.m_OpenRadius;
+                    itemObj["m_CloseIndex"] = item.m_CloseIndex ?? "上一个区域";
+                    itemObj["m_CloseWidth"] = item.m_CloseWidth;
+                    itemObj["m_CloseHeight"] = item.m_CloseHeight;
+                    itemObj["m_CloseRadius"] = item.m_CloseRadius;
+                    itemObj["m_ErosionIndex"] = item.m_ErosionIndex ?? "上一个区域";
+                    itemObj["m_ErosionWidth"] = item.m_ErosionWidth;
+                    itemObj["m_ErosionHeight"] = item.m_ErosionHeight;
+                    itemObj["m_ErosionRadius"] = item.m_ErosionRadius;
+                    itemObj["m_DilationIndex"] = item.m_DilationIndex ?? "上一个区域";
+                    itemObj["m_DilationWidth"] = item.m_DilationWidth;
+                    itemObj["m_DilationHeight"] = item.m_DilationHeight;
+                    itemObj["m_DilationRadius"] = item.m_DilationRadius;
+                    itemObj["m_FeaturesIndex"] = item.m_FeaturesIndex ?? "上一个区域";
+                    itemObj["m_FeaturesMin"] = item.m_FeaturesMin;
+                    itemObj["m_FeaturesMax"] = item.m_FeaturesMax;
+                    itemObj["m_ConversionIndex"] = item.m_ConversionIndex ?? "上一个区域";
+                    itemObj["m_ConversionType"] = (int)item.m_ConversionType;
+                    itemObj["m_ShapeStdIndex"] = item.m_ShapeStdIndex ?? "上一个区域";
+                    itemObj["m_DivisionIndex"] = item.m_DivisionIndex ?? "上一个区域";
+                    itemObj["m_DivisionWidth"] = item.m_DivisionWidth;
+                    itemObj["m_DivisionHeight"] = item.m_DivisionHeight;
+                    arr.Add(itemObj);
+                }
+            }
+            obj["m_ToolList"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["SelectedIndex"] != null) SelectedIndex = obj["SelectedIndex"].Value<int>();
+                if (obj["IsDisp"] != null) IsDisp = obj["IsDisp"].Value<bool>();
+                if (obj["ShowSearchRegion"] != null) ShowSearchRegion = obj["ShowSearchRegion"].Value<bool>();
+                if (obj["ShowResultRegion"] != null) ShowResultRegion = obj["ShowResultRegion"].Value<bool>();
+                if (obj["ThresholdMin"] != null) ThresholdMin = obj["ThresholdMin"].Value<int>();
+                if (obj["ThresholdMax"] != null) ThresholdMax = obj["ThresholdMax"].Value<int>();
+                if (obj["IsAdjustingMinThreshold"] != null) IsAdjustingMinThreshold = obj["IsAdjustingMinThreshold"].Value<bool>();
+                if (obj["CurrentRow"] != null) CurrentRow = obj["CurrentRow"].Value<int>();
+                if (obj["SelectedROIType"] != null) SelectedROIType = (eRoiType)obj["SelectedROIType"].Value<int>();
+                if (obj["InputRoiLinkText"] != null) InputRoiLinkText = obj["InputRoiLinkText"].ToString();
+                if (obj["m_ToolList"] != null)
+                {
+                    JArray arr = (JArray)obj["m_ToolList"];
+                    m_ToolList.Clear();
+                    foreach (var item in arr)
+                    {
+                        Blob.Models.ModelData md = new Blob.Models.ModelData();
+                        if (item["m_enable"] != null) md.m_enable = item["m_enable"].Value<bool>();
+                        if (item["m_name"] != null) md.m_name = (Blob.Models.eOperatorType)item["m_name"].Value<int>();
+                        if (item["m_id"] != null) md.m_id = item["m_id"].Value<int>();
+                        if (item["m_ConditionalRelationship"] != null) md.m_ConditionalRelationship = (Blob.Models.eConditionalRelationship)item["m_ConditionalRelationship"].Value<int>();
+                        if (item["m_FilterConditions"] != null) md.m_FilterConditions = (Blob.Models.eFilterConditions)item["m_FilterConditions"].Value<int>();
+                        if (item["m_StructuralElements"] != null) md.m_StructuralElements = (Blob.Models.eStructuralElements)item["m_StructuralElements"].Value<int>();
+                        if (item["m_Union1Index"] != null) md.m_Union1Index = item["m_Union1Index"].ToString();
+                        if (item["m_ComplementIndex"] != null) md.m_ComplementIndex = item["m_ComplementIndex"].ToString();
+                        if (item["m_DifferenceIndex"] != null) md.m_DifferenceIndex = item["m_DifferenceIndex"].ToString();
+                        if (item["m_DifferenceIndex2"] != null) md.m_DifferenceIndex2 = item["m_DifferenceIndex2"].ToString();
+                        if (item["m_IntersectionIndex"] != null) md.m_IntersectionIndex = item["m_IntersectionIndex"].ToString();
+                        if (item["m_IntersectionIndex2"] != null) md.m_IntersectionIndex2 = item["m_IntersectionIndex2"].ToString();
+                        if (item["m_FillIndex"] != null) md.m_FillIndex = item["m_FillIndex"].ToString();
+                        if (item["m_OpenIndex"] != null) md.m_OpenIndex = item["m_OpenIndex"].ToString();
+                        if (item["m_OpenWidth"] != null) md.m_OpenWidth = item["m_OpenWidth"].Value<int>();
+                        if (item["m_OpenHeight"] != null) md.m_OpenHeight = item["m_OpenHeight"].Value<int>();
+                        if (item["m_OpenRadius"] != null) md.m_OpenRadius = item["m_OpenRadius"].Value<int>();
+                        if (item["m_CloseIndex"] != null) md.m_CloseIndex = item["m_CloseIndex"].ToString();
+                        if (item["m_CloseWidth"] != null) md.m_CloseWidth = item["m_CloseWidth"].Value<int>();
+                        if (item["m_CloseHeight"] != null) md.m_CloseHeight = item["m_CloseHeight"].Value<int>();
+                        if (item["m_CloseRadius"] != null) md.m_CloseRadius = item["m_CloseRadius"].Value<int>();
+                        if (item["m_ErosionIndex"] != null) md.m_ErosionIndex = item["m_ErosionIndex"].ToString();
+                        if (item["m_ErosionWidth"] != null) md.m_ErosionWidth = item["m_ErosionWidth"].Value<int>();
+                        if (item["m_ErosionHeight"] != null) md.m_ErosionHeight = item["m_ErosionHeight"].Value<int>();
+                        if (item["m_ErosionRadius"] != null) md.m_ErosionRadius = item["m_ErosionRadius"].Value<int>();
+                        if (item["m_DilationIndex"] != null) md.m_DilationIndex = item["m_DilationIndex"].ToString();
+                        if (item["m_DilationWidth"] != null) md.m_DilationWidth = item["m_DilationWidth"].Value<int>();
+                        if (item["m_DilationHeight"] != null) md.m_DilationHeight = item["m_DilationHeight"].Value<int>();
+                        if (item["m_DilationRadius"] != null) md.m_DilationRadius = item["m_DilationRadius"].Value<int>();
+                        if (item["m_FeaturesIndex"] != null) md.m_FeaturesIndex = item["m_FeaturesIndex"].ToString();
+                        if (item["m_FeaturesMin"] != null) md.m_FeaturesMin = item["m_FeaturesMin"].Value<double>();
+                        if (item["m_FeaturesMax"] != null) md.m_FeaturesMax = item["m_FeaturesMax"].Value<double>();
+                        if (item["m_ConversionIndex"] != null) md.m_ConversionIndex = item["m_ConversionIndex"].ToString();
+                        if (item["m_ConversionType"] != null) md.m_ConversionType = (Blob.Models.eConversionType)item["m_ConversionType"].Value<int>();
+                        if (item["m_ShapeStdIndex"] != null) md.m_ShapeStdIndex = item["m_ShapeStdIndex"].ToString();
+                        if (item["m_DivisionIndex"] != null) md.m_DivisionIndex = item["m_DivisionIndex"].ToString();
+                        if (item["m_DivisionWidth"] != null) md.m_DivisionWidth = item["m_DivisionWidth"].Value<int>();
+                        if (item["m_DivisionHeight"] != null) md.m_DivisionHeight = item["m_DivisionHeight"].Value<int>();
+                        m_ToolList.Add(md);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"BlobViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
             }
         }
         #endregion

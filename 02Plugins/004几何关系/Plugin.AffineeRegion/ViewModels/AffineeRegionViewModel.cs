@@ -25,6 +25,7 @@ using HV.Models;
 using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
 
@@ -444,5 +445,49 @@ namespace Plugin.AffineeRegion.ViewModels
             }
         }
         #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["SelectedInterpolationMethod"] = (int)SelectedInterpolationMethod;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["InputRegionLinkText"] = InputRegionLinkText ?? "";
+            obj["Rect1X1"] = Rect1X1?.Text ?? "";
+            obj["Rect1Y1"] = Rect1Y1?.Text ?? "";
+            obj["Rect1X2"] = Rect1X2?.Text ?? "";
+            obj["Rect1Y2"] = Rect1Y2?.Text ?? "";
+            obj["Rect1Angle1"] = Rect1Angle1?.Text ?? "";
+            obj["Rect1Angle2"] = Rect1Angle2?.Text ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["SelectedInterpolationMethod"] != null) SelectedInterpolationMethod = (InterpolationMethod)obj["SelectedInterpolationMethod"].Value<int>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["InputRegionLinkText"] != null) InputRegionLinkText = obj["InputRegionLinkText"].ToString();
+                if (obj["Rect1X1"] != null && Rect1X1 != null) Rect1X1.Text = obj["Rect1X1"].ToString();
+                if (obj["Rect1Y1"] != null && Rect1Y1 != null) Rect1Y1.Text = obj["Rect1Y1"].ToString();
+                if (obj["Rect1X2"] != null && Rect1X2 != null) Rect1X2.Text = obj["Rect1X2"].ToString();
+                if (obj["Rect1Y2"] != null && Rect1Y2 != null) Rect1Y2.Text = obj["Rect1Y2"].ToString();
+                if (obj["Rect1Angle1"] != null && Rect1Angle1 != null) Rect1Angle1.Text = obj["Rect1Angle1"].ToString();
+                if (obj["Rect1Angle2"] != null && Rect1Angle2 != null) Rect1Angle2.Text = obj["Rect1Angle2"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"AffineeRegionViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using HV.Common.Provide;
+using HV.Common.Enums;
 using
    HV.Common.Helper;
 
@@ -48,5 +51,36 @@ namespace HV.Models
             set { Set(ref _Remarks, value); }
         }
 
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["ID"] = ID;
+            obj["IsEnable"] = IsEnable;
+            obj["Name"] = Name ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ID"] != null) ID = obj["ID"].Value<int>();
+                if (obj["IsEnable"] != null) IsEnable = obj["IsEnable"].Value<bool>();
+                if (obj["Name"] != null) Name = obj["Name"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CommunicationModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
     }
 }

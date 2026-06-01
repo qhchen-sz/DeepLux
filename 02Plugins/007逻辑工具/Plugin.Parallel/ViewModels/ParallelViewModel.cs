@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using HandyControl.Controls;
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
@@ -319,6 +320,38 @@ namespace Plugin.Parallel.ViewModels
         }
         #endregion
 
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["XLinkText"] = XLinkText?.Text ?? "";
+            obj["YLinkText"] = YLinkText?.Text ?? "";
+            obj["DegLinkText"] = DegLinkText?.Text ?? "";
+            obj["ShowCoordinate"] = ShowCoordinate;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["XLinkText"] != null && XLinkText != null) XLinkText.Text = obj["XLinkText"].ToString();
+                if (obj["YLinkText"] != null && YLinkText != null) YLinkText.Text = obj["YLinkText"].ToString();
+                if (obj["DegLinkText"] != null && DegLinkText != null) DegLinkText.Text = obj["DegLinkText"].ToString();
+                if (obj["ShowCoordinate"] != null) ShowCoordinate = obj["ShowCoordinate"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ParallelViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 
 }

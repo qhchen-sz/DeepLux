@@ -26,6 +26,7 @@ using VM.Halcon.Config;
 using System.Globalization;
 using System.Threading;
 using System.Collections.Concurrent;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.SaveImage.ViewModels
 {
@@ -1595,6 +1596,63 @@ namespace Plugin.SaveImage.ViewModels
                     });
                 }
                 return _ManualDeleteCommand;
+            }
+        }
+        #endregion
+
+        #region 序列化
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["SaveImageLinkText"] = SaveImageLinkText ?? "";
+            obj["SaveImageLinkTextValue"] = SaveImageLinkTextValue ?? "";
+            obj["SelectedSaveType"] = (int)SelectedSaveType;
+            obj["SelectedMode"] = (int)SelectedMode;
+            obj["FilePath"] = FilePath ?? "";
+            obj["SelectedIndex"] = SelectedIndex;
+            obj["SaveDay"] = SaveDay;
+            obj["PicName"] = PicName?.Text ?? "1";
+            obj["TempFilePath"] = TempFilePath?.Text ?? "";
+            obj["SaveImagePath"] = SaveImagePath?.Text ?? "";
+            obj["ImageNameTime"] = ImageNameTime;
+            obj["AutoDelete"] = AutoDelete;
+            obj["SelectedTimePrefix"] = (int)SelectedTimePrefix;
+            obj["CustomTimeFormat"] = CustomTimeFormat ?? "";
+            obj["IsCustomTimeFormatVisible"] = IsCustomTimeFormatVisible;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["SaveImageLinkText"] != null) SaveImageLinkText = obj["SaveImageLinkText"].ToString();
+                if (obj["SaveImageLinkTextValue"] != null) SaveImageLinkTextValue = obj["SaveImageLinkTextValue"].ToString();
+                if (obj["SelectedSaveType"] != null) SelectedSaveType = (eSaveShape)obj["SelectedSaveType"].Value<int>();
+                if (obj["SelectedMode"] != null) SelectedMode = (LinkMode)obj["SelectedMode"].Value<int>();
+                if (obj["FilePath"] != null) FilePath = obj["FilePath"].ToString();
+                if (obj["SelectedIndex"] != null) SelectedIndex = obj["SelectedIndex"].Value<int>();
+                if (obj["SaveDay"] != null) SaveDay = obj["SaveDay"].Value<int>();
+                if (obj["PicName"] != null && PicName != null) PicName.Text = obj["PicName"].ToString();
+                if (obj["TempFilePath"] != null && TempFilePath != null) TempFilePath.Text = obj["TempFilePath"].ToString();
+                if (obj["SaveImagePath"] != null && SaveImagePath != null) SaveImagePath.Text = obj["SaveImagePath"].ToString();
+                if (obj["ImageNameTime"] != null) ImageNameTime = obj["ImageNameTime"].Value<bool>();
+                if (obj["AutoDelete"] != null) AutoDelete = obj["AutoDelete"].Value<bool>();
+                if (obj["SelectedTimePrefix"] != null) SelectedTimePrefix = (TimePrefixOption)obj["SelectedTimePrefix"].Value<int>();
+                if (obj["CustomTimeFormat"] != null) CustomTimeFormat = obj["CustomTimeFormat"].ToString();
+                if (obj["IsCustomTimeFormatVisible"] != null) IsCustomTimeFormatVisible = obj["IsCustomTimeFormatVisible"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"SaveImageViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
         #endregion

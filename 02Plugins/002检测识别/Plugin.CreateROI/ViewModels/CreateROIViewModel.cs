@@ -20,6 +20,8 @@ using VM.Halcon;
 using VM.Halcon.Config;
 using VM.Halcon.Model;
 using HV.Views.Dock;
+using HV.Dialogs.Views;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.CreateROI.ViewModels
 {
@@ -614,7 +616,17 @@ namespace Plugin.CreateROI.ViewModels
             var view = ModuleView as CreateROIView;
             if (view == null) return;
 
-            int viewId = DispImage?.DispViewID ?? -1;
+            // 防呆：无有效图像时提示用户并返回，避免后续Halcon操作导致崩溃
+            if (DispImage == null || !DispImage.IsInitialized())
+            {
+                if (!IsLoaded_Flag)
+                {
+                    MessageView.Ins.MessageBoxShow("请先链接并选择输入图像后再绘制ROI！", eMsgType.Warn);
+                }
+                return;
+            }
+
+            int viewId = DispImage.DispViewID;
             VMHWindowControl mWindowH = (view == null || view.IsClosed) ? ViewDic.GetView(viewId) : view.mWindowH;
             if (mWindowH == null) return;
 
@@ -835,5 +847,57 @@ namespace Plugin.CreateROI.ViewModels
         }
         #endregion
         #endregion
+
+        #region Serialize
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["ShowResultContour"] = ShowResultContour;
+            obj["IsOutImageReduced"] = IsOutImageReduced;
+            obj["IsOutImageComplement"] = IsOutImageComplement;
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["SelectedROIType"] = (int)SelectedROIType;
+            obj["Rect2Len1"] = Rect2Len1?.Text ?? "30";
+            obj["Rect2Len2"] = Rect2Len2?.Text ?? "30";
+            obj["Rect2MidR"] = Rect2MidR?.Text ?? "200";
+            obj["Rect2MidC"] = Rect2MidC?.Text ?? "200";
+            obj["Rect2Deg"] = Rect2Deg?.Text ?? "0";
+            obj["CircleX"] = CircleX?.Text ?? "100";
+            obj["CircleY"] = CircleY?.Text ?? "100";
+            obj["CircleRadius"] = CircleRadius?.Text ?? "30";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ShowResultContour"] != null) ShowResultContour = obj["ShowResultContour"].Value<bool>();
+                if (obj["IsOutImageReduced"] != null) IsOutImageReduced = obj["IsOutImageReduced"].Value<bool>();
+                if (obj["IsOutImageComplement"] != null) IsOutImageComplement = obj["IsOutImageComplement"].Value<bool>();
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["SelectedROIType"] != null) SelectedROIType = (eDrawShape)obj["SelectedROIType"].Value<int>();
+                if (obj["Rect2Len1"] != null && Rect2Len1 != null) Rect2Len1.Text = obj["Rect2Len1"].ToString();
+                if (obj["Rect2Len2"] != null && Rect2Len2 != null) Rect2Len2.Text = obj["Rect2Len2"].ToString();
+                if (obj["Rect2MidR"] != null && Rect2MidR != null) Rect2MidR.Text = obj["Rect2MidR"].ToString();
+                if (obj["Rect2MidC"] != null && Rect2MidC != null) Rect2MidC.Text = obj["Rect2MidC"].ToString();
+                if (obj["Rect2Deg"] != null && Rect2Deg != null) Rect2Deg.Text = obj["Rect2Deg"].ToString();
+                if (obj["CircleX"] != null && CircleX != null) CircleX.Text = obj["CircleX"].ToString();
+                if (obj["CircleY"] != null && CircleY != null) CircleY.Text = obj["CircleY"].ToString();
+                if (obj["CircleRadius"] != null && CircleRadius != null) CircleRadius.Text = obj["CircleRadius"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CreateROIViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
+
     }
 }

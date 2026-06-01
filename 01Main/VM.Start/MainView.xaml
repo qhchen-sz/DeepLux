@@ -369,6 +369,22 @@
                     ToolTip="{lex:Loc Key=Save}"
                     Visibility="{Binding Source={StaticResource RightControl}, Path=Ins.Save, Converter={StaticResource Bool2VisibilityConverter}}" Cursor="Hand" />
                 <Button
+                    Command="{Binding NavOperateCommand}"
+                    CommandParameter="SaveNew"
+                    Content="&#xe653;"
+                    IsEnabled="{Binding Source={StaticResource IsEnableControl}, Path=Ins.Save}"
+                    Style="{StaticResource NavOperateButtonStyle}"
+                    ToolTip="保存HV"
+                    Visibility="{Binding Source={StaticResource RightControl}, Path=Ins.Save, Converter={StaticResource Bool2VisibilityConverter}}" Cursor="Hand" />
+                <Button
+                    Command="{Binding NavOperateCommand}"
+                    CommandParameter="LoadNew"
+                    Content="&#xe64d;"
+                    IsEnabled="{Binding Source={StaticResource IsEnableControl}, Path=Ins.Open}"
+                    Style="{StaticResource NavOperateButtonStyle}"
+                    ToolTip="加载HV"
+                    Visibility="{Binding Source={StaticResource RightControl}, Path=Ins.Open, Converter={StaticResource Bool2VisibilityConverter}}" Cursor="Hand" />
+                <Button
                     x:Name="btnQuickMode"
                     Command="{Binding NavOperateCommand}"
                     CommandParameter="QuickMode"

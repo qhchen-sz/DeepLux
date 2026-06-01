@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.LightControl.Views;
 using System;
 using System.Collections.Generic;
@@ -395,5 +396,46 @@ namespace Plugin.LightControl.ViewModels
                 return false;
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["Continue"] = Continue;
+            obj["SendStr"] = SendStr ?? "";
+            obj["SendStr2"] = SendStr2 ?? "";
+            obj["IsSendByHex"] = IsSendByHex;
+            obj["IsEnableTimeOut"] = IsEnableTimeOut;
+            obj["eEnableEndstr"] = (int)eEnableEndstr;
+            obj["CurKey"] = CurKey ?? "";
+            obj["LightSelectBrand"] = LightSelectBrand ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Continue"] != null) Continue = obj["Continue"].Value<bool>();
+                if (obj["SendStr"] != null) SendStr = obj["SendStr"].ToString();
+                if (obj["SendStr2"] != null) SendStr2 = obj["SendStr2"].ToString();
+                if (obj["IsSendByHex"] != null) IsSendByHex = obj["IsSendByHex"].Value<bool>();
+                if (obj["IsEnableTimeOut"] != null) IsEnableTimeOut = obj["IsEnableTimeOut"].Value<bool>();
+                if (obj["eEnableEndstr"] != null) eEnableEndstr = (eEnableEndStr)obj["eEnableEndstr"].Value<int>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["LightSelectBrand"] != null) LightSelectBrand = obj["LightSelectBrand"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"LightControlViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

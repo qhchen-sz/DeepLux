@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.PLCRead.Models;
 using Plugin.PLCRead.Views;
 using System;
@@ -432,5 +433,65 @@ namespace Plugin.PLCRead.ViewModels
             //Remarks = arr[0] + "." + arr[1];
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["StartAddress"] = StartAddress;
+            obj["CurKey"] = CurKey ?? "";
+            obj["DataType"] = (int)DataType;
+            JArray arr = new JArray();
+            if (PlcReadVar != null)
+            {
+                foreach (var item in PlcReadVar)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Addr"] = item.Addr ?? "";
+                    itemObj["DataType"] = (int)item.DataType;
+                    itemObj["Name"] = item.Name ?? "";
+                    itemObj["Remarks"] = item.Remarks ?? "";
+                    itemObj["Note"] = item.Note ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["PlcReadVar"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["StartAddress"] != null) StartAddress = obj["StartAddress"].Value<int>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["DataType"] != null) DataType = (PLCDataWriteReadTypeEnum)obj["DataType"].Value<int>();
+                if (obj["PlcReadVar"] != null)
+                {
+                    JArray arr = (JArray)obj["PlcReadVar"];
+                    PlcReadVar.Clear();
+                    foreach (var item in arr)
+                    {
+                        PlcReadVar.Add(new ReadVarModel()
+                        {
+                            Addr = item["Addr"]?.ToString() ?? "",
+                            DataType = (PLCDataWriteReadTypeEnum)(item["DataType"]?.Value<int>() ?? 0),
+                            Name = item["Name"]?.ToString() ?? "",
+                            Remarks = item["Remarks"]?.ToString() ?? "",
+                            Note = item["Note"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PLCReadViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

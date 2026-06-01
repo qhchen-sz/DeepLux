@@ -1,5 +1,6 @@
 ﻿using EventMgrLib;
 using HalconDotNet;
+using Newtonsoft.Json.Linq;
 using Plugin.PLCWrite.Views;
 using System;
 using System.Collections.Generic;
@@ -494,6 +495,74 @@ namespace Plugin.PLCWrite.ViewModels
                 return this._Modules;
             }
             set { this._Modules = value; }
+        }
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["Repetitions"] = Repetitions;
+            obj["Continue"] = Continue;
+            obj["StartAddress"] = StartAddress;
+            obj["Remarks"] = Remarks ?? "";
+            obj["CurKey"] = CurKey ?? "";
+            obj["DataType"] = (int)DataType;
+            obj["LinkValue"] = LinkValue?.Text ?? "";
+            JArray arr = new JArray();
+            if (PlcWriteVar != null)
+            {
+                foreach (var item in PlcWriteVar)
+                {
+                    JObject itemObj = new JObject();
+                    itemObj["Addr"] = item.Addr ?? "";
+                    itemObj["DataTypePlc"] = (int)item.DataTypePlc;
+                    itemObj["NamePlc"] = item.NamePlc ?? "";
+                    itemObj["Remarks"] = item.Remarks ?? "";
+                    itemObj["NotePlc"] = item.NotePlc ?? "";
+                    arr.Add(itemObj);
+                }
+            }
+            obj["PlcWriteVar"] = arr;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Repetitions"] != null) Repetitions = obj["Repetitions"].Value<int>();
+                if (obj["Continue"] != null) Continue = obj["Continue"].Value<bool>();
+                if (obj["StartAddress"] != null) StartAddress = obj["StartAddress"].Value<int>();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["DataType"] != null) DataType = (PLCDataWriteReadTypeEnum)obj["DataType"].Value<int>();
+                if (obj["LinkValue"] != null && LinkValue != null) LinkValue.Text = obj["LinkValue"].ToString();
+                if (obj["PlcWriteVar"] != null)
+                {
+                    JArray arr = (JArray)obj["PlcWriteVar"];
+                    PlcWriteVar.Clear();
+                    foreach (var item in arr)
+                    {
+                        PlcWriteVar.Add(new WriteVarModel()
+                        {
+                            Addr = item["Addr"]?.ToString() ?? "",
+                            DataTypePlc = (PLCDataWriteReadTypeEnum)(item["DataTypePlc"]?.Value<int>() ?? 0),
+                            NamePlc = item["NamePlc"]?.ToString() ?? "",
+                            Remarks = item["Remarks"]?.ToString() ?? "",
+                            NotePlc = item["NotePlc"]?.ToString() ?? ""
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"PLCWriteViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
     }
 }

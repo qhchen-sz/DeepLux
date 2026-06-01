@@ -3,17 +3,21 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.UI.WebControls;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Newtonsoft.Json.Linq;
 using
    HV.Common.Enums;
 using HV.Common.Helper;
 using HV.Core;
 using HV.Services;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace HV.Models
 {
@@ -377,6 +381,72 @@ namespace HV.Models
         }
         #endregion
 
+        #region 序列化
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["ProjectID"] = ProjectID;
+            obj["IsEncypt"] = IsEncypt;
+            obj["ModuleNo"] = ModuleNo;
+            obj["IsEnableBreakPoint"] = IsEnableBreakPoint;
+            obj["IsUse"] = IsUse;
+            obj["IsCategory"] = IsCategory;
+            obj["Hierarchy"] = Hierarchy;
+            obj["Name"] = Name ?? "";
+            obj["DisplayName"] = DisplayName ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            obj["IsExpanded"] = IsExpanded;
+            if (Children != null)
+            {
+                JArray childrenArr = new JArray();
+                foreach (var child in Children)
+                {
+                    childrenArr.Add(JObject.Parse(child.HVSerialize()));
+                }
+                obj["Children"] = childrenArr;
+            }
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["ProjectID"] != null) ProjectID = obj["ProjectID"].Value<int>();
+                if (obj["IsEncypt"] != null) IsEncypt = obj["IsEncypt"].Value<bool>();
+                if (obj["ModuleNo"] != null) ModuleNo = obj["ModuleNo"].Value<int>();
+                if (obj["IsEnableBreakPoint"] != null) IsEnableBreakPoint = obj["IsEnableBreakPoint"].Value<bool>();
+                if (obj["IsUse"] != null) IsUse = obj["IsUse"].Value<bool>();
+                if (obj["IsCategory"] != null) IsCategory = obj["IsCategory"].Value<bool>();
+                if (obj["Hierarchy"] != null) Hierarchy = obj["Hierarchy"].Value<int>();
+                if (obj["Name"] != null) Name = obj["Name"].ToString();
+                if (obj["DisplayName"] != null) DisplayName = obj["DisplayName"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["IsExpanded"] != null) IsExpanded = obj["IsExpanded"].Value<bool>();
+                if (obj["Children"] != null)
+                {
+                    Children = new List<ModuleNode>();
+                    JArray childrenArr = (JArray)obj["Children"];
+                    foreach (var item in childrenArr)
+                    {
+                        ModuleNode child = (ModuleNode)FormatterServices.GetUninitializedObject(typeof(ModuleNode));
+                        child.HVDeserialize(item.ToString());
+                        child.ParentModuleNode = this;
+                        Children.Add(child);
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ModuleNode.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+        #endregion
 
     }
 }

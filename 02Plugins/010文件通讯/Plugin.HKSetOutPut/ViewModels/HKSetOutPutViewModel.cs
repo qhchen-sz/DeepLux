@@ -1,4 +1,5 @@
 ﻿using EventMgrLib;
+using Newtonsoft.Json.Linq;
 using Plugin.HKSetOutPut.Views;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,8 @@ using VM.Start.Models;
 using VM.Start.Services;
 using VM.Start.ViewModels;
 using VM.Start.Views;
+using HV.Common.Provide;
+using HV.Common.Enums;
 
 namespace Plugin.HKSetOutPut.ViewModels
 {
@@ -176,5 +179,41 @@ namespace Plugin.HKSetOutPut.ViewModels
         }
 
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["SelectedLine"] = (int)SelectedLine;
+            obj["DelayTime"] = DelayTime?.Text ?? "";
+            obj["CameraSerialNo"] = SelectedCameraModel?.SerialNo ?? "";
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["SelectedLine"] != null) SelectedLine = (eLineIndex)obj["SelectedLine"].Value<int>();
+                if (obj["DelayTime"] != null && DelayTime != null) DelayTime.Text = obj["DelayTime"].ToString();
+                if (obj["CameraSerialNo"] != null)
+                {
+                    string serialNo = obj["CameraSerialNo"].ToString();
+                    if (!string.IsNullOrEmpty(serialNo))
+                    {
+                        SelectedCameraModel = CameraModels?.FirstOrDefault(c => c.SerialNo == serialNo) ?? SelectedCameraModel;
+                    }
+                }
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"HKSetOutPutViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

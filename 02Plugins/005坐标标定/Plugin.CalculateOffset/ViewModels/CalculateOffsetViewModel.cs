@@ -33,6 +33,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views;
 using HV.Views.Dock;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.CalculateOffset.ViewModels
 {
@@ -402,6 +403,51 @@ namespace Plugin.CalculateOffset.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["InputImageLinkText"] = InputImageLinkText ?? "";
+            obj["XLinkText"] = XLinkText?.Text ?? "";
+            obj["YLinkText"] = YLinkText?.Text ?? "";
+            obj["DegLinkText"] = DegLinkText?.Text ?? "";
+            obj["Hommat2DFilePath"] = Hommat2DFilePath ?? "";
+            obj["CenterX"] = CenterX;
+            obj["CenterY"] = CenterY;
+            obj["EnableRotateCenter"] = EnableRotateCenter;
+            obj["OffsetX"] = OffsetX;
+            obj["OffsetY"] = OffsetY;
+            obj["OffsetR"] = OffsetR;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
+                if (obj["XLinkText"] != null && XLinkText != null) XLinkText.Text = obj["XLinkText"].ToString();
+                if (obj["YLinkText"] != null && YLinkText != null) YLinkText.Text = obj["YLinkText"].ToString();
+                if (obj["DegLinkText"] != null && DegLinkText != null) DegLinkText.Text = obj["DegLinkText"].ToString();
+                if (obj["Hommat2DFilePath"] != null) Hommat2DFilePath = obj["Hommat2DFilePath"].ToString();
+                if (obj["CenterX"] != null) CenterX = obj["CenterX"].Value<double>();
+                if (obj["CenterY"] != null) CenterY = obj["CenterY"].Value<double>();
+                if (obj["EnableRotateCenter"] != null) EnableRotateCenter = obj["EnableRotateCenter"].Value<bool>();
+                if (obj["OffsetX"] != null) OffsetX = obj["OffsetX"].Value<double>();
+                if (obj["OffsetY"] != null) OffsetY = obj["OffsetY"].Value<double>();
+                if (obj["OffsetR"] != null) OffsetR = obj["OffsetR"].Value<double>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CalculateOffsetViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
 
     }
 

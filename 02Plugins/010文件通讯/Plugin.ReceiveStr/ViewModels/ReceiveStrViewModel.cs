@@ -1,4 +1,5 @@
-﻿using Plugin.ReceiveStr.Views;
+﻿using Newtonsoft.Json.Linq;
+using Plugin.ReceiveStr.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -36,7 +37,24 @@ namespace Plugin.ReceiveStr.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex);
+                if (IsClearCache)
+                {
+                    EComManageer.ClearEcomRecStr(CurKey);
+                }
+                bool result;
+                if (IsEnableTimeOut)
+                {
+                    result = EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex, TimeOut);
+                }
+                else
+                {
+                    result = EComManageer.GetEcomRecStr(CurKey, out RecStr, ReceiveAsHex);
+                }
+                if (!result)
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -63,6 +81,15 @@ namespace Plugin.ReceiveStr.ViewModels
         {
             get { return _IsEnableTimeOut; }
             set { _IsEnableTimeOut = value; RaisePropertyChanged(); }
+        }
+        private int _TimeOut = 1000;
+        /// <summary>
+        /// 超时时间(ms)
+        /// </summary>
+        public int TimeOut
+        {
+            get { return _TimeOut; }
+            set { _TimeOut = value; RaisePropertyChanged(); }
         }
         private string _CurKey = "";
         /// <summary>
@@ -106,7 +133,16 @@ namespace Plugin.ReceiveStr.ViewModels
         public bool ReceiveAsHex
         {
             get { return _ReceiveAsHex; }
-            set { _ReceiveAsHex = value; } 
+            set { _ReceiveAsHex = value; }
+        }
+        private bool _IsClearCache = false;
+        /// <summary>
+        /// 运行前清除缓存
+        /// </summary>
+        public bool IsClearCache
+        {
+            get { return _IsClearCache; }
+            set { _IsClearCache = value; RaisePropertyChanged(); }
         }
         #endregion
 
@@ -148,5 +184,40 @@ namespace Plugin.ReceiveStr.ViewModels
             }
         }
         #endregion
+
+        public override string HVSerialize()
+        {
+            JObject obj = JObject.Parse(base.HVSerialize());
+            obj["IsEnableTimeOut"] = IsEnableTimeOut;
+            obj["TimeOut"] = TimeOut;
+            obj["CurKey"] = CurKey ?? "";
+            obj["Remarks"] = Remarks ?? "";
+            obj["ReceiveAsHex"] = ReceiveAsHex;
+            obj["IsClearCache"] = IsClearCache;
+            return obj.ToString();
+        }
+
+        public override void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            base.HVDeserialize(json);
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["IsEnableTimeOut"] != null) IsEnableTimeOut = obj["IsEnableTimeOut"].Value<bool>();
+                if (obj["TimeOut"] != null) TimeOut = obj["TimeOut"].Value<int>();
+                if (obj["CurKey"] != null) CurKey = obj["CurKey"].ToString();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].ToString();
+                if (obj["ReceiveAsHex"] != null) ReceiveAsHex = obj["ReceiveAsHex"].Value<bool>();
+                if (obj["IsClearCache"] != null) IsClearCache = obj["IsClearCache"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ReceiveStrViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
     }
 }

@@ -16,6 +16,7 @@ using HV.Common.Helper;
 using HV.Events;
 using HV.Models;
 using HV.Common.Provide;
+using Newtonsoft.Json.Linq;
 
 namespace HV.Core
 {
@@ -274,6 +275,68 @@ namespace HV.Core
             SignalWait = new AutoResetEvent(false);//采集信号
             GetSignalWait = new AutoResetEvent(false);//软触收到图像信号
             EventWait = new AutoResetEvent(false);
+        }
+
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["TrigMode"] = (int)TrigMode;
+            obj["TrigMode3D"] = (int)TrigMode3D;
+            obj["CameraNo"] = CameraNo;
+            obj["SerialNo"] = SerialNo;
+            obj["CameraType"] = CameraType;
+            obj["CameraIP"] = CameraIP;
+            obj["Remarks"] = Remarks;
+            obj["Connected"] = Connected;
+            obj["WidthMax"] = WidthMax;
+            obj["HeightMax"] = HeightMax;
+            obj["ExposeTime"] = ExposeTime;
+            obj["ImageHeight"] = ImageHeight;
+            obj["Gain"] = Gain;
+            obj["ExposeTimeMax"] = ExposeTimeMax;
+            obj["ExposeTimeMin"] = ExposeTimeMin;
+            obj["Width"] = Width;
+            obj["Height"] = Height;
+            obj["GainMax"] = GainMax;
+            obj["GainMin"] = GainMin;
+            obj["Framerate"] = Framerate;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["TrigMode"] != null) TrigMode = (eTrigMode)obj["TrigMode"].Value<int>();
+                if (obj["TrigMode3D"] != null) TrigMode3D = (e3DTrigMode)obj["TrigMode3D"].Value<int>();
+                if (obj["CameraNo"] != null) CameraNo = obj["CameraNo"].Value<string>();
+                if (obj["SerialNo"] != null) SerialNo = obj["SerialNo"].Value<string>();
+                if (obj["CameraType"] != null) CameraType = obj["CameraType"].Value<string>();
+                if (obj["CameraIP"] != null) CameraIP = obj["CameraIP"].Value<string>();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].Value<string>();
+                if (obj["Connected"] != null) Connected = obj["Connected"].Value<bool>();
+                if (obj["WidthMax"] != null) WidthMax = obj["WidthMax"].Value<int>();
+                if (obj["HeightMax"] != null) HeightMax = obj["HeightMax"].Value<int>();
+                if (obj["ExposeTime"] != null) ExposeTime = obj["ExposeTime"].Value<float>();
+                if (obj["ImageHeight"] != null) ImageHeight = obj["ImageHeight"].Value<int>();
+                if (obj["Gain"] != null) Gain = obj["Gain"].Value<float>();
+                if (obj["ExposeTimeMax"] != null) ExposeTimeMax = obj["ExposeTimeMax"].Value<float>();
+                if (obj["ExposeTimeMin"] != null) ExposeTimeMin = obj["ExposeTimeMin"].Value<float>();
+                if (obj["Width"] != null) Width = obj["Width"].Value<int>();
+                if (obj["Height"] != null) Height = obj["Height"].Value<int>();
+                if (obj["GainMax"] != null) GainMax = obj["GainMax"].Value<float>();
+                if (obj["GainMin"] != null) GainMin = obj["GainMin"].Value<float>();
+                if (obj["Framerate"] != null) Framerate = obj["Framerate"].Value<string>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"CameraBase.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
         }
     }
 

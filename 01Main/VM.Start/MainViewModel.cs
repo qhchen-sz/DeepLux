@@ -602,6 +602,7 @@ namespace HV.ViewModels
                                             Solution.Ins,
                                             CurrentSolution
                                         );
+                                        SerializeHelp.BackupToHV(CurrentSolution);
                                     }
                                     else
                                     {
@@ -617,6 +618,7 @@ namespace HV.ViewModels
                                                 Solution.Ins,
                                                 CurrentSolution
                                             );
+                                            SerializeHelp.BackupToHV(CurrentSolution);
                                         }
                                         else
                                         {
@@ -624,6 +626,46 @@ namespace HV.ViewModels
                                         }
                                     }
                                     Logger.AddLog("解决方案保存成功！", eMsgType.Success, isDispGrowl: true);
+                                    break;
+                                case "SaveNew": //保存新(JSON)
+                                    Solution.Ins.UpdataCommunacation();
+                                    SaveFileDialog saveNewDialog = new SaveFileDialog();
+                                    saveNewDialog.Title = "保存HV";
+                                    saveNewDialog.FileName = "Test.hv";
+                                    saveNewDialog.DefaultExt = ".hv";
+                                    saveNewDialog.Filter = "解决方案|*.hv";
+                                    if (saveNewDialog.ShowDialog() == true)
+                                    {
+                                        string json = Solution.Ins.HVSerialize();
+                                        File.WriteAllText(saveNewDialog.FileName, json);
+                                        SerializeHelp.BackupToHV(saveNewDialog.FileName);
+                                        Logger.AddLog("hv解决方案保存成功！", eMsgType.Success, isDispGrowl: true);
+                                    }
+                                    break;
+                                case "LoadNew": //加载新(JSON)
+                                    OpenFileDialog loadNewDialog = new OpenFileDialog();
+                                    loadNewDialog.Filter = "解决方案|*.hv";
+                                    loadNewDialog.DefaultExt = "hvjson";
+                                    if (loadNewDialog.ShowDialog() == true)
+                                    {
+                                        var loadView = LoadingView.Ins;
+                                        try
+                                        {
+                                            loadView.LoadingShow("加载hv项目中，请稍等...");
+                                            string json = File.ReadAllText(loadNewDialog.FileName);
+                                            Solution.Ins.HVDeserialize(json);
+                                            Solution.Ins.LoadCommunacation();
+                                            UpdateUIAfterLoading();
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.AddLog($"加载hv项目失败: {ex.Message}", eMsgType.Error);
+                                        }
+                                        finally
+                                        {
+                                            loadView.Close();
+                                        }
+                                    }
                                     break;
                                 case "GlobalVar": //全局变量
                                     GlobalVarView.Ins.ShowDialog();
@@ -891,6 +933,7 @@ namespace HV.ViewModels
                                         Solution.Ins,
                                         CurrentSolution
                                     );
+                                    SerializeHelp.BackupToHV(CurrentSolution);
                                 }
                                 else
                                 {

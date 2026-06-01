@@ -25,6 +25,7 @@ using OpcUaHelper;
 using Opc.Ua;
 using ICSharpCode.NRefactory.TypeSystem;
 using HslCommunication.Profinet.Melsec;
+using Newtonsoft.Json.Linq;
 
 namespace HV.Communacation
 {
@@ -1459,6 +1460,80 @@ namespace HV.Communacation
             if (CommunicationType == eCommunicationType.串口通讯)
             {
                 m_MySerialPort.DataReceivedFunction = function;
+            }
+        }
+
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["Key"] = Key;
+            obj["Encode"] = Encode;
+            obj["IsPLC"] = IsPLC;
+            obj["CommunicationType"] = (int)CommunicationType;
+            obj["IsConnected"] = IsConnected;
+            obj["DeviceStation"] = DeviceStation;
+            obj["IsSendByHex"] = IsSendByHex;
+            obj["IsReceivedByHex"] = IsReceivedByHex;
+            obj["RemoteIP"] = RemoteIP;
+            obj["RemoteNote"] = RemoteNote;
+            obj["RemotePort"] = RemotePort;
+            obj["LocalPort"] = LocalPort;
+            obj["PortName"] = PortName;
+            obj["BaudRate"] = BaudRate;
+            obj["Parity"] = Parity;
+            obj["DataBits"] = DataBits;
+            obj["StopBits"] = StopBits;
+            obj["m_connectKey"] = m_connectKey;
+            obj["SiemensPlcType"] = (int)SiemensPlcType;
+            obj["m_PLCType"] = (int)m_PLCType;
+            obj["m_PLCDataType"] = (int)m_PLCDataType;
+            obj["m_StationCode"] = m_StationCode;
+            obj["m_StartWithZero"] = m_StartWithZero;
+            obj["m_IntNumber"] = (int)m_IntNumber;
+            obj["m_DoubleNumber"] = (int)m_DoubleNumber;
+            obj["Remarks"] = Remarks;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["Key"] != null) Key = obj["Key"].Value<string>();
+                if (obj["Encode"] != null) Encode = obj["Encode"].Value<int>();
+                if (obj["IsPLC"] != null) IsPLC = obj["IsPLC"].Value<bool>();
+                if (obj["CommunicationType"] != null) CommunicationType = (eCommunicationType)obj["CommunicationType"].Value<int>();
+                if (obj["IsConnected"] != null) IsConnected = obj["IsConnected"].Value<bool>();
+                if (obj["DeviceStation"] != null) DeviceStation = obj["DeviceStation"].Value<bool>();
+                if (obj["IsSendByHex"] != null) IsSendByHex = obj["IsSendByHex"].Value<bool>();
+                if (obj["IsReceivedByHex"] != null) IsReceivedByHex = obj["IsReceivedByHex"].Value<bool>();
+                if (obj["RemoteIP"] != null) RemoteIP = obj["RemoteIP"].Value<string>();
+                if (obj["RemoteNote"] != null) RemoteNote = obj["RemoteNote"].Value<string>();
+                if (obj["RemotePort"] != null) RemotePort = obj["RemotePort"].Value<int>();
+                if (obj["LocalPort"] != null) LocalPort = obj["LocalPort"].Value<int>();
+                if (obj["PortName"] != null) PortName = obj["PortName"].Value<string>();
+                if (obj["BaudRate"] != null) BaudRate = obj["BaudRate"].Value<string>();
+                if (obj["Parity"] != null) Parity = obj["Parity"].Value<string>();
+                if (obj["DataBits"] != null) DataBits = obj["DataBits"].Value<string>();
+                if (obj["StopBits"] != null) StopBits = obj["StopBits"].Value<string>();
+                if (obj["m_connectKey"] != null) m_connectKey = obj["m_connectKey"].Value<string>();
+                if (obj["SiemensPlcType"] != null) SiemensPlcType = (SiemensPLCS)obj["SiemensPlcType"].Value<int>();
+                if (obj["m_PLCType"] != null) m_PLCType = (PLCType)obj["m_PLCType"].Value<int>();
+                if (obj["m_PLCDataType"] != null) m_PLCDataType = (PLCDataType)obj["m_PLCDataType"].Value<int>();
+                if (obj["m_StationCode"] != null) m_StationCode = obj["m_StationCode"].Value<int>();
+                if (obj["m_StartWithZero"] != null) m_StartWithZero = obj["m_StartWithZero"].Value<bool>();
+                if (obj["m_IntNumber"] != null) m_IntNumber = (PLCIntDataLengthEnum)obj["m_IntNumber"].Value<int>();
+                if (obj["m_DoubleNumber"] != null) m_DoubleNumber = (PLCDoubleDataLengthEnum)obj["m_DoubleNumber"].Value<int>();
+                if (obj["Remarks"] != null) Remarks = obj["Remarks"].Value<string>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"ECommunacation.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
             }
         }
     }
