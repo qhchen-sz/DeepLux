@@ -87,24 +87,14 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Width="45" Binding="{Binding Row1,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
+                                    <DataGridTextColumn Width="60" Binding="{Binding Row1,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
                                     <DataGridTextColumn.Header>
                                         <TextBlock Text="row1"/>
                                     </DataGridTextColumn.Header>
                                 </DataGridTextColumn>
-                                    <DataGridTextColumn Width="45" Binding="{Binding Col1,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
+                                    <DataGridTextColumn Width="60" Binding="{Binding Col1,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
                                     <DataGridTextColumn.Header>
                                         <TextBlock Text="col1"/>
-                                    </DataGridTextColumn.Header>
-                                </DataGridTextColumn>
-                                    <DataGridTextColumn Width="45" Binding="{Binding Row2,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
-                                    <DataGridTextColumn.Header>
-                                        <TextBlock Text="row2"/>
-                                    </DataGridTextColumn.Header>
-                                </DataGridTextColumn>
-                                    <DataGridTextColumn Width="55" Binding="{Binding Col2,Mode=TwoWay,UpdateSourceTrigger=LostFocus}">
-                                    <DataGridTextColumn.Header>
-                                        <TextBlock Text="col2"/>
                                     </DataGridTextColumn.Header>
                                 </DataGridTextColumn>
                                 </DataGrid.Columns>
@@ -119,22 +109,18 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Text="对每个图像都进行裁剪" FontWeight="Bold" Margin="0 0 0 8" Foreground="White"/>
+                        <TextBlock Text="按偏移坐标直接拼接图像" FontWeight="Bold" Margin="0 0 0 8" Foreground="White"/>
                         <Border Grid.Row="1" BorderBrush="#FF7AA7D9" BorderThickness="1" Background="#FF5E97CD">
                             <Canvas Width="320" Height="270">
-                                <Rectangle Canvas.Left="32" Canvas.Top="36" Width="245" Height="195" Fill="#FFB3B3B3" Stroke="#FF8C8C8C"/>
-                                <TextBlock Canvas.Left="44" Canvas.Top="50" Text="row1,col1" FontSize="14"/>
-                                <TextBlock Canvas.Left="200" Canvas.Top="238" Text="row2,col2" FontSize="14"/>
+                                <Rectangle Canvas.Left="32" Canvas.Top="36" Width="100" Height="80" Fill="#FFB3B3B3" Stroke="#FF8C8C8C"/>
+                                <TextBlock Canvas.Left="36" Canvas.Top="40" Text="图1 (0,0)" FontSize="12"/>
+                                <Rectangle Canvas.Left="132" Canvas.Top="116" Width="100" Height="80" Fill="#FF999999" Stroke="#FF8C8C8C"/>
+                                <TextBlock Canvas.Left="136" Canvas.Top="120" Text="图2 (100,50)" FontSize="12"/>
                                 <Ellipse Canvas.Left="26" Canvas.Top="32" Width="8" Height="8" Fill="#FFFF7A00"/>
                                 <Line X1="30" Y1="36" X2="30" Y2="4" Stroke="#FFFF7A00" StrokeThickness="1.5"/>
                                 <Line X1="30" Y1="36" X2="2" Y2="36" Stroke="#FFFF7A00" StrokeThickness="1.5"/>
                                 <Polygon Fill="#FFFF7A00" Points="30,2 27,8 33,8"/>
                                 <Polygon Fill="#FFFF7A00" Points="0,36 6,33 6,39"/>
-                                <Ellipse Canvas.Left="272" Canvas.Top="227" Width="8" Height="8" Fill="#FFFF7A00"/>
-                                <Line X1="276" Y1="231" X2="276" Y2="258" Stroke="#FFFF7A00" StrokeThickness="1.5"/>
-                                <Line X1="276" Y1="231" X2="308" Y2="231" Stroke="#FFFF7A00" StrokeThickness="1.5"/>
-                                <Polygon Fill="#FFFF7A00" Points="276,260 273,254 279,254"/>
-                                <Polygon Fill="#FFFF7A00" Points="310,231 304,228 304,234"/>
                             </Canvas>
                         </Border>
                     </Grid>

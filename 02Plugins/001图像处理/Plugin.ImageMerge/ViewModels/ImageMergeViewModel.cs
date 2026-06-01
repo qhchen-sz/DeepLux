@@ -99,16 +99,9 @@ namespace Plugin.ImageMerge.ViewModels
                     }
 
                     inputImage.GetImageSize(out int imgWidth, out int imgHeight);
-                    int cropWidth = imgWidth - (int)Math.Round(item.Col1) - (int)Math.Round(item.Col2);
-                    int cropHeight = imgHeight - (int)Math.Round(item.Row1) - (int)Math.Round(item.Row2);
 
-                    if (cropWidth <= 0 || cropHeight <= 0)
-                    {
-                        throw new InvalidOperationException($"图像[{item.InputImageLink?.Text}]裁剪参数无效，裁剪后尺寸为{cropWidth}x{cropHeight}。");
-                    }
-
-                    int rightEdge = (int)Math.Round(item.Col1) + cropWidth;
-                    int bottomEdge = (int)Math.Round(item.Row1) + cropHeight;
+                    int rightEdge = (int)Math.Round(item.Col1) + imgWidth;
+                    int bottomEdge = (int)Math.Round(item.Row1) + imgHeight;
 
                     canvasWidth = Math.Max(canvasWidth, rightEdge);
                     canvasHeight = Math.Max(canvasHeight, bottomEdge);
@@ -139,47 +132,38 @@ namespace Plugin.ImageMerge.ViewModels
                     channelCanvasPtrs[ch] = channelCanvases[ch].GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
                 }
 
-                // 第二遍：裁剪并叠加到画布
+                // 第二遍：按偏移坐标直接拼接整张图到画布
                 foreach (var (inputImage, item, imgWidth, imgHeight) in imageDataList)
                 {
-                    int actualRow2 = imgHeight - 1 - (int)Math.Round(item.Row2);
-                    int actualCol2 = imgWidth - 1 - (int)Math.Round(item.Col2);
+                    int rowOffset = (int)Math.Round(item.Row1);
+                    int colOffset = (int)Math.Round(item.Col1);
 
                     HRegion rect = CreateRegion(item, imgWidth, imgHeight);
                     _cropRegionList.Add(rect);
 
-                    HImage cropImage = new HImage(inputImage).CropRectangle1(
-                        (int)Math.Round(item.Row1),
-                        (int)Math.Round(item.Col1),
-                        actualRow2,
-                        actualCol2
-                    );
+                    _cropImageList.Add(new RImage(inputImage.CopyObj(1, -1)));
 
-                    _cropImageList.Add(new RImage(cropImage.CopyObj(1, -1)));
-
-                    cropImage.GetImageSize(out int cropW, out int cropH);
-
-                    int rowOffset = (int)Math.Round(item.Row1);
-                    int colOffset = (int)Math.Round(item.Col1);
-                    int rowBytes = cropW * pixelBytes;
+                    int rowBytes = imgWidth * pixelBytes;
                     int canvasRowBytes = canvasWidth * pixelBytes;
+
+                    HImage hInput = new HImage(inputImage);
 
                     // 逐通道 memcpy 到画布的 (colOffset, rowOffset) 位置
                     for (int ch = 0; ch < channelCount; ch++)
                     {
-                        HImage chCrop = cropImage.AccessChannel(ch + 1);
-                        IntPtr cropPtr = chCrop.GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
+                        HImage chImage = hInput.AccessChannel(ch + 1);
+                        IntPtr srcPtr = chImage.GetImagePointer1(out HTuple _, out HTuple _, out HTuple _);
 
-                        for (int r = 0; r < cropH; r++)
+                        for (int r = 0; r < imgHeight; r++)
                         {
-                            IntPtr src = new IntPtr(cropPtr.ToInt64() + r * rowBytes);
+                            IntPtr src = new IntPtr(srcPtr.ToInt64() + r * rowBytes);
                             IntPtr dst = new IntPtr(channelCanvasPtrs[ch].ToInt64() + (rowOffset + r) * canvasRowBytes + colOffset * pixelBytes);
                             CopyMemory(dst, src, (UIntPtr)rowBytes);
                         }
-                        chCrop.Dispose();
+                        chImage.Dispose();
                     }
 
-                    cropImage.Dispose();
+                    hInput.Dispose();
                 }
 
                 // 合成多通道结果
@@ -334,13 +318,13 @@ namespace Plugin.ImageMerge.ViewModels
         private HRegion CreateRegion(ImageMergeItem item, int imgWidth, int imgHeight)
         {
             HRegion region = new HRegion();
-            int actualRow2 = imgHeight - 1 - (int)Math.Round(item.Row2);
-            int actualCol2 = imgWidth - 1 - (int)Math.Round(item.Col2);
+            int rowOffset = (int)Math.Round(item.Row1);
+            int colOffset = (int)Math.Round(item.Col1);
             region.GenRectangle1(
-                (double)item.Row1,
-                (double)item.Col1,
-                (double)actualRow2,
-                (double)actualCol2
+                (double)rowOffset,
+                (double)colOffset,
+                (double)(rowOffset + imgHeight - 1),
+                (double)(colOffset + imgWidth - 1)
             );
             return region;
         }
@@ -403,8 +387,6 @@ namespace Plugin.ImageMerge.ViewModels
                 Index = DataList.Count + 1,
                 Row1 = 0,
                 Col1 = 0,
-                Row2 = 0,
-                Col2 = 0,
             });
         }
 
@@ -592,8 +574,6 @@ namespace Plugin.ImageMerge.ViewModels
                     ["InputImageLink"] = item.InputImageLink?.Text ?? "",
                     ["Row1"] = item.Row1,
                     ["Col1"] = item.Col1,
-                    ["Row2"] = item.Row2,
-                    ["Col2"] = item.Col2,
                     ["IsEnabled"] = item.IsEnabled
                 };
                 itemArray.Add(itemObj);
@@ -628,8 +608,6 @@ namespace Plugin.ImageMerge.ViewModels
                             },
                             Row1 = itemObj["Row1"]?.Value<double>() ?? 0,
                             Col1 = itemObj["Col1"]?.Value<double>() ?? 0,
-                            Row2 = itemObj["Row2"]?.Value<double>() ?? 0,
-                            Col2 = itemObj["Col2"]?.Value<double>() ?? 0,
                             IsEnabled = itemObj["IsEnabled"]?.Value<bool>() ?? true,
                         });
                     }
@@ -696,20 +674,6 @@ namespace Plugin.ImageMerge.ViewModels
         {
             get { return _col1; }
             set { Set(ref _col1, value); }
-        }
-
-        private double _row2;
-        public double Row2
-        {
-            get { return _row2; }
-            set { Set(ref _row2, value); }
-        }
-
-        private double _col2;
-        public double Col2
-        {
-            get { return _col2; }
-            set { Set(ref _col2, value); }
         }
 
         private bool _isEnabled = true;

@@ -81,19 +81,27 @@ namespace Plugin.CropImage.ViewModels
 
                 _outImageList = new List<RImage>();
                 _outRegionList = new List<HRegion>();
+                GetHomMat2D();
 
                 if (SearchRegionSource == eROISource.手动输入)
                 {
                     foreach (var item in DataList)
                     {
+                        ROIRectangle2 intRect = new ROIRectangle2(item.Y, item.X, item.Deg / 180.0 * Math.PI, item.L1, item.L2);
+                        ROIRectangle2 tranRect = new ROIRectangle2();
+                        if (HomMat2D != null && HomMat2D.Length > 0)
+                            Aff.Affine2d(HomMat2D, intRect, tranRect);
+                        else
+                            tranRect = intRect;
+
                         HRegion rect = new HRegion();
-                        rect.GenRectangle2(item.Y, item.X, item.Deg / 180.0 * Math.PI, item.L1, item.L2);
+                        rect.GenRectangle2(tranRect.MidR, tranRect.MidC, tranRect.Phi, tranRect.Length1, tranRect.Length2);
                         _outRegionList.Add(rect);
 
                         if (IsOutputCropImage)
                         {
                             RImage rImage = new RImage(DispImage);
-                            HImage cropped = rImage.CropRectangle2(item.Y, item.X, item.Deg / 180.0 * Math.PI, item.L1, item.L2, "true", "constant");
+                            HImage cropped = rImage.CropRectangle2(tranRect.MidR, tranRect.MidC, tranRect.Phi, tranRect.Length1, tranRect.Length2, "true", "constant");
                             _outImageList.Add(new RImage(cropped));
                         }
                     }
@@ -178,7 +186,11 @@ namespace Plugin.CropImage.ViewModels
         public eROISource SearchRegionSource
         {
             get { return _searchRegionSource; }
-            set { Set(ref _searchRegionSource, value); }
+            set
+            {
+                Set(ref _searchRegionSource, value);
+                ShowHRoiList();
+            }
         }
 
         private ObservableCollection<CropImageData> _dataList = new ObservableCollection<CropImageData>();
@@ -500,11 +512,24 @@ namespace Plugin.CropImage.ViewModels
             ROIRectangle2 rect2 = roi as ROIRectangle2;
             if (rect2 != null)
             {
-                item.X = Math.Round(rect2.MidC, 3);
-                item.Y = Math.Round(rect2.MidR, 3);
-                item.L1 = Math.Round(rect2.Length1, 3);
-                item.L2 = Math.Round(rect2.Length2, 3);
-                item.Deg = Math.Round(rect2.Phi * 180.0 / Math.PI, 3);
+                if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                {
+                    ROIRectangle2 baseRect = new ROIRectangle2();
+                    Aff.Affine2d(HomMat2D_Inverse, rect2, baseRect);
+                    item.X = Math.Round(baseRect.MidC, 3);
+                    item.Y = Math.Round(baseRect.MidR, 3);
+                    item.L1 = Math.Round(baseRect.Length1, 3);
+                    item.L2 = Math.Round(baseRect.Length2, 3);
+                    item.Deg = Math.Round(baseRect.Phi * 180.0 / Math.PI, 3);
+                }
+                else
+                {
+                    item.X = Math.Round(rect2.MidC, 3);
+                    item.Y = Math.Round(rect2.MidR, 3);
+                    item.L1 = Math.Round(rect2.Length1, 3);
+                    item.L2 = Math.Round(rect2.Length2, 3);
+                    item.Deg = Math.Round(rect2.Phi * 180.0 / Math.PI, 3);
+                }
                 RoiList[index] = roi;
             }
         }
@@ -540,6 +565,7 @@ namespace Plugin.CropImage.ViewModels
 
         private void ShowHRoiList()
         {
+            GetHomMat2D();
             var view = ModuleView as CropImageView;
             VMHWindowControl mWindowH;
             bool dispSearchRegion = true;
@@ -555,27 +581,69 @@ namespace Plugin.CropImage.ViewModels
 
             if (dispSearchRegion && SearchRegionSource == eROISource.手动输入)
             {
-                foreach (var item in DataList)
-                {
-                    mWindowH.WindowH.genRect2(
-                        ModuleParam.ModuleName + ROIDefine.Search + item.NO,
-                        item.Y,
-                        item.X,
-                        item.Deg * (Math.PI / 180.0),
-                        item.L1,
-                        item.L2,
-                        ref RoiList
-                    );
-                }
-
+                mWindowH.WindowH.notDisplayRoi();
+                RoiList.Clear();
                 mWindowH.DispText.Clear();
                 for (int i = 0; i < DataList.Count; i++)
                 {
+                    var item = DataList[i];
+                    ROIRectangle2 intRect = new ROIRectangle2(item.Y, item.X, item.Deg * (Math.PI / 180.0), item.L1, item.L2);
+                    ROIRectangle2 tranRect = new ROIRectangle2();
+                    if (HomMat2D != null && HomMat2D.Length > 0)
+                        Aff.Affine2d(HomMat2D, intRect, tranRect);
+                    else
+                        tranRect = intRect;
+
+                    mWindowH.WindowH.genRect2(
+                        ModuleParam.ModuleName + ROIDefine.Search + item.NO,
+                        tranRect.MidR,
+                        tranRect.MidC,
+                        tranRect.Phi,
+                        tranRect.Length1,
+                        tranRect.Length2,
+                        ref RoiList
+                    );
+
                     mWindowH.DispText.Add(new Text
                     {
                         text = (i + 1).ToString(),
-                        row = (int)DataList[i].Y + 5,
-                        col = (int)DataList[i].X + 5,
+                        row = (int)tranRect.MidR + 5,
+                        col = (int)tranRect.MidC + 5,
+                        color = "green"
+                    });
+                }
+            }
+            else if (dispSearchRegion && SearchRegionSource == eROISource.链接数组)
+            {
+                mWindowH.WindowH.notDisplayRoi();
+                RoiList.Clear();
+                mWindowH.DispText.Clear();
+
+                List<double> centerXList = GetLinkArray(CenterXLink);
+                List<double> centerYList = GetLinkArray(CenterYLink);
+                List<double> length1List = GetLinkArray(Length1Link);
+                List<double> length2List = GetLinkArray(Length2Link);
+                List<double> angleList = GetLinkArray(AngleLink);
+
+                int count = new[] { centerXList.Count, centerYList.Count, length1List.Count, length2List.Count, angleList.Count }.Min();
+
+                for (int i = 0; i < count; i++)
+                {
+                    mWindowH.WindowH.genRect2(
+                        ModuleParam.ModuleName + ROIDefine.Search + i,
+                        centerYList[i],
+                        centerXList[i],
+                        angleList[i] * (Math.PI / 180.0),
+                        length1List[i],
+                        length2List[i],
+                        ref RoiList
+                    );
+
+                    mWindowH.DispText.Add(new Text
+                    {
+                        text = (i + 1).ToString(),
+                        row = (int)centerYList[i] + 5,
+                        col = (int)centerXList[i] + 5,
                         color = "green"
                     });
                 }
