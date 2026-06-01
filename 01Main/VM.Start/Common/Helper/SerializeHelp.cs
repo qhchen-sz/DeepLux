@@ -143,6 +143,23 @@ namespace HV.Common.Helper
                 }
             }
         }
+        public static void BackupToHV(string sourceFilePath)
+        {
+            try
+            {
+                string dir = @"C:\HV";
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                string name = Path.GetFileName(sourceFilePath);
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmssfff");
+                string destFile = Path.Combine(dir, $"{timestamp}_{name}");
+
+                File.Copy(sourceFilePath, destFile, true);
+            }
+            catch { }
+        }
+
         public static T BinDeserialize<T>(string fileName)
         {
             T t = default(T);

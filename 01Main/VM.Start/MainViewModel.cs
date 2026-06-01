@@ -659,6 +659,7 @@ namespace HV.ViewModels
                                             Solution.Ins,
                                             CurrentSolution
                                         );
+                                        SerializeHelp.BackupToHV(CurrentSolution);
                                     }
                                     else
                                     {
@@ -674,6 +675,7 @@ namespace HV.ViewModels
                                                 Solution.Ins,
                                                 CurrentSolution
                                             );
+                                            SerializeHelp.BackupToHV(CurrentSolution);
                                         }
                                         else
                                         {
@@ -693,6 +695,7 @@ namespace HV.ViewModels
                                     {
                                         string json = Solution.Ins.HVSerialize();
                                         File.WriteAllText(saveNewDialog.FileName, json);
+                                        SerializeHelp.BackupToHV(saveNewDialog.FileName);
                                         Logger.AddLog("hv解决方案保存成功！", eMsgType.Success, isDispGrowl: true);
                                     }
                                     break;
@@ -988,12 +991,13 @@ namespace HV.ViewModels
                                         Solution.Ins,
                                         CurrentSolution
                                     );
+                                    SerializeHelp.BackupToHV(CurrentSolution);
                                 }
                                 else
                                 {
                                     return;
                                 }
-                            
+
                             Logger.AddLog("解决方案保存成功！", eMsgType.Success, isDispGrowl: true);
                         }
                     );
