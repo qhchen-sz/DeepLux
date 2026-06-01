@@ -285,6 +285,94 @@ namespace Plugin.ContourDetection.ViewModels
             }
         }
 
+        public bool ExeModuleROI()
+        {
+            Stopwatch.Restart();
+
+            try
+            {
+                ClearRoiAndText();
+                if (DispImage != null)
+                    DispImage.mHRoi.RemoveAll(c => c.ModuleName == ModuleParam.ModuleName);
+                if (InputImageLinkText == null)
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+                //GetDispImage(InputImageLinkText);
+                if (DispImage == null || !DispImage.IsInitialized())
+                {
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
+                if (DispImage.Type != "3D")
+                {
+                    Logger.AddLog("输入数据类型非3D！", eMsgType.Error);
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
+
+                // 提取高度图
+                HImage heightImage;
+                int channels = DispImage.CountChannels();
+                if (channels == 2)
+                {
+                    heightImage = DispImage.Decompose2(out HImage grayImage);
+                }
+                else
+                {
+                    heightImage = DispImage;
+                }
+
+                // 获取ROI参数（旋转矩形）
+                double roiCenterRow = Convert.ToDouble(GetLinkValue(RoiCenterRow));
+                double roiCenterCol = Convert.ToDouble(GetLinkValue(RoiCenterCol));
+                double roiLength1 = Convert.ToDouble(GetLinkValue(RoiLength1));
+                double roiLength2 = Convert.ToDouble(GetLinkValue(RoiLength2));
+                double roiPhi = Convert.ToDouble(GetLinkValue(RoiPhi));
+
+                // 显示ROI区域
+                HRegion roiRegion = new HRegion();
+                roiRegion.GenRectangle2(roiCenterRow, roiCenterCol, -roiPhi, roiLength1, roiLength2);
+                ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                    HRoiType.检测范围, "cyan", new HObject(roiRegion)));
+
+                // 根据检测类型分发
+                switch (DetectionType)
+                {
+                    case eDetectionType.连续轮廓:
+                        ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
+                        break;
+                    case eDetectionType.单条轮廓:
+                        // TODO: 待后续实现
+                        break;
+                    case eDetectionType.链接路径:
+                        // TODO: 待后续实现
+                        break;
+                    case eDetectionType.轨迹编辑:
+                        // TODO: 待后续实现
+                        break;
+                    case eDetectionType.逐行检测:
+                        // TODO: 待后续实现
+                        break;
+                }
+
+                ShowHRoi(true);
+
+                // 执行完成后自动应用当前索引的高亮和子窗口散点图
+                UpdateContourHighlight();
+                ChangeModuleRunStatus(eRunStatus.OK);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ChangeModuleRunStatus(eRunStatus.NG);
+                Logger.GetExceptionMsg(ex);
+                return false;
+            }
+        }
+
         public override void AddOutputParams()
         {
             this.Prj.ClearOutputParam(this.ModuleParam);
@@ -787,8 +875,7 @@ namespace Plugin.ContourDetection.ViewModels
                     view.mWindowH.WindowH.genRect2Custom(ModuleParam.ModuleName + ROIDefine.Rectangle2,
                         rect2Custom.MidR, rect2Custom.MidC, rect2Custom.Phi,
                         rect2Custom.Length1, rect2Custom.Length2, ref RoiList);
-
-                    ExeModule();
+                    ExeModuleROI();
                 }
             }
             catch (Exception)
@@ -807,12 +894,24 @@ namespace Plugin.ContourDetection.ViewModels
             double length2 = Convert.ToDouble(GetLinkValue(RoiLength2));
             double phi = Convert.ToDouble(GetLinkValue(RoiPhi));
 
-            if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
-            {
-                view.mWindowH.WindowH.genRect2Custom(ModuleParam.ModuleName + ROIDefine.Rectangle2,
-                    centerRow, centerCol, phi, length1, length2, ref RoiList);
-            }
-            ShowHRoi();
+            if (!RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
+                return;
+
+            if (view.mWindowH == null || DispImage == null || !DispImage.IsInitialized())
+                return;
+
+            // 清除叠加层(旧HRoi)，重绘图像但保留当前缩放/平移状态
+            // displayImageWithoutFit 不调用 ResetWindow，因此不触发 fit-to-window
+            // 3D/real 类型图像需先转换为 byte 才能正常显示（与 ChangeEnable 逻辑一致）
+            view.mWindowH.WindowH.ClearWindow();
+            if (DispImage.GetImageType() == "byte")
+                view.mWindowH.WindowH.displayImageWithoutFit(DispImage);
+            else
+                view.mWindowH.WindowH.displayImageWithoutFit(TR.GetRGBImage(DispImage));
+
+            // 重建ROI交互手柄
+            view.mWindowH.WindowH.genRect2Custom(ModuleParam.ModuleName + ROIDefine.Rectangle2,
+                centerRow, centerCol, phi, length1, length2, ref RoiList);
         }
 
         public void InitRoiMethod()
@@ -1121,7 +1220,7 @@ namespace Plugin.ContourDetection.ViewModels
             try
             {
                 // 先正常渲染（包含所有 cyan 小轮廓）
-                ShowHRoi();
+                ShowHRoi(true);
 
                 // 在主窗口叠加选中索引的黄色高亮
                 if (_contourRectMap != null && _contourRectMap.ContainsKey(ContourIndex))
@@ -1356,7 +1455,17 @@ namespace Plugin.ContourDetection.ViewModels
 
         #region Methods - Display
 
+        /// <summary>
+        /// ROI改变后的专用渲染：清除旧叠加层、重绘图像但保留当前缩放/平移状态，
+        /// 然后渲染全部HRoi结果。用于 ExeModuleTest 等不需要全图缩放的场景。
+        /// </summary>
         public override void ShowHRoi()
+        {
+            ShowHRoi(false);
+        }
+
+        /// <param name="preserveZoom">true: 保留当前缩放/平移（ROI拖动时）; false: 自适应全图显示（正常执行/加载时）</param>
+        public void ShowHRoi(bool preserveZoom)
         {
             var view = ModuleView as ContourDetectionView;
             VMHWindowControl mWindowH;
@@ -1364,14 +1473,27 @@ namespace Plugin.ContourDetection.ViewModels
 
             if (view == null || view.IsClosed)
             {
+                if (preserveZoom) return;  // 保留缩放模式必须有活跃视图
                 mWindowH = ViewDic.GetView(DispImage.DispViewID);
                 dispSearchRegion = false;
             }
             else
             {
                 mWindowH = view.mWindowH;
-                if (mWindowH != null)
+                if (mWindowH == null) return;
+
+                if (preserveZoom && DispImage != null && DispImage.IsInitialized())
                 {
+                    // 保留缩放/平移：只清叠加层栈 + 无缩放重绘图像
+                    mWindowH.WindowH.ClearWindow();
+                    if (DispImage.GetImageType() == "byte")
+                        mWindowH.WindowH.displayImageWithoutFit(DispImage);
+                    else
+                        mWindowH.WindowH.displayImageWithoutFit(TR.GetRGBImage(DispImage));
+                }
+                else
+                {
+                    // 正常模式：全图自适应显示
                     mWindowH.ClearWindow();
                     if (DispImage != null && DispImage.IsInitialized())
                     {
@@ -1380,6 +1502,7 @@ namespace Plugin.ContourDetection.ViewModels
                 }
             }
 
+            // 重建ROI交互手柄（两种模式共用）
             if (dispSearchRegion && mWindowH != null)
             {
                 if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
@@ -1402,7 +1525,7 @@ namespace Plugin.ContourDetection.ViewModels
                 }
             }
 
-            // 渲染所有HRoi
+            // 渲染所有HRoi叠加层（两种模式共用）
             List<HRoi> roiList = mHRoi.Where(c => c.ModuleName == ModuleParam.ModuleName).ToList();
             foreach (HRoi roi in roiList)
             {
