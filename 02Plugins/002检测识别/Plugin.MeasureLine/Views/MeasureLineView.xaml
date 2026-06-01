@@ -149,20 +149,11 @@
                             </GroupBox>
                         </Border>
                     </Grid>
-
                 </TabItem>
                 <TabItem Header="参数设置">
                     <Grid x:Name="gd1">
                         <GroupBox Header="拟合参数">
                             <StackPanel>
-                                <!--<StackPanel Orientation="Horizontal" Margin="5">
-                                    <TextBlock Text="卡尺宽度:" VerticalAlignment="Center" Width="60"/>
-                                    <mah:NumericUpDown Width="150" Margin="5 0" BorderThickness="0 0 0 1" Value="{Binding MeasInfo.Length2}"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="5">
-                                    <TextBlock Text="卡尺高度:" VerticalAlignment="Center" Width="60"/>
-                                    <mah:NumericUpDown Width="150" Margin="5 0" BorderThickness="0 0 0 1" Value="{Binding MeasInfo.Length1}"/>
-                                </StackPanel>-->
                                 <StackPanel Orientation="Horizontal" Margin="5">
                                     <TextBlock Text="灰度阈值:" VerticalAlignment="Center" Width="60"/>
                                     <mah:NumericUpDown Width="150" Margin="5 0" BorderThickness="0 0 0 1" Value="{Binding MeasInfo.Threshold}"/>
@@ -179,12 +170,13 @@
                                     <TextBlock Text="点筛选:" VerticalAlignment="Center" Width="60"/>
                                     <ComboBox Width="150" Margin="5 0" BorderThickness="0 0 0 1" SelectedItem="{Binding MeasInfo.MeasSelect}" ItemsSource="{Binding MeasInfo.MeasSelects}"/>
                                 </StackPanel>
-                                
+
                                 <CheckBox Content="限定最小分数" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="使用阈值连接" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="限定sigma" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="启用剔除点" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="输出世界坐标" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                <CheckBox Content="输出直线度" HorizontalAlignment="Left" Margin="10 10 0 0" IsChecked="{Binding OutputStraightness}"/>
                             </StackPanel>
                         </GroupBox>
                     </Grid>
@@ -192,10 +184,11 @@
                 <TabItem Header="数据结果">
                     <Grid x:Name="gd2">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="200"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Border DockPanel.Dock="Top" Width="{Binding ElementName=gd2,Path=ActualWidth}">
+                        <!-- 结果直线 GroupBox -->
+                        <Border DockPanel.Dock="Top" Width="{Binding ElementName=gd2,Path=ActualWidth}" Margin="0,0,0,10">
                             <GroupBox Header="结果直线" Width="{Binding ElementName=gd2,Path=ActualWidth}">
                                 <StackPanel Orientation="Vertical" Margin="5 0">
                                     <StackPanel Orientation="Horizontal" Margin="5">
@@ -218,12 +211,18 @@
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
                                                  IsReadOnly="True" Text="{Binding OutLine.EndY}"/>
                                     </StackPanel>
-
+                                    <!-- 直线度显示 - 修正标签文字为"直线度" -->
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="直线度:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 IsReadOnly="True" Text="{Binding Straightness, StringFormat=F3}"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </GroupBox>
                         </Border>
-                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}" Grid.Row="1">
-                            <GroupBox Header="显示设置" Height="{Binding ElementName=gd,Path=ActualHeight}" Grid.Row="1" VerticalAlignment="Top" Width="{Binding ElementName=dp,Path=ActualWidth}">
+                        <!-- 显示设置 GroupBox，增加顶部间距 -->
+                        <Border Width="{Binding ElementName=gd2,Path=ActualWidth}" Grid.Row="1" Margin="0,10,0,0">
+                            <GroupBox Header="显示设置" VerticalAlignment="Top" Width="{Binding ElementName=gd2,Path=ActualWidth}">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <CheckBox Content="显示结果点" IsChecked="{Binding ShowResultPoint}"/>
@@ -249,7 +248,6 @@
             <GridSplitter Grid.Column="1"/>
             <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
             </WinFormHost:WindowsFormsHost>
-
         </Grid>
         <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
             <DockPanel LastChildFill="True">
@@ -272,6 +270,5 @@
                 </StackPanel>
             </DockPanel>
         </Border>
-
     </Grid>
 </vb:ModuleViewBase>
