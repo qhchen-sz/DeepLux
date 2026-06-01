@@ -633,7 +633,13 @@ namespace HV.Services
                     projectArr.Add(JObject.Parse(proj.HVSerialize()));
             }
             obj["ProjectList"] = projectArr;
-            // SysVar 和 eCommunacations 待 P1/P3 补充
+            JArray sysVarArr = new JArray();
+            foreach (var v in SysVar)
+            {
+                if (v != null)
+                    sysVarArr.Add(JObject.Parse(v.HVSerialize()));
+            }
+            obj["SysVar"] = sysVarArr;
             return obj.ToString();
         }
 
@@ -668,6 +674,16 @@ namespace HV.Services
                         Project proj = new Project();
                         ProjectList.Add(proj);
                         proj.HVDeserialize(projObj.ToString());
+                    }
+                }
+                if (obj["SysVar"] != null)
+                {
+                    SysVar.Clear();
+                    foreach (JToken token in (JArray)obj["SysVar"])
+                    {
+                        VarModel v = new VarModel();
+                        v.HVDeserialize(token.ToString());
+                        SysVar.Add(v);
                     }
                 }
             }
