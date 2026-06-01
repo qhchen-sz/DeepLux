@@ -40,7 +40,6 @@ namespace Plugin.MeasureLine.ViewModels
         InitLineLength2,
         InitLineAngel,
     }
-
     #endregion
 
     [Category("检测识别")]
@@ -75,8 +74,6 @@ namespace Plugin.MeasureLine.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                //ROICircle rOICircle2 = new ROICircle();
-                //ROICircle rOICircle3 = new ROICircle();
                 if (!IsOpenWindows)
                     GetDispImage(InputImageLinkText);
                 if (DispImage != null && DispImage.IsInitialized())
@@ -92,10 +89,7 @@ namespace Plugin.MeasureLine.ViewModels
                             Radius = 10
                         };
 
-
                         Aff.Affine2d(HomMat2D_Inverse, TempLine, InitLine);
-                        //Aff.Affine2d(HomMat2D_Inverse, rOICircle, rOICircle2);
-                        //Aff.Affine2d(HomMat2D, rOICircle2, rOICircle3);
                         if (InitLineChanged_Flag)
                         {
                             InitLineCenterX.Text = InitLine.MidC.ToString();
@@ -122,59 +116,88 @@ namespace Plugin.MeasureLine.ViewModels
                         InitLine.Length2 = TranLine.Length2 = TempLine.Length2;
                         InitLine.Deg = TranLine.Deg = TempLine.Deg;
                     }
+
+                    // 执行直线检测（原方法，但扩展了点集输出）
                     string Select = GetEnumDescription(MeasInfo.MeasSelect);
-                    string Modes = GetEnumDescription( MeasInfo.MeasMode);
-                    FindLineTools.Find_HoLine(DispImage, out HObject Line, out HObject region, TranLine.MidR, TranLine.MidC, -TranLine.Phi, TranLine.Length1, TranLine.Length2, (int)MeasInfo.Threshold, (int)MeasInfo.MeasDis, Modes,
-                       Select, 0.1, out HTuple RowBegin, out HTuple ColBegin, out HTuple RowEnd, out HTuple ColEnd);
-                    //Meas.MeasLine(DispImage, TranLine, MeasInfo, OutLine, out HTuple RowList, out HTuple ColList, out HXLDCont m_MeasXLD, null);
-                    //if (ShowResultPoint && RowList.ToDArr().Length > 0) //显示结果点]
-                    //{
-                    //    Gen.GenCross(out HObject m_MeasCross, RowList, ColList, MeasInfo.Length2, new HTuple(45).TupleRad());
-                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测点, "red", new HObject(m_MeasCross)));
-                    //}
-                    if (ShowResultLine && Line != null && Line.IsInitialized()) //显示结果线
-                    {
-                       
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "green", Line));
-                    }
-                    if (ShowMeasContour) //显示检测范围
-                    {
-                        if (region != null && region.IsInitialized())
-                        {
-                            ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测范围, "blue", region));
-                        }
-                    }
+                    string Modes = GetEnumDescription(MeasInfo.MeasMode);
+                    HTuple measureRows = null, measureCols = null;
+                    bool success = FindLineTools.Find_HoLine(DispImage, out HObject lineContour, out HObject region,
+                        TranLine.MidR, TranLine.MidC, -TranLine.Phi, TranLine.Length1, TranLine.Length2,
+                        (int)MeasInfo.Threshold, (int)MeasInfo.MeasDis, Modes, Select, 0.1,
+                        out HTuple RowBegin, out HTuple ColBegin, out HTuple RowEnd, out HTuple ColEnd,
+                        out measureRows, out measureCols);
+
+                    // 输出直线结果
                     if (ColBegin.Length != 0)
                     {
                         OutLine.StartX = Math.Round((double)ColBegin, 2);
                         OutLine.StartY = Math.Round((double)RowBegin, 2);
                         OutLine.EndX = Math.Round((double)ColEnd, 2);
                         OutLine.EndY = Math.Round((double)RowEnd, 2);
+
+                        double deltaX = OutLine.EndX - OutLine.StartX;
+                        double deltaY = OutLine.EndY - OutLine.StartY;
+                        double angleRad = Math.Atan2(deltaY, deltaX);
+                        double angleDeg = Math.Round(angleRad * 180 / Math.PI, 2);
+                        if (angleDeg > 90) angleDeg -= 180;
+                        if (angleDeg < -90) angleDeg += 180;
+                        OutLine.Phi = angleDeg;
+
+                        // 直线度计算（如果启用且有测量点）
+                        if (OutputStraightness && measureRows != null && measureRows.Length > 0)
+                        {
+                            double A = OutLine.EndY - OutLine.StartY;
+                            double B = OutLine.StartX - OutLine.EndX;
+                            double C = OutLine.EndX * OutLine.StartY - OutLine.StartX * OutLine.EndY;
+                            double denom = Math.Sqrt(A * A + B * B);
+                            if (denom > 1e-6)
+                            {
+                                double maxDist = 0;
+                                for (int i = 0; i < measureRows.Length; i++)
+                                {
+                                    double r = measureRows[i].D;
+                                    double c = measureCols[i].D;
+                                    double dist = Math.Abs(A * c + B * r + C) / denom;
+                                    if (dist > maxDist) maxDist = dist;
+                                }
+                                Straightness = Math.Round(maxDist, 3);
+                            }
+                            else
+                            {
+                                Straightness = -1;
+                            }
+                        }
+                        else
+                        {
+                            Straightness = -1;
+                        }
                     }
                     else
                     {
-                        OutLine.StartX = 0;
-                        OutLine.StartY = 0;
-                        OutLine.EndX = 0;
-                        OutLine.EndY = 0;
+                        OutLine.StartX = OutLine.StartY = OutLine.EndX = OutLine.EndY = 0;
+                        OutLine.Phi = 0;
+                        Straightness = -1;
                     }
 
-
+                    // 显示结果
+                    if (ShowResultLine && lineContour != null && lineContour.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "green", lineContour));
+                    }
+                    if (ShowMeasContour && region != null && region.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测范围, "blue", region));
+                    }
+                    if (ShowResultPoint && measureRows != null && measureRows.Length > 0)
+                    {
+                        HObject cross;
+                        HOperatorSet.GenCrossContourXld(out cross, measureRows, measureCols, MeasInfo.Length2 / 2, new HTuple(45).TupleRad());
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测点, "red", cross));
+                    }
                     ShowHRoi();
-                    //if (RowList.ToDArr().Length > 0)
-                    //{
-                    //    OutLine.Status = true;
-                    //    ChangeModuleRunStatus(eRunStatus.OK);
-                    //    return true;
-                    //}
-                    //else
-                    //{
-                    //    OutLine.Status = false;
-                    //    ChangeModuleRunStatus(eRunStatus.NG);
-                    //    return false;
-                    //}
-                    ChangeModuleRunStatus(eRunStatus.OK);
-                    return true;
+
+                    ChangeModuleRunStatus(success && ColBegin.Length != 0 ? eRunStatus.OK : eRunStatus.NG);
+                    return success && ColBegin.Length != 0;
                 }
                 else
                 {
@@ -189,77 +212,76 @@ namespace Plugin.MeasureLine.ViewModels
                 return false;
             }
         }
+
         public static string GetEnumDescription(Enum value)
         {
             var field = value.GetType().GetField(value.ToString());
             var attribute = field?.GetCustomAttributes(typeof(EnumDescriptionAttribute), false)
                             .FirstOrDefault() as EnumDescriptionAttribute;
-
             return attribute?.Description ?? value.ToString();
         }
+
         public override void AddOutputParams()
         {
-            //OutLine.Status == eRunStatus.OK ? true : false; 
             AddOutputParam("测量直线", "object", OutLine);
-            AddOutputParam("中心X", "double", (OutLine.StartX + OutLine.EndX)/2);
+            AddOutputParam("中心X", "double", (OutLine.StartX + OutLine.EndX) / 2);
             AddOutputParam("中心Y", "double", (OutLine.StartY + OutLine.EndY) / 2);
             AddOutputParam("角度", "double", OutLine.Phi);
-            //AddOutputParam("起点X", "double", OutLine.StartX);
-            //AddOutputParam("起点Y", "double", OutLine.StartY);
-            //AddOutputParam("终点X", "double", OutLine.EndX);
-            //AddOutputParam("终点Y", "double", OutLine.EndY);
-            AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK ? true : false);
+            AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
+            if (OutputStraightness)
+            {
+                AddOutputParam("直线度", "double", Straightness);
+            }
         }
+
         #region Prop
         private bool DisenableAffine2d = false;
         private bool InitLineChanged_Flag = false;
         private bool _ShowResultPoint = true;
-        /// <summary>显示结果点</summary>
         public bool ShowResultPoint
         {
             get { return _ShowResultPoint; }
             set { Set(ref _ShowResultPoint, value); }
         }
         private bool _ShowMeasContour = true;
-        /// <summary>显示测量轮廓 </summary>
         public bool ShowMeasContour
         {
             get { return _ShowMeasContour; }
             set { Set(ref _ShowMeasContour, value); }
         }
         private bool _ShowResultLine = true;
-        /// <summary>显示结果直线 </summary>
         public bool ShowResultLine
         {
             get { return _ShowResultLine; }
             set { Set(ref _ShowResultLine, value); }
         }
-        /// <summary> 区域列表 </summary>
+
+        private bool _OutputStraightness = false;
+        /// <summary>是否输出直线度</summary>
+        public bool OutputStraightness
+        {
+            get { return _OutputStraightness; }
+            set { Set(ref _OutputStraightness, value); }
+        }
+
+        private double _Straightness = -1;
+        /// <summary>直线度（最大偏差，像素单位）</summary>
+        public double Straightness
+        {
+            get { return _Straightness; }
+            set { Set(ref _Straightness, value); }
+        }
+
         public Dictionary<string, ROI> RoiList = new Dictionary<string, ROI>();
-        /// <summary>
-        /// 检测形态信息
-        /// </summary>
         public MeasInfoModel MeasInfo { get; set; } = new MeasInfoModel();
         private ROILine _OutLine = new ROILine();
-        //private ROILine _OutLine = new ROILine();
-        /// <summary>
-        /// 输出直线信息
-        /// </summary>
-        /// 
         public ROILine OutLine
         {
             get { return _OutLine; }
             set { Set(ref _OutLine, value); }
         }
-        //public ROILine OutLine
-        //{
-        //    get { return _OutLine; }
-        //    set { Set(ref _OutLine, value); }
-        //}
-        /// <summary>
-        /// 变换前-直线信息
-        /// </summary>
+
         private LinkVarModel _InitLineCenterX = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitLineCenterX
         {
@@ -290,28 +312,16 @@ namespace Plugin.MeasureLine.ViewModels
             get { return _InitLineAngel; }
             set { _InitLineAngel = value; RaisePropertyChanged(); }
         }
-        /// <summary>
-        /// 直线信息
-        /// </summary>
         public ROIRectangle2 InitLine { get; set; } = new ROIRectangle2();
         public ROIRectangle2 TempLine { get; set; } = new ROIRectangle2();
-        /// <summary>
-        /// 变换后-直线信息
-        /// </summary>
         public ROIRectangle2 TranLine { get; set; } = new ROIRectangle2();
         private eShieldRegion _ShieldRegion = eShieldRegion.手绘区域;
-        /// <summary>
-        /// 屏蔽区域
-        /// </summary>
         public eShieldRegion ShieldRegion
         {
             get { return _ShieldRegion; }
             set { _ShieldRegion = value; RaisePropertyChanged(); }
         }
         private string _InputImageLinkText;
-        /// <summary>
-        /// 输入图像链接文本
-        /// </summary>
         public string InputImageLinkText
         {
             get { return _InputImageLinkText; }
@@ -361,6 +371,7 @@ namespace Plugin.MeasureLine.ViewModels
                 InitLineAngel.TextChanged = new Action(() => { InitLineChanged(); });
             }
         }
+
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             eLinkCommand linkCommand = (eLinkCommand)Enum.Parse(typeof(eLinkCommand), obj.SendName.Split(',')[1].ToString());
@@ -388,6 +399,7 @@ namespace Plugin.MeasureLine.ViewModels
                     break;
             }
         }
+
         [NonSerialized]
         private CommandBase _LinkCommand;
         public CommandBase LinkCommand
@@ -396,7 +408,6 @@ namespace Plugin.MeasureLine.ViewModels
             {
                 if (_LinkCommand == null)
                 {
-                    //以GUID+类名作为筛选器
                     EventMgr.Ins.GetEvent<VarChangedEvent>().Subscribe(OnVarChanged, o => o.SendName.StartsWith($"{ModuleGuid}"));
                     _LinkCommand = new CommandBase((obj) =>
                     {
@@ -430,12 +441,12 @@ namespace Plugin.MeasureLine.ViewModels
                             default:
                                 break;
                         }
-
                     });
                 }
                 return _LinkCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _ExecuteCommand;
         public CommandBase ExecuteCommand
@@ -453,6 +464,7 @@ namespace Plugin.MeasureLine.ViewModels
                 return _ExecuteCommand;
             }
         }
+
         [NonSerialized]
         private CommandBase _ConfirmCommand;
         public CommandBase ConfirmCommand
@@ -473,7 +485,6 @@ namespace Plugin.MeasureLine.ViewModels
                 return _ConfirmCommand;
             }
         }
-
         #endregion
 
         #region Method
@@ -517,6 +528,7 @@ namespace Plugin.MeasureLine.ViewModels
                 InitLineMethod();
             }
         }
+
         ROIRectangle2 roiLine;
         private void HControl_MouseUp(object sender, MouseEventArgs e)
         {
@@ -535,9 +547,6 @@ namespace Plugin.MeasureLine.ViewModels
                         TempLine.Length1 = Math.Round(roiLine.Length1, 3);
                         TempLine.Length2 = Math.Round(roiLine.Length2, 3);
                         TempLine.Deg = Math.Round(roiLine.Deg, 3);
-                        //ROIRectangle2 temp = new ROIRectangle2(TempLine.MidR , TempLine.MidC,TempLine.Phi, TempLine.Length1, TempLine.Length2);
-                        //Aff.Affine2d(HomMat2D_Inverse,  TempLine,temp);
-                        //Aff.Affine2d(HomMat2D, TempLine, temp);
                         DisenableAffine2d = true;
                         InitLineChanged_Flag = true;
                         ExeModule();
@@ -550,26 +559,19 @@ namespace Plugin.MeasureLine.ViewModels
             {
             }
         }
-		
+
         public void InitLineMethod()
         {
             var view = ModuleView as MeasureLineView;
-            if (view == null)
-            {
-                return;
-            }
+            if (view == null) return;
+
             if (TranLine.FlagLineStyle != null)
             {
-                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, TranLine.MidR, TranLine.MidC, TranLine.Phi, TranLine.Length1, TranLine.Length2,ref RoiList);
+                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, TranLine.MidR, TranLine.MidC, TranLine.Phi, TranLine.Length1, TranLine.Length2, ref RoiList);
             }
             else if (DispImage != null && !RoiList.ContainsKey(ModuleParam.ModuleName))
             {
-                //view.mWindowH.WindowH.genLine(ModuleParam.ModuleName, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 2, ref RoiList);
-                //TranLine.MidC = view.mWindowH.hv_imageHeight / 4;
-                //TranLine.MidR = view.mWindowH.hv_imageHeight / 4;
-                //TranLine.Length1 = view.mWindowH.hv_imageHeight / 4;
-                //TranLine.Length2 = view.mWindowH.hv_imageWidth / 4;
-                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 0,50,50 ,ref RoiList);
+                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 0, 50, 50, ref RoiList);
                 TranLine.MidC = view.mWindowH.hv_imageWidth / 4;
                 TranLine.MidR = view.mWindowH.hv_imageHeight / 4;
                 TranLine.Length1 = 50;
@@ -601,10 +603,6 @@ namespace Plugin.MeasureLine.ViewModels
                     view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, InitLine.MidR, InitLine.MidC, InitLine.Phi, InitLine.Length1, InitLine.Length2, ref RoiList);
                     if (InitLineChanged_Flag)
                     {
-                        //InitLineStartX.Text = InitLine.StartX.ToString();
-                        //InitLineStartY.Text = InitLine.StartY.ToString();
-                        //InitLineEndX.Text = InitLine.EndX.ToString();
-                        //InitLineEndY.Text = InitLine.EndY.ToString();
                         InitLineCenterX.Text = InitLine.MidC.ToString();
                         InitLineCenterY.Text = InitLine.MidR.ToString();
                         InitLineLength1.Text = InitLine.Length1.ToString();
@@ -623,6 +621,8 @@ namespace Plugin.MeasureLine.ViewModels
             obj["ShowResultPoint"] = ShowResultPoint;
             obj["ShowMeasContour"] = ShowMeasContour;
             obj["ShowResultLine"] = ShowResultLine;
+            obj["OutputStraightness"] = OutputStraightness;
+            obj["Straightness"] = Straightness;
             obj["InputImageLinkText"] = InputImageLinkText ?? "";
             obj["InitLineCenterX"] = InitLineCenterX?.Text ?? "";
             obj["InitLineCenterY"] = InitLineCenterY?.Text ?? "";
@@ -672,6 +672,8 @@ namespace Plugin.MeasureLine.ViewModels
                 if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
                 if (obj["ShowMeasContour"] != null) ShowMeasContour = obj["ShowMeasContour"].Value<bool>();
                 if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
+                if (obj["OutputStraightness"] != null) OutputStraightness = obj["OutputStraightness"].Value<bool>();
+                if (obj["Straightness"] != null) Straightness = obj["Straightness"].Value<double>();
                 if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
                 if (obj["InitLineCenterX"] != null && InitLineCenterX != null) InitLineCenterX.Text = obj["InitLineCenterX"].ToString();
                 if (obj["InitLineCenterY"] != null && InitLineCenterY != null) InitLineCenterY.Text = obj["InitLineCenterY"].ToString();
@@ -715,13 +717,11 @@ namespace Plugin.MeasureLine.ViewModels
                 }
             }
             catch (Exception ex)
-
             {
-
                 Logger.AddLog($"MeasureLineViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
-
             }
         }
+
         private JObject SerializeRect2(ROIRectangle2 rect)
         {
             if (rect == null) return null;
