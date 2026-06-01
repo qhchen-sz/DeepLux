@@ -23,6 +23,7 @@
                     <cvt:EnumConverter x:Key="EnumConverter"/>
                     <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
                     <cvt:StatusConverter x:Key="StatusConverter"/>
+                    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
                 </ResourceDictionary>
                 <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
             </ResourceDictionary.MergedDictionaries>
@@ -71,22 +72,25 @@
                         <Border Grid.Row="1" Grid.ColumnSpan="2">
                             <GroupBox Header="参数设置">
                                 <StackPanel>
+                                    <!-- 点X：支持手动输入或链接变量，可清除链接 -->
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="点X:" VerticalAlignment="Center" Width="60"/>
-                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
-                                                 Text="{Binding PXLinkText}"
+                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 Text="{Binding PXDisplayText, UpdateSourceTrigger=PropertyChanged}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
                                                  mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.X}"
                                                  mah:TextBoxHelper.Watermark="double"/>
                                     </StackPanel>
+                                    <!-- 点Y：支持手动输入或链接变量，可清除链接 -->
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="点Y:" VerticalAlignment="Center" Width="60"/>
-                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
-                                                 Text="{Binding PYLinkText}"
+                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 Text="{Binding PYDisplayText, UpdateSourceTrigger=PropertyChanged}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
                                                  mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Y}"
                                                  mah:TextBoxHelper.Watermark="double"/>
                                     </StackPanel>
+                                    <!-- 直线1链接 -->
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="直线1:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
@@ -95,13 +99,16 @@
                                                  mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Line1}"
                                                  mah:TextBoxHelper.Watermark="object"/>
                                     </StackPanel>
-                                    <!-- 方向线控制 -->
+                                    <!-- 直线角度：支持手动输入或链接变量，可清除链接 -->
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="直线角度:" VerticalAlignment="Center" Width="60"/>
-                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                        Text="{Binding ManualLineAngle, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=true, StringFormat={}{0:0.##}}"/>
+                                        <TextBox x:Name="txtAngle" 
+                                                 Style="{StaticResource LinkTextBox}" 
+                                                 Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 Text="{Binding AngleDisplayText, UpdateSourceTrigger=PropertyChanged}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.ManualLineAngle}"/>
                                     </StackPanel>
-
                                 </StackPanel>
                             </GroupBox>
                         </Border>
@@ -148,7 +155,6 @@
             <GridSplitter Grid.Column="1"/>
             <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
             </WinFormHost:WindowsFormsHost>
-
         </Grid>
         <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
             <DockPanel LastChildFill="True">
@@ -171,6 +177,5 @@
                 </StackPanel>
             </DockPanel>
         </Border>
-
     </Grid>
 </vb:ModuleViewBase>

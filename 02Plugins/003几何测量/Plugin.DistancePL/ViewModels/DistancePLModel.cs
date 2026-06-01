@@ -25,6 +25,7 @@ using System.Windows.Shapes;
 using VM.Halcon;
 using VM.Halcon.Config;
 using VM.Halcon.Model;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.DistancePL.ViewModels
 {
@@ -35,7 +36,7 @@ namespace Plugin.DistancePL.ViewModels
         Line1,
         X,
         Y,
-        
+        ManualLineAngle
     }
     #endregion
 
@@ -57,8 +58,6 @@ namespace Plugin.DistancePL.ViewModels
                 InputImageLinkText = $"&{moduls.DisplayName}.{moduls.VarModels[0].Name}";
         }
 
-        // ========== 新增手动输入属性 ==========
-
         private bool _UseManualLine;
         public bool UseManualLine
         {
@@ -66,16 +65,202 @@ namespace Plugin.DistancePL.ViewModels
             set { Set(ref _UseManualLine, value); }
         }
 
-      
-        private double _ManualLineAngle=0;
+        private double _ManualLineAngle = 0;
         public double ManualLineAngle
         {
             get { return _ManualLineAngle; }
-            set { Set(ref _ManualLineAngle, value); }
+            set
+            {
+                if (Math.Abs(_ManualLineAngle - value) > double.Epsilon)
+                {
+                    Set(ref _ManualLineAngle, value);
+                    if (!HasAngleLink)
+                        RaisePropertyChanged(nameof(AngleDisplayText));
+                }
+            }
         }
 
+        private string _ManualLineAngleLinkText;
+        public string ManualLineAngleLinkText
+        {
+            get { return _ManualLineAngleLinkText; }
+            set
+            {
+                if (_ManualLineAngleLinkText != value)
+                {
+                    Set(ref _ManualLineAngleLinkText, value);
+                    HasAngleLink = !string.IsNullOrEmpty(value);
+                    RaisePropertyChanged(nameof(AngleDisplayText));
+                }
+            }
+        }
 
+        private double _ManualLineAngleLinkValue;
+        public double ManualLineAngleLinkValue
+        {
+            get { return _ManualLineAngleLinkValue; }
+            set { _ManualLineAngleLinkValue = value; }
+        }
 
+        private bool _hasAngleLink;
+        public bool HasAngleLink
+        {
+            get { return _hasAngleLink; }
+            set { Set(ref _hasAngleLink, value); }
+        }
+
+        public string AngleDisplayText
+        {
+            get
+            {
+                if (HasAngleLink)
+                    return ManualLineAngleLinkText ?? "";
+                else
+                    return ManualLineAngle.ToString("0.##");
+            }
+            set
+            {
+                if (HasAngleLink)
+                {
+                    if (string.IsNullOrEmpty(value) || value != ManualLineAngleLinkText)
+                    {
+                        ManualLineAngleLinkText = null;
+                    }
+                }
+                else
+                {
+                    if (double.TryParse(value, out double newAngle))
+                    {
+                        ManualLineAngle = newAngle;
+                    }
+                }
+                RaisePropertyChanged(nameof(AngleDisplayText));
+            }
+        }
+
+        // ========== 点X 支持链接/手动（与直线角度相同） ==========
+        public string PXDisplayText
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(PXLinkText))
+                    return PXLinkText;
+                else
+                    return PXLinkValue.ToString("0.##");
+            }
+            set
+            {
+                if (!string.IsNullOrEmpty(PXLinkText))
+                {
+                    if (string.IsNullOrEmpty(value) || value != PXLinkText)
+                    {
+                        PXLinkText = null;
+                    }
+                }
+                else
+                {
+                    if (double.TryParse(value, out double newVal))
+                    {
+                        PXLinkValue = newVal;
+                    }
+                }
+                RaisePropertyChanged(nameof(PXDisplayText));
+            }
+        }
+
+        private string _PXLinkText;
+        public string PXLinkText
+        {
+            get => _PXLinkText;
+            set
+            {
+                if (_PXLinkText != value)
+                {
+                    _PXLinkText = value;
+                    RaisePropertyChanged(nameof(PXDisplayText));
+                }
+            }
+        }
+
+        private double _PXLinkValue;
+        public double PXLinkValue
+        {
+            get => _PXLinkValue;
+            set
+            {
+                if (Math.Abs(_PXLinkValue - value) > double.Epsilon)  // 值真正改变
+                {
+                    _PXLinkValue = value;
+                    if (string.IsNullOrEmpty(PXLinkText))
+                    {
+                        RaisePropertyChanged(nameof(PXDisplayText));
+                    }
+                }
+            }
+        }
+
+        // ========== 点Y 支持链接/手动（与直线角度相同） ==========
+        public string PYDisplayText
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(PYLinkText))
+                    return PYLinkText;
+                else
+                    return PYLinkValue.ToString("0.##");
+            }
+            set
+            {
+                if (!string.IsNullOrEmpty(PYLinkText))
+                {
+                    if (string.IsNullOrEmpty(value) || value != PYLinkText)
+                    {
+                        PYLinkText = null;
+                    }
+                }
+                else
+                {
+                    if (double.TryParse(value, out double newVal))
+                    {
+                        PYLinkValue = newVal;
+                    }
+                }
+                RaisePropertyChanged(nameof(PYDisplayText));
+            }
+        }
+
+        private string _PYLinkText;
+        public string PYLinkText
+        {
+            get => _PYLinkText;
+            set
+            {
+                if (_PYLinkText != value)
+                {
+                    _PYLinkText = value;
+                    RaisePropertyChanged(nameof(PYDisplayText));
+                }
+            }
+        }
+
+        private double _PYLinkValue;
+        public double PYLinkValue
+        {
+            get => _PYLinkValue;
+            set
+            {
+                if (Math.Abs(_PYLinkValue - value) > double.Epsilon)
+                {
+                    _PYLinkValue = value;
+                    if (string.IsNullOrEmpty(PYLinkText))
+                    {
+                        RaisePropertyChanged(nameof(PYDisplayText));
+                    }
+                }
+            }
+        }
+
+        // ========== 其他属性 ==========
         public override bool ExeModule()
         {
             Stopwatch.Restart();
@@ -90,29 +275,38 @@ namespace Plugin.DistancePL.ViewModels
                 GetDispImage(InputImageLinkText, true);
                 if (DispImage != null && DispImage.IsInitialized())
                 {
-
-                    // 根据模式获取直线参数
                     ROILine line = null;
-                    line = (ROILine)Prj.GetParamByName(Line1LinkText).Value;
+                    if (!string.IsNullOrEmpty(Line1LinkText))
+                    {
+                        var param = Prj.GetParamByName(Line1LinkText);
+                        if (param != null && param.Value is ROILine)
+                            line = (ROILine)param.Value;
+                    }
 
-                    // 从链接变量解析点坐标值
+                    // 取值：优先使用链接值，否则使用手动输入的值
+                    double px = PXLinkValue;
+                    double py = PYLinkValue;
                     if (!string.IsNullOrEmpty(PXLinkText))
-                        PXLinkValue = Convert.ToDouble(Prj.GetParamByName(PXLinkText).Value);
+                    {
+                        var param = Prj.GetParamByName(PXLinkText);
+                        if (param != null && param.Value != null)
+                            px = Convert.ToDouble(param.Value);
+                    }
                     if (!string.IsNullOrEmpty(PYLinkText))
-                        PYLinkValue = Convert.ToDouble(Prj.GetParamByName(PYLinkText).Value);
-                    
+                    {
+                        var param = Prj.GetParamByName(PYLinkText);
+                        if (param != null && param.Value != null)
+                            py = Convert.ToDouble(param.Value);
+                    }
 
-                    // 计算垂足和距离
-                    Dis.PLPedal(PXLinkValue, PYLinkValue, line, out double outY, out double outX, out double dis);
+                    Dis.PLPedal(px, py, line, out double outY, out double outX, out double dis);
                     PointX = Math.Round(outX, 4);
                     PointY = Math.Round(outY, 4);
                     Distance = Math.Round(dis, 4);
 
-                    // 图形生成（垂足点、原始点、虚线、垂线）
-                    double size = 30; 
+                    double size = 30;
                     HObject x1 = null, x2 = null, allDashes = null, perpLine = null;
 
-                    // 垂足点
                     if (ShowResultPoint)
                     {
                         double row1 = outY, col1 = outX;
@@ -126,10 +320,9 @@ namespace Plugin.DistancePL.ViewModels
                         HOperatorSet.ConcatObj(line1, line2, out x1);
                     }
 
-                    // 原始点
                     if (ShowResultPoint)
                     {
-                        double row2 = PYLinkValue, col2 = PXLinkValue;
+                        double row2 = py, col2 = px;
                         HOperatorSet.GenEmptyObj(out x2);
                         HOperatorSet.GenContourPolygonXld(out HObject line1,
                             new HTuple(new double[] { row2 - size / 2, row2 + size / 2 }),
@@ -140,10 +333,9 @@ namespace Plugin.DistancePL.ViewModels
                         HOperatorSet.ConcatObj(line1, line2, out x2);
                     }
 
-                    // 虚线（原点到垂足）
                     if (ShowResultLine)
                     {
-                        double startX = PXLinkValue, startY = PYLinkValue;
+                        double startX = px, startY = py;
                         double endX = outX, endY = outY;
                         double length = Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
                         if (length >= 1e-6)
@@ -175,30 +367,33 @@ namespace Plugin.DistancePL.ViewModels
                         }
                     }
 
-
-
-                    // 垂线（以垂足为中心，方向由 ManualLineAngle 控制）
-
                     if (ShowResultLine)
                     {
-                        double angleRad = ManualLineAngle * Math.PI / 180.0; // 角度转弧度
-                        double halfLength = 200; // 线段半长，可改为配置属性
+                        double actualAngle = ManualLineAngle;
+                        if (!string.IsNullOrEmpty(ManualLineAngleLinkText))
+                        {
+                            var param = Prj.GetParamByName(ManualLineAngleLinkText);
+                            if (param != null && param.Value != null)
+                            {
+                                actualAngle = Convert.ToDouble(param.Value);
+                                ManualLineAngleLinkValue = actualAngle;
+                            }
+                        }
 
+                        double angleRad = actualAngle * Math.PI / 180.0;
+                        double halfLength = 200;
                         double dx = halfLength * Math.Cos(angleRad);
                         double dy = halfLength * Math.Sin(angleRad);
-
                         double startX = outX - dx;
                         double startY = outY - dy;
                         double endX = outX + dx;
                         double endY = outY + dy;
-
                         HOperatorSet.GenEmptyObj(out perpLine);
                         HOperatorSet.GenContourPolygonXld(out perpLine,
                             new HTuple(new double[] { startY, endY }),
                             new HTuple(new double[] { startX, endX }));
                     }
 
-                    // 合并显示（垂足点+虚线+垂线）作为检测点P1
                     if (ShowResultPoint || ShowResultLine)
                     {
                         HObject combined = null;
@@ -216,7 +411,6 @@ namespace Plugin.DistancePL.ViewModels
                         }
                     }
 
-                    // 原始点作为检测点P2
                     if (ShowResultPoint && x2 != null)
                     {
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
@@ -288,34 +482,6 @@ namespace Plugin.DistancePL.ViewModels
             set { Set(ref _Line1LinkText, value); }
         }
 
-        private string _PXLinkText;
-        public string PXLinkText
-        {
-            get { return _PXLinkText; }
-            set { Set(ref _PXLinkText, value); }
-        }
-
-        private double _PXLinkValue;
-        public double PXLinkValue
-        {
-            get { return _PXLinkValue; }
-            set { Set(ref _PXLinkValue, value); }
-        }
-
-        private string _PYLinkText;
-        public string PYLinkText
-        {
-            get { return _PYLinkText; }
-            set { Set(ref _PYLinkText, value); }
-        }
-
-        private double _PYLinkValue;
-        public double PYLinkValue
-        {
-            get { return _PYLinkValue; }
-            set { _PYLinkValue = value; }
-        }
-
         private double _PointX;
         public double PointX
         {
@@ -329,9 +495,6 @@ namespace Plugin.DistancePL.ViewModels
             get { return _PointY; }
             set { Set(ref _PointY, value); }
         }
-
-     
-
         #endregion
 
         #region Command
@@ -411,7 +574,8 @@ namespace Plugin.DistancePL.ViewModels
                 case "PY":
                     PYLinkText = obj.LinkName;
                     break;
-              
+                case "ManualLineAngle":
+                    ManualLineAngleLinkText = obj.LinkName;
                     break;
                 default:
                     break;
@@ -437,18 +601,42 @@ namespace Plugin.DistancePL.ViewModels
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Line1");
                                 break;
                             case eLinkCommand.X:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},PX");
+                                if (!string.IsNullOrEmpty(PXLinkText))
+                                {
+                                    PXLinkText = null;
+                                }
+                                else
+                                {
+                                    CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                    EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},PX");
+                                }
                                 break;
                             case eLinkCommand.Y:
-                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},PY");
+                                if (!string.IsNullOrEmpty(PYLinkText))
+                                {
+                                    PYLinkText = null;
+                                }
+                                else
+                                {
+                                    CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                    EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},PY");
+                                }
                                 break;
                             case eLinkCommand.InputImageLink:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},InputImageLink");
                                 break;
-                             
+                            case eLinkCommand.ManualLineAngle:
+                                if (!string.IsNullOrEmpty(ManualLineAngleLinkText))
+                                {
+                                    ManualLineAngleLinkText = null;
+                                }
+                                else
+                                {
+                                    CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                    EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},ManualLineAngle");
+                                }
+                                break;
                             default:
                                 break;
                         }
