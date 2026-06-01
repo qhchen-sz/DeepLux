@@ -26,6 +26,7 @@ using HV.Services;
 using HV.ViewModels;
 using HV.Views.Dock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using Newtonsoft.Json.Linq;
 
 namespace Plugin.MeasureLine.ViewModels
 {
@@ -122,7 +123,7 @@ namespace Plugin.MeasureLine.ViewModels
                         InitLine.Deg = TranLine.Deg = TempLine.Deg;
                     }
                     string Select = GetEnumDescription(MeasInfo.MeasSelect);
-                    string Modes = GetEnumDescription( MeasInfo.MeasMode);
+                    string Modes = GetEnumDescription(MeasInfo.MeasMode);
                     FindLineTools.Find_HoLine(DispImage, out HObject Line, out HObject region, TranLine.MidR, TranLine.MidC, -TranLine.Phi, TranLine.Length1, TranLine.Length2, (int)MeasInfo.Threshold, (int)MeasInfo.MeasDis, Modes,
                        Select, 0.1, out HTuple RowBegin, out HTuple ColBegin, out HTuple RowEnd, out HTuple ColEnd);
                     //Meas.MeasLine(DispImage, TranLine, MeasInfo, OutLine, out HTuple RowList, out HTuple ColList, out HXLDCont m_MeasXLD, null);
@@ -133,7 +134,7 @@ namespace Plugin.MeasureLine.ViewModels
                     //}
                     if (ShowResultLine && Line != null && Line.IsInitialized()) //显示结果线
                     {
-                       
+
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "green", Line));
                     }
                     if (ShowMeasContour) //显示检测范围
@@ -149,6 +150,16 @@ namespace Plugin.MeasureLine.ViewModels
                         OutLine.StartY = Math.Round((double)RowBegin, 2);
                         OutLine.EndX = Math.Round((double)ColEnd, 2);
                         OutLine.EndY = Math.Round((double)RowEnd, 2);
+
+                        // 计算直线角度（度数），范围为 [-90, 90] 与 Halcon 习惯一致
+                        double deltaX = OutLine.EndX - OutLine.StartX;
+                        double deltaY = OutLine.EndY - OutLine.StartY;
+                        double angleRad = Math.Atan2(deltaY, deltaX);
+                        double angleDeg = Math.Round( angleRad * 180 / Math.PI,2);
+                        // 归一化到 [-90, 90]
+                        if (angleDeg > 90) angleDeg -= 180;
+                        if (angleDeg < -90) angleDeg += 180;
+                        OutLine.Phi = angleDeg;
                     }
                     else
                     {
@@ -156,6 +167,7 @@ namespace Plugin.MeasureLine.ViewModels
                         OutLine.StartY = 0;
                         OutLine.EndX = 0;
                         OutLine.EndY = 0;
+                        OutLine.Phi = 0;
                     }
 
 
@@ -200,7 +212,7 @@ namespace Plugin.MeasureLine.ViewModels
         {
             //OutLine.Status == eRunStatus.OK ? true : false; 
             AddOutputParam("测量直线", "object", OutLine);
-            AddOutputParam("中心X", "double", (OutLine.StartX + OutLine.EndX)/2);
+            AddOutputParam("中心X", "double", (OutLine.StartX + OutLine.EndX) / 2);
             AddOutputParam("中心Y", "double", (OutLine.StartY + OutLine.EndY) / 2);
             AddOutputParam("角度", "double", OutLine.Phi);
             //AddOutputParam("起点X", "double", OutLine.StartX);
@@ -549,6 +561,7 @@ namespace Plugin.MeasureLine.ViewModels
             {
             }
         }
+
         public void InitLineMethod()
         {
             var view = ModuleView as MeasureLineView;
@@ -558,7 +571,7 @@ namespace Plugin.MeasureLine.ViewModels
             }
             if (TranLine.FlagLineStyle != null)
             {
-                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, TranLine.MidR, TranLine.MidC, TranLine.Phi, TranLine.Length1, TranLine.Length2,ref RoiList);
+                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, TranLine.MidR, TranLine.MidC, TranLine.Phi, TranLine.Length1, TranLine.Length2, ref RoiList);
             }
             else if (DispImage != null && !RoiList.ContainsKey(ModuleParam.ModuleName))
             {
@@ -567,7 +580,7 @@ namespace Plugin.MeasureLine.ViewModels
                 //TranLine.MidR = view.mWindowH.hv_imageHeight / 4;
                 //TranLine.Length1 = view.mWindowH.hv_imageHeight / 4;
                 //TranLine.Length2 = view.mWindowH.hv_imageWidth / 4;
-                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 0,50,50 ,ref RoiList);
+                view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 0, 50, 50, ref RoiList);
                 TranLine.MidC = view.mWindowH.hv_imageWidth / 4;
                 TranLine.MidR = view.mWindowH.hv_imageHeight / 4;
                 TranLine.Length1 = 50;
