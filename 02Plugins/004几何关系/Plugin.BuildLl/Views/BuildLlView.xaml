@@ -94,12 +94,12 @@
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="交点X:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
-                                                 Text="{Binding CrossPointX}"/>
+                                                 Text="{Binding CrossPointY}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="交点Y:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
-                                                 Text="{Binding CrossPointY}"/>
+                                                 Text="{Binding CrossPointX}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="夹角:" VerticalAlignment="Center" Width="60"/>
