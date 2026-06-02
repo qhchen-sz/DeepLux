@@ -80,11 +80,16 @@ namespace VM.Halcon.Model
         /// <param name="window">HALCON window</param>
         public override void Draw(HalconDotNet.HWindow window)
         {
+            window.GetPart(out int row1, out int col1, out int row2, out int col2);
+            window.GetWindowExtents(out int _, out int _, out int width, out int _);
+            double zoom = width > 0 ? (col2 - col1) / (double)width : 1.0;
+            double handleSize = Math.Max(3 * zoom, 1.0);
+
             window.SetDraw("margin");
             window.DispCircle(CenterY, CenterX, Radius);
             window.SetDraw("fill");
-            window.DispRectangle2(StartPhi, EndPhi, 0, 4, 4);
-            window.DispRectangle2(CenterY, CenterX, 0, 4, 4);
+            window.DispRectangle2(StartPhi, EndPhi, 0, handleSize, handleSize);
+            window.DispRectangle2(CenterY, CenterX, 0, handleSize, handleSize);
         }
         /// <summary> 
         /// Returns the distance of the ROI handle being
@@ -113,14 +118,18 @@ namespace VM.Halcon.Model
         /// </summary>
         public override void DisplayActive(HalconDotNet.HWindow window)
         {
+            window.GetPart(out int row1, out int col1, out int row2, out int col2);
+            window.GetWindowExtents(out int _, out int _, out int width, out int _);
+            double zoom = width > 0 ? (col2 - col1) / (double)width : 1.0;
+            double handleSize = Math.Max(3 * zoom, 1.0);
 
             switch (ActiveHandleId)
             {
                 case 0:
-                    window.DispRectangle2(StartPhi, EndPhi, 0, 4, 4);
+                    window.DispRectangle2(StartPhi, EndPhi, 0, handleSize, handleSize);
                     break;
                 case 1:
-                    window.DispRectangle2(CenterY, CenterX, 0, 4, 4);
+                    window.DispRectangle2(CenterY, CenterX, 0, handleSize, handleSize);
                     break;
             }
         }

@@ -25,19 +25,19 @@ namespace VM.Halcon.Model
     /// </summary>
     public class ROIController
     {
-        ///<summary>��Ϳ����</summary>
+        ///<summary>喷涂区域</summary>
         public HRegion BrushRegion;
-        ///<summary>��Ĥ����</summary>
+        ///<summary>掩膜区域</summary>
         public HRegion MaskRegion;
-        /// <summary>������ĿǰΪֹ���д�����ROI������б�</summary>
+        /// <summary>包含到目前为止所有创建的ROI对象的列表</summary>
         public Dictionary<string, ROI> ROIList;
-        /// <summary> ROI���� </summary>
+        /// <summary> ROI类型 </summary>
         private ROI ROIMode;
-        /// <summary> ROI��ʽ </summary>
+        /// <summary> ROI样式 </summary>
         private int ROIState;
-        /// <summary> ROI���� </summary>
+        /// <summary> ROI名称 </summary>
         private string ROIName;
-        /// <summary>ROI���� </summary>
+        /// <summary>ROI区域 </summary>
         public HRegion ROIModel;
         private double currX, currY;
         /// <summary>Index of the active ROI object</summary>
@@ -45,15 +45,15 @@ namespace VM.Halcon.Model
         public string DeleteROIId;
         /// <summary>���������ɫ </summary>
         private string ActiveCol = "cyan";
-        /// <summary> ����С����ɫ </summary>
+        /// <summary> 激活小框颜色 </summary>
         private string ActiveROICol = "red";
-        /// <summary> ����϶���ɫ</summary>
+        /// <summary> 鼠标拖动颜色</summary>
         private string ActiveMousCol = "blue";
-        /// <summary>�ο�HWndCtrl, ROI������ע�ᵽ </summary>
+        /// <summary>参考HWndCtrl, ROI控制器注册到 </summary>
         public HWndCtrl viewController;
-        /// <summary> ί�У���֪ͨ��ģ�������������ĸ��� </summary>
+        /// <summary> 委托，它通知在模型区域中所做的更改 </summary>
         public IconicDelegate NotifyRCObserver;
-        /// <summary>���캯��</summary>
+        /// <summary>构造函数</summary>
         protected internal ROIController()
         {
             ROIState = HWndCtrl.MODE_ROI_NONE;
@@ -110,13 +110,13 @@ namespace VM.Halcon.Model
         {
             return DeleteROIId;
         }
-        /// <summary> ����ROI��ʽ </summary>
+        /// <summary> 设置ROI样式 </summary>
         public void SetROIShape(ROI r)
         {
             ROIMode = r;
             ROIMode.SetOperatorFlag(ROIState);
         }
-        /// <summary> ����ROI��ʽ </summary>
+        /// <summary> 设置ROI样式 </summary>
         public void SetROISign(int mode)
         {
             ROIState = mode;
@@ -150,9 +150,9 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        ///������������ж����ROIModel����
-        ///��ROIList�У�ͨ���Ӽ�������
-        ///����ROI����
+        ///计算包含的所有对象的ROIModel区域
+        ///在ROIList中，通过加减正数和
+        ///负的ROI对象。
         /// </summary>
         public bool DefineModelROI()
         {
@@ -192,7 +192,7 @@ namespace VM.Halcon.Model
             return true;
         }
         /// <summary>
-        /// ������й���ROI����ı���
+        /// 清除所有管理ROI对象的变量
         /// </summary>
         public void ResetVar()
         {
@@ -203,8 +203,8 @@ namespace VM.Halcon.Model
             NotifyRCObserver(HWndCtrl.EVENT_DELETED_ALL_ROIS);
         }
         /// <summary>
-        ///���'seed' ROI�����ѱ����ݣ���ɾ����ROIʵ��
-        ///ͨ��Ӧ�ó����ൽROIController��iables����ROI����
+        ///如果'seed' ROI对象已被传递，则删除该ROI实例
+        ///通过应用程序类到ROIController。iables管理ROI对象
         /// </summary>
         public void ResetROI()
         {
@@ -212,11 +212,11 @@ namespace VM.Halcon.Model
             ROIMode = null;
         }
 
-        /// <summary>����ROI�������ɫ</summary>
+        /// <summary>定义ROI对象的颜色</summary>
         /// <param name="aColor">Color for the active ROI object</param>
         /// <param name="inaColor">Color for the inactive ROI objects</param>
         /// <param name="aHdlColor">
-        /// �����ROI����ļ���������ɫ
+        /// 激活的ROI对象的激活句柄的颜色
         /// </param>
         public void SetDrawColor(string aColor, string aHdlColor, string inaColor)
         {
@@ -227,7 +227,7 @@ namespace VM.Halcon.Model
             if (inaColor != "")
                 ActiveMousCol = inaColor;
         }
-        /// <summary>��ROIList�е����ж�����Ƶ�HALCON������ </summary>
+        /// <summary>将ROIList中的所有对象绘制到HALCON窗口中 </summary>
         /// <param name="window">HALCON window</param>
         public void PaintData(HWindow window)
         {
@@ -254,16 +254,19 @@ namespace VM.Halcon.Model
                 }
             }
         }
-        /// <summary>ROI�����'mouse button down'�¼��ķ�Ӧ:changing///��ROI����״���ӵ�ROIList(�������һ��'seed') </summary>
+        /// <summary>ROI对象对'mouse button down'事件的反应:changing///将ROI的形状添加到ROIList(如果它是一个'seed') </summary>
         /// <param name="imgX">x coordinate of mouse event</param>
         /// <param name="imgY">y coordinate of mouse event</param>
         /// <returns></returns>
         public string mouseDownAction(double imgX, double imgY)
-        {//TODO:ROI�������
+        {//TODO:ROI激活距离
             string idxROI = "";
             double max = 10000, dist = 0;
-            double epsilon = 15.0;          //maximal shortest distance to one of
-                                            //the handles
+            HWindow window = viewController.ViewPort.HalconWindow;
+            window.GetPart(out int row1, out int col1, out int row2, out int col2);
+            window.GetWindowExtents(out int _, out int _, out int winW, out int _);
+            double zoom = winW > 0 ? (col2 - col1) / (double)winW : 1.0;
+            double epsilon = Math.Max(15.0 * zoom, 8.0);
 
             if (ROIMode != null)             //either a new ROI object is created
             {
@@ -296,7 +299,7 @@ namespace VM.Halcon.Model
             }
             return ActiveROIId;
         }
-        /// <summary>/// ROI�����'mouse button move'�¼��ķ�Ӧ:moving///�����ROI��</summary>
+        /// <summary>/// ROI对象对'mouse button move'事件的反应:moving///激活的ROI。</summary>
         /// <param name="newX">x coordinate of mouse event</param>
         /// <param name="newY">y coordinate of mouse event</param>
         public void mouseMoveAction(double newX, double newY)
@@ -314,7 +317,7 @@ namespace VM.Halcon.Model
             }
             catch (Exception)
             {
-                //û����ʾroi��ʱ�� �ƶ����ᱨ��
+                //没有显示roi的时候 移动鼠标会报错
             }
 
         }
@@ -323,7 +326,7 @@ namespace VM.Halcon.Model
         {
         }
         /*****************************/
-        /// <summary>��ָ��λ����ʾROI--Rectangle1</summary>
+        /// <summary>在指定位置显示ROI--Rectangle1</summary>
         public void displayRect1(string name, string color, double row1, double col1, double row2, double col2)
         {
             SetROIShape(new ROIRectangle1());
@@ -342,7 +345,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ����ʾROI--Rectangle2
+        /// 在指定位置显示ROI--Rectangle2
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -369,7 +372,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Circle
+        /// 在指定位置生成ROI--Circle
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -393,7 +396,7 @@ namespace VM.Halcon.Model
                 NotifyRCObserver(HWndCtrl.EVENT_CREATED_ROI);
             }
         }
-        /// <summary> ��ָ��λ����ʾROI--Line 
+        /// <summary> 在指定位置显示ROI--Line 
         /// <param name="beginRow"></param>
         /// <param name="beginCol"></param>
         /// <param name="endRow"></param>
@@ -416,7 +419,7 @@ namespace VM.Halcon.Model
                 NotifyRCObserver(HWndCtrl.EVENT_CREATED_ROI);
             }
         }
-        /// <summary> ��ָ��λ����ʾROI--Line 
+        /// <summary> 在指定位置显示ROI--Line 
         /// <param name="beginRow"></param>
         /// <param name="beginCol"></param>
         /// <param name="endRow"></param>
@@ -440,7 +443,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Point
+        /// 在指定位置生成ROI--Point
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -466,7 +469,7 @@ namespace VM.Halcon.Model
 
 
         /// <summary>
-        /// ��ָ��λ������ROI--Rectangle1
+        /// 在指定位置生成ROI--Rectangle1
         /// </summary>
         /// <param name="row1"></param>
         /// <param name="col1"></param>
@@ -496,7 +499,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Rectangle2
+        /// 在指定位置生成ROI--Rectangle2
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -556,7 +559,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Circle
+        /// 在指定位置生成ROI--Circle
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -584,7 +587,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Circle
+        /// 在指定位置生成ROI--Circle
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -612,7 +615,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--Line
+        /// 在指定位置生成ROI--Line
         /// </summary>
         /// <param name="beginRow"></param>
         /// <param name="beginCol"></param>
@@ -644,7 +647,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ָ��λ������ROI--CoordLine
+        /// 在指定位置生成ROI--CoordLine
         /// </summary>
         /// <param name="beginRow"></param>
         /// <param name="beginCol"></param>
@@ -678,7 +681,7 @@ namespace VM.Halcon.Model
 
 
         /// <summary>
-        /// ��ָ��λ������ROI--Point
+        /// 在指定位置生成ROI--Point
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
@@ -706,7 +709,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        /// ��ȡ��ǰѡ��ROI����Ϣ
+        /// 获取当前选中ROI的信息
         /// </summary>
         /// <returns></returns>
         protected internal ROI smallestActiveROI(out string name, out string index)
@@ -776,7 +779,7 @@ namespace VM.Halcon.Model
                 return null;
             }
         }
-        /// <summary>ɾ����ǰѡ��ROI </summary>
+        /// <summary>删除当前选中ROI </summary>
         /// <param name="roi"></param>
         protected internal void removeActiveROI(ref Dictionary<string, ROI> roi)
         {
@@ -791,7 +794,7 @@ namespace VM.Halcon.Model
             }
             catch { }
         }
-        /// <summary>ѡ�м���ROI</summary>
+        /// <summary>选中激活ROI</summary>
         /// <param name="index"></param>
         protected internal void selectROI(string index)
         {
@@ -805,7 +808,7 @@ namespace VM.Halcon.Model
 
 
         /// <summary>
-        /// ��������
+        /// 擦除区域
         /// </summary>
         /// <param name="Row"></param>
         /// <param name="Column"></param>
@@ -841,7 +844,7 @@ namespace VM.Halcon.Model
             }
         }
         /// <summary>
-        ///  ��Ϳ����
+        ///  喷涂区域
         /// </summary>
         /// <param name="Row"></param>
         /// <param name="Column"></param>
@@ -876,7 +879,7 @@ namespace VM.Halcon.Model
                 return BrushRegion;
             }
         }
-        /// <summary>��λ������ʾ</summary>
+        /// <summary>复位窗口显示</summary>
         protected internal void ResetWindowImage()
         {
             //this.viewController.ResetWindow();
