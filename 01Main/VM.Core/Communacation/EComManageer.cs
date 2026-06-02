@@ -151,6 +151,18 @@ namespace HV.Communacation
                     key = "Opc";
                     ec.IsPLC = true;
                     break;
+                case eCommunicationType.BeckhoffAds:
+                    key = "Beckhoff";
+                    ec.IsPLC = true;
+                    break;
+                case eCommunicationType.Fins:
+                    key = "Fins";
+                    ec.IsPLC = true;
+                    break;
+                case eCommunicationType.Siemens:
+                    key = "Siemens";
+                    ec.IsPLC = true;
+                    break;
                 default:
                     break;
             }
@@ -264,17 +276,17 @@ namespace HV.Communacation
         }
 
         //获取文本
-        public static void GetEcomRecStr(string key, out string pReturnStr,bool ReceiveAsHex=false)
+        public static bool GetEcomRecStr(string key, out string pReturnStr, bool ReceiveAsHex = false, int timeOut = -1)
         {
             pReturnStr = "";
-            if (!s_ECommunacationDic.ContainsKey(key)) return ;
+            if (!s_ECommunacationDic.ContainsKey(key)) return false;
             ECommunacation ec = s_ECommunacationDic[key];
             if (ec.IsConnected)
             {
                 ec.IsReceivedByHex = ReceiveAsHex;
-                ec.GetStr(out pReturnStr);
+                return ec.GetStr(out pReturnStr, timeOut);
             }
-
+            return false;
         }
 
         //停止阻塞

@@ -552,6 +552,9 @@ namespace HV.ViewModels
                                     }
                                     break;
                                 case "Save": //保存
+                                    //保存前同步通讯设置（EComManageer → Solution.Ins.eCommunacations）
+                                    Solution.Ins.UpdataCommunacation();
+
                                     foreach (var item in Solution.Ins.ProjectList)
                                     {
                                         if (item.GetThreadStatus())
@@ -643,6 +646,7 @@ namespace HV.ViewModels
                                     CameraSetView.Ins.ShowDialog();
                                     break;
                                 case "CommunicationSet": //通讯设置
+                                    CommunicationSetView.Ins.RefreshDataGrid();
                                     CommunicationSetView.Ins.ShowDialog();
                                     break;
                                 case "HardwareConfig": //硬件配置
@@ -836,8 +840,10 @@ namespace HV.ViewModels
                     _SaveFileCommand = new CommandBase(
                         (obj) =>
                         {
+                            //保存前同步通讯设置（EComManageer → Solution.Ins.eCommunacations）
+                            Solution.Ins.UpdataCommunacation();
 
-                                SaveFileDialog saveFileDialog = new SaveFileDialog();
+                            SaveFileDialog saveFileDialog = new SaveFileDialog();
                                 saveFileDialog.Title = "另存为";
                                 saveFileDialog.FileName = "Test.vm"; // Default file name
                                 saveFileDialog.DefaultExt = ".vm"; // Default file extension

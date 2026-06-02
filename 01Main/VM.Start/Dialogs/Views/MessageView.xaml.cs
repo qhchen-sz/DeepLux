@@ -67,8 +67,12 @@ namespace HV.Dialogs.Views
                             vm.CancelVisibility = Visibility.Visible;
                             break;
                         case MessageBoxButton.YesNoCancel:
+                            vm.ConfirmVisibility = Visibility.Visible;
+                            vm.CancelVisibility = Visibility.Visible;
                             break;
                         case MessageBoxButton.YesNo:
+                            vm.ConfirmVisibility = Visibility.Visible;
+                            vm.CancelVisibility = Visibility.Visible;
                             break;
                         default:
                             break;
@@ -110,8 +114,10 @@ namespace HV.Dialogs.Views
                     this.DialogResult = true;
                     break;
                 case MessageBoxButton.YesNoCancel:
+                    this.DialogResult = true;
                     break;
                 case MessageBoxButton.YesNo:
+                    this.DialogResult = true;
                     break;
                 default:
                     break;
@@ -130,8 +136,10 @@ namespace HV.Dialogs.Views
                     this.DialogResult = false;
                     break;
                 case MessageBoxButton.YesNoCancel:
+                    this.DialogResult = false;
                     break;
                 case MessageBoxButton.YesNo:
+                    this.DialogResult = false;
                     break;
                 default:
                     break;

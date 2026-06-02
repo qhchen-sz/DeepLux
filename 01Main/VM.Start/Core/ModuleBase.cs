@@ -168,6 +168,13 @@ namespace HV.Core
                 "图像窗口7",
                 "图像窗口8",
                 "图像窗口9",
+                "图像窗口10",
+                "图像窗口11",
+                "图像窗口12",
+                "图像窗口13",
+                "图像窗口14",
+                "图像窗口15",
+                "图像窗口16",
             };
         private int _DispViewID = 0;
 
@@ -626,9 +633,10 @@ namespace HV.Core
                 }
                 else
                 {
-                    if (this.Prj.GetParamByName(var) == null)
+                    if (this.Prj != null && this.Prj.GetParamByName(var) == null)
                         return null;
-                    result = this.Prj.GetParamByName(var).Value;
+                    if(this.Prj != null)
+                        result = this.Prj.GetParamByName(var).Value;
                 }
             }
             else
@@ -782,7 +790,10 @@ namespace HV.Core
             }
             else
             {
-                result = this.Prj.GetParamByName(var.Text).Value;
+                if(this.Prj.GetParamByName(var.Text) != null)
+                {
+                    result = this.Prj.GetParamByName(var.Text).Value;
+                }
             }
             return result;
         }
@@ -791,6 +802,13 @@ namespace HV.Core
         {
             if (imageLinkText == null)
                 return;
+
+            if(Prj == null)
+            {
+                DispImage = null;
+                return;
+            }
+
             VarModel var = Prj.GetParamByName(imageLinkText);
             if (var == null)
             {
@@ -873,6 +891,8 @@ namespace HV.Core
                         DispImage = new RImage();
                         DispImage.ReadImage($"{FilePaths.ConfigFilePath}Background.bmp");
                     }
+
+                    if(Solution.Ins.GetProjectById(ModuleParam.ProjectID) != null)
                     Logger.AddLog(
                         $"流程[{Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName}]执行[{ModuleParam.ModuleName}]模块失败，耗时{ModuleParam.ElapsedTime}ms.",
                         eMsgType.Warn
@@ -1004,6 +1024,46 @@ namespace HV.Core
             Prj.GetParamByName(varName).Value = Value;
         }
         public void SetString(string varName, string Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public List<double> GetDoubleAry(string varName)
+        {
+            return (List<double>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<int> GetIntAry(string varName)
+        {
+            return (List<int>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<bool> GetBoolAry(string varName)
+        {
+            return (List<bool>)Prj.GetParamByName(varName).Value;
+        }
+
+        public List<string> GetStringAry(string varName)
+        {
+            return (List<string>)Prj.GetParamByName(varName).Value;
+        }
+
+        public void SetDoubleAry(string varName, List<double> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetIntAry(string varName, List<int> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetBoolAry(string varName, List<bool> Value)
+        {
+            Prj.GetParamByName(varName).Value = Value;
+        }
+
+        public void SetStringAry(string varName, List<string> Value)
         {
             Prj.GetParamByName(varName).Value = Value;
         }

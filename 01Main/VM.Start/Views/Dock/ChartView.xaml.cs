@@ -108,6 +108,27 @@ namespace HV.Views.Dock
                 case 9:
                     chartType = ChartsSetViewModel.Ins.ChartType9;
                     break;
+                case 10:
+                    chartType = ChartsSetViewModel.Ins.ChartType10;
+                    break;
+                case 11:
+                    chartType = ChartsSetViewModel.Ins.ChartType11;
+                    break;
+                case 12:
+                    chartType = ChartsSetViewModel.Ins.ChartType12;
+                    break;
+                case 13:
+                    chartType = ChartsSetViewModel.Ins.ChartType13;
+                    break;
+                case 14:
+                    chartType = ChartsSetViewModel.Ins.ChartType14;
+                    break;
+                case 15:
+                    chartType = ChartsSetViewModel.Ins.ChartType15;
+                    break;
+                case 16:
+                    chartType = ChartsSetViewModel.Ins.ChartType16;
+                    break;
             }
 
             switch (chartType)
@@ -159,7 +180,7 @@ namespace HV.Views.Dock
 
         public void InitChartBox()
         {
-            for (int i = 1; i <= 9; i++)
+            for (int i = 1; i <= 16; i++)
             {
                 CartesianChart mChart = new CartesianChart();
                 ChartDic.mChartDic.Add(i, mChart);
@@ -331,10 +352,12 @@ namespace HV.Views.Dock
             RowDefinition row1 = new RowDefinition();
             RowDefinition row2 = new RowDefinition();
             RowDefinition row3 = new RowDefinition();
+            RowDefinition row4 = new RowDefinition();
             ColumnDefinition col1 = new ColumnDefinition();
             ColumnDefinition col2 = new ColumnDefinition();
             ColumnDefinition col3 = new ColumnDefinition();
             ColumnDefinition col4 = new ColumnDefinition();
+            ColumnDefinition col5 = new ColumnDefinition();
             grid.Children.Clear();
             grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Clear();
@@ -1078,6 +1101,64 @@ namespace HV.Views.Dock
 
 
                     break;
+                case eViewMode.Ten:
+                    // 2行 x 5列 = 10窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    for (int i = 0; i < 10; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1, true), i / 5, i % 5);
+                    }
+                    break;
+                case eViewMode.Twelve:
+                    // 3行 x 4列 = 12窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 12; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1, true), i / 4, i % 4);
+                    }
+                    break;
+                case eViewMode.Fifteen:
+                    // 3行 x 5列 = 15窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 15; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1, true), i / 5, i % 5);
+                    }
+                    break;
+                case eViewMode.Sixteen:
+                    // 4行 x 4列 = 16窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    grid.RowDefinitions.Add(row4);
+                    for (int i = 0; i < 16; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1, true), i / 4, i % 4);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -1090,10 +1171,12 @@ namespace HV.Views.Dock
             RowDefinition row1 = new RowDefinition();
             RowDefinition row2 = new RowDefinition();
             RowDefinition row3 = new RowDefinition();
+            RowDefinition row4 = new RowDefinition();
             ColumnDefinition col1 = new ColumnDefinition();
             ColumnDefinition col2 = new ColumnDefinition();
             ColumnDefinition col3 = new ColumnDefinition();
             ColumnDefinition col4 = new ColumnDefinition();
+            ColumnDefinition col5 = new ColumnDefinition();
             grid.Children.Clear();
             grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Clear();
@@ -1837,10 +1920,85 @@ namespace HV.Views.Dock
 
 
                     break;
+                case eViewMode.Ten:
+                    // 2行 x 5列 = 10窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    for (int i = 0; i < 10; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1), i / 5, i % 5);
+                    }
+                    break;
+                case eViewMode.Twelve:
+                    // 3行 x 4列 = 12窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 12; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1), i / 4, i % 4);
+                    }
+                    break;
+                case eViewMode.Fifteen:
+                    // 3行 x 5列 = 15窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.ColumnDefinitions.Add(col5);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    for (int i = 0; i < 15; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1), i / 5, i % 5);
+                    }
+                    break;
+                case eViewMode.Sixteen:
+                    // 4行 x 4列 = 16窗口
+                    grid.ColumnDefinitions.Add(col1);
+                    grid.ColumnDefinitions.Add(col2);
+                    grid.ColumnDefinitions.Add(col3);
+                    grid.ColumnDefinitions.Add(col4);
+                    grid.RowDefinitions.Add(row1);
+                    grid.RowDefinitions.Add(row2);
+                    grid.RowDefinitions.Add(row3);
+                    grid.RowDefinitions.Add(row4);
+                    for (int i = 0; i < 16; i++)
+                    {
+                        AddChartToGrid(GetChartBox(i + 1), i / 4, i % 4);
+                    }
+                    break;
                 default:
                     break;
             }
         }
+		
+	    private void AddChartToGrid(object chart, int row, int col)
+        {
+            if (chart is PieChart)
+            {
+                grid.Children.Add((PieChart)chart);
+                Grid.SetRow((PieChart)chart, row);
+                Grid.SetColumn((PieChart)chart, col);
+            }
+            else
+            {
+                grid.Children.Add((CartesianChart)chart);
+                Grid.SetRow((CartesianChart)chart, row);
+                Grid.SetColumn((CartesianChart)chart, col);
+            }
+        }
+
 
     }
 
@@ -1883,6 +2041,20 @@ namespace HV.Views.Dock
                     return ChartsSetViewModel.Ins.ChartType8;
                 case 9:
                     return ChartsSetViewModel.Ins.ChartType9;
+                case 10:
+                    return ChartsSetViewModel.Ins.ChartType10;
+                case 11:
+                    return ChartsSetViewModel.Ins.ChartType11;
+                case 12:
+                    return ChartsSetViewModel.Ins.ChartType12;
+                case 13:
+                    return ChartsSetViewModel.Ins.ChartType13;
+                case 14:
+                    return ChartsSetViewModel.Ins.ChartType14;
+                case 15:
+                    return ChartsSetViewModel.Ins.ChartType15;
+                case 16:
+                    return ChartsSetViewModel.Ins.ChartType16;
                 default:
                     break;
             }

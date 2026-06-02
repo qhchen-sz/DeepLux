@@ -451,8 +451,10 @@ namespace HV.ViewModels
                             //App.splashScreen.Close();
                             //【21】软件启动成功
                             Logger.AddLog(Resource.SoftwareStartupSucceeded);
-                            //【22】加载配方
-                            if (SystemConfig.Ins.SolutionAutoLoad)
+                            //【22】检测并恢复临时方案
+                            bool isRecovered = CheckAndRecoverTempSolution();
+                            //【23】加载配方（未恢复临时方案时才执行自动加载）
+                            if (!isRecovered && SystemConfig.Ins.SolutionAutoLoad)
                             {
                                 OpenSolution(SystemConfig.Ins.SolutionPathText);
                                 if (SystemConfig.Ins.SolutionAutoRun)
@@ -490,6 +492,55 @@ namespace HV.ViewModels
             IsCheckedChartVision = true;
         }
 
+        /// <summary>
+        /// 启动时检测并恢复临时方案
+        /// </summary>
+        /// <returns>是否成功恢复了临时方案</returns>
+        private bool CheckAndRecoverTempSolution()
+        {
+            string tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "AutoRecovery.vm");
+            if (!File.Exists(tempPath))
+                return false;
+
+            var messageView = MessageView.Ins;
+            messageView.MessageBoxShow(
+                "检测到上次未正常保存的方案，是否恢复？",
+                eMsgType.Info,
+                MessageBoxButton.YesNo
+            );
+
+            if (messageView.DialogResult == true)
+            {
+                try
+                {
+                    var solution = SerializeHelp.BinDeserialize<Solution>(tempPath);
+                    Solution.Ins = solution;
+                    CurrentSolution = null; // 临时方案不绑定正式路径，提示用户另存为
+
+                    // 更新UI
+                    UpdateUIAfterLoading();
+
+                    Logger.AddLog(
+                        "临时方案恢复成功，建议立即另存为正式方案！",
+                        eMsgType.Success,
+                        isDispGrowl: true
+                    );
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.AddLog($"临时方案恢复失败：{ex.Message}", eMsgType.Error);
+                    ProcessView.Ins.DeleteTempSolution();
+                    return false;
+                }
+            }
+            else
+            {
+                ProcessView.Ins.DeleteTempSolution();
+                return false;
+            }
+        }
+
         private CommandBase _ClosingCommand;
         public CommandBase ClosingCommand
         {
@@ -521,6 +572,9 @@ namespace HV.ViewModels
                             }
                             else
                             {
+                                // 正常关闭时删除临时方案
+                                ProcessView.Ins.DeleteTempSolution();
+
                                 EventMgr.Ins.GetEvent<SoftwareExitEvent>().Publish();
                                 CommonMethods.Exit();
                             }
@@ -584,6 +638,9 @@ namespace HV.ViewModels
                                     }
                                     break;
                                 case "Save": //保存
+                                    //保存前同步通讯设置（EComManageer → Solution.Ins.eCommunacations）
+                                    Solution.Ins.UpdataCommunacation();
+
                                     //要求在流程运行时也能保存解决方案
                                     // foreach (var item in Solution.Ins.ProjectList)
                                     // {
@@ -727,6 +784,7 @@ namespace HV.ViewModels
                                     break;
                                 case "CommunicationSet": //通讯设置
                                     CommunicationSetView.Ins.DataContext = CommunicationSetViewModel.Ins;
+                                    CommunicationSetView.Ins.RefreshDataGrid();
                                     CommunicationSetView.Ins.ShowDialog();
                                     break;
                                 case "HardwareConfig": //硬件配置
@@ -939,7 +997,7 @@ namespace HV.ViewModels
                                 {
                                     return;
                                 }
-                            
+
                             Logger.AddLog("解决方案保存成功！", eMsgType.Success, isDispGrowl: true);
                         }
                     );
@@ -992,6 +1050,9 @@ namespace HV.ViewModels
 
         private void UpdateUIAfterLoading()
         {
+            // 打开方案时不保存临时方案，避免覆盖之前的恢复文件
+            ProcessView.Ins.SuppressTempSave = true;
+
             // UI相关的更新放在UI线程
             if (Solution.Ins.QuickMode)
             {
@@ -1020,6 +1081,8 @@ namespace HV.ViewModels
             UIDesignView.UpdateUIDesign(true);
             DeviceStateView.Ins.OpenFileInit();
             Solution.Ins.ModuleLoad();
+
+            ProcessView.Ins.SuppressTempSave = false;
         }
         //public void OpenSolution(string fileName)
         //{

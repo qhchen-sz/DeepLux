@@ -1004,6 +1004,36 @@ namespace HV.Core
             }
         }
 
+        public string HVSerialize()
+        {
+            JObject obj = new JObject();
+            obj["CardID"] = CardID;
+            obj["OutputID"] = OutputID;
+            obj["Name"] = Name;
+            obj["IsForce"] = IsForce;
+            return obj.ToString();
+        }
+
+        public void HVDeserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                JObject obj = JObject.Parse(json);
+                if (obj["CardID"] != null) CardID = obj["CardID"].Value<int>();
+                if (obj["OutputID"] != null) OutputID = obj["OutputID"].Value<short>();
+                if (obj["Name"] != null) Name = obj["Name"].Value<string>();
+                if (obj["IsForce"] != null) IsForce = obj["IsForce"].Value<bool>();
+            }
+            catch (Exception ex)
+
+            {
+
+                  Logger.AddLog($"IOOut.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
+
+            }
+        }
+
     }
 
 }

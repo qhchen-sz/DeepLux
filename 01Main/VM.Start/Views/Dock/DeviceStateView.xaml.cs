@@ -121,6 +121,7 @@ namespace HV.Views.Dock
 
         private void Communication_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            CommunicationSetView.Ins.RefreshDataGrid();
             CommunicationSetView.Ins.ShowDialog();
         }
         #endregion

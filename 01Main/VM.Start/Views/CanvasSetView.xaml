@@ -18,7 +18,7 @@
                  lex:ResxLocalizationProvider.DefaultAssembly="HV"
                  lex:ResxLocalizationProvider.DefaultDictionary="Resource"
                  mc:Ignorable="d"
-                 Height="680" Width="980"
+                 Height="900" Width="980"
                  AllowsTransparency="False" 
                  ResizeMode="CanResizeWithGrip"
                  WindowStartupLocation="CenterScreen"
@@ -74,6 +74,8 @@
                 </Style>
             </Grid.Resources>
             <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
                 <RowDefinition/>
                 <RowDefinition/>
                 <RowDefinition/>
@@ -344,6 +346,209 @@
                 <RadioButton Grid.Row="1" Content="画布9" HorizontalAlignment="Center" GroupName="CanvasSetView"
                              DataContext="{Binding Source={StaticResource solution}}"
                              IsChecked="{Binding Ins.ViewMode,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eViewMode.Night}}"/>
+            </Grid>
+            <Grid Grid.Row="3" Grid.Column="0" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition Height="30"/>
+                </Grid.RowDefinitions>
+                <UniformGrid Columns="5" Rows="2">
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="1" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="2" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="3" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="4" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="5" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="6" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="7" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="8" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="9" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="10" FontSize="14"/>
+                    </Border>
+                </UniformGrid>
+                <RadioButton Grid.Row="1" Content="画布10" HorizontalAlignment="Center" GroupName="CanvasSetView"
+                             DataContext="{Binding Source={StaticResource solution}}"
+                             IsChecked="{Binding Ins.ViewMode,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eViewMode.Ten}}"/>
+            </Grid>
+            <Grid Grid.Row="3" Grid.Column="1" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition Height="30"/>
+                </Grid.RowDefinitions>
+                <UniformGrid Columns="4" Rows="3">
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="1" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="2" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="3" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="4" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="5" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="6" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="7" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="8" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="9" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="10" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="11" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="12" FontSize="14"/>
+                    </Border>
+                </UniformGrid>
+                <RadioButton Grid.Row="1" Content="画布12" HorizontalAlignment="Center" GroupName="CanvasSetView"
+                             DataContext="{Binding Source={StaticResource solution}}"
+                             IsChecked="{Binding Ins.ViewMode,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eViewMode.Twelve}}"/>
+            </Grid>
+            <Grid Grid.Row="3" Grid.Column="2" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition Height="30"/>
+                </Grid.RowDefinitions>
+                <UniformGrid Columns="5" Rows="3">
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="1" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="2" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="3" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="4" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="5" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="6" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="7" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="8" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="9" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="10" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="11" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="12" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="13" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="14" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="15" FontSize="14"/>
+                    </Border>
+                </UniformGrid>
+                <RadioButton Grid.Row="1" Content="画布15" HorizontalAlignment="Center" GroupName="CanvasSetView"
+                             DataContext="{Binding Source={StaticResource solution}}"
+                             IsChecked="{Binding Ins.ViewMode,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eViewMode.Fifteen}}"/>
+            </Grid>
+            <Grid Grid.Row="4" Grid.Column="0" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition Height="30"/>
+                </Grid.RowDefinitions>
+                <UniformGrid Columns="4" Rows="4">
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="1" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="2" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="3" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="4" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="5" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="6" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="7" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="8" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="9" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="10" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="11" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="12" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="13" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="14" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="15" FontSize="14"/>
+                    </Border>
+                    <Border Background="Gray" Margin="3">
+                        <TextBlock Text="16" FontSize="14"/>
+                    </Border>
+                </UniformGrid>
+                <RadioButton Grid.Row="1" Content="画布16" HorizontalAlignment="Center" GroupName="CanvasSetView"
+                             DataContext="{Binding Source={StaticResource solution}}"
+                             IsChecked="{Binding Ins.ViewMode,Converter={StaticResource EnumConverter},ConverterParameter={x:Static enum:eViewMode.Sixteen}}"/>
             </Grid>
 
         </Grid>

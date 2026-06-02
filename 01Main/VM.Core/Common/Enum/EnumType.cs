@@ -222,6 +222,8 @@ namespace HV.Common.Enums
         Fins = 5,//Fins协议
         Opc = 6,//Opcua协议
         Mc = 7,//Opcua协议
+        BeckhoffAds = 8,//倍福ADS协议
+        Siemens = 9,//西门子S7协议
     }
 
     public enum eTypes
@@ -408,7 +410,11 @@ namespace HV.Common.Enums
         Six,
         Seven,
         Eight,
-        Night
+        Night,
+        Ten,
+        Twelve,
+        Fifteen,
+        Sixteen
     }
 
     public enum eActiveState

@@ -58,6 +58,28 @@ namespace HV.ViewModels.Dock
         #endregion
 
         #region Method
+        private string GetValueString(object value)
+        {
+            if (value == null)
+            {
+                return "null";
+            }
+            if (value is string)
+            {
+                return value.ToString();
+            }
+            if (value is System.Collections.IEnumerable enumerable)
+            {
+                var items = enumerable.Cast<object>().Select(x => x?.ToString() ?? "null").ToArray();
+                if (items.Length > 30)
+                {
+                    return string.Join(", ", items.Take(30)) + $", ... ({items.Length - 30} more)";
+                }
+                return string.Join(", ", items);
+            }
+            return value.ToString();
+        }
+
         private void OnModuleOutChanged()
         {
             Common.CommonMethods.UIAsync(() =>
@@ -75,7 +97,7 @@ namespace HV.ViewModels.Dock
                     DataRow row = GlobalVars.NewRow();
                     for (int i = 0; i < Solution.Ins.SysVar.Count; i++)
                     {
-                        row[GlobalVars.Columns[i].ColumnName] = Solution.Ins.SysVar[i].Value.ToString();
+                        row[GlobalVars.Columns[i].ColumnName] = GetValueString(Solution.Ins.SysVar[i].Value);
                     }
                     GlobalVars.Rows.Add(row);
                     ModuleOutView.Ins.dgGlobalVar.ItemsSource = GlobalVars.DefaultView;
@@ -112,7 +134,7 @@ namespace HV.ViewModels.Dock
                     }
                     else
                     {
-                        row2[Modules.Columns[i].ColumnName] = modules[Modules.Columns[i].ColumnName].Value.ToString();
+                        row2[Modules.Columns[i].ColumnName] = GetValueString(modules[Modules.Columns[i].ColumnName].Value);
                     }
                 }
                 Modules.Rows.Add(row2);

@@ -823,12 +823,16 @@ namespace HV.Common
                         if (pro.OutputMap.ContainsKey(pro.ModuleList[j].ModuleParam.ModuleName))
                         {
                             
-                            
                             if (types[i].Contains("[]") )
                             {
                                 foreach (var item in pro.OutputMap[pro.ModuleList[j].ModuleParam.ModuleName].Values)
                                 {
-                                    if(item.DataType== types[i])
+                                    if(item == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    if (item.DataType== types[i])
                                     {
                                         int TimesCount = 0;
                                         string[] note = item.Note.Split('&');

@@ -201,7 +201,7 @@
                                 <mah:NumericUpDown Value="{Binding CurrentCommunication.LocalPort}" Width="120" Margin="5 0" BorderThickness="0 0 0 1"/>
                             </StackPanel>
                         </StackPanel>
-                        <StackPanel Visibility="{Binding CurrentCommunication.CommunicationType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter='TCP客户端,Cip,Opc,Mc,XinJETcpNet'}">
+                        <StackPanel Visibility="{Binding CurrentCommunication.CommunicationType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter='TCP客户端,Cip,Fins,Opc,Mc,XinJETcpNet,BeckhoffAds,Siemens'}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="目标IP:"/>
                                 <TextBox Text="{Binding CurrentCommunication.RemoteIP}" Width="120" Margin="5 0" BorderThickness="0 0 0 1"/>
@@ -210,6 +210,10 @@
                                 <TextBlock Text="目标端口:"/>
                                 <mah:NumericUpDown Value="{Binding CurrentCommunication.RemotePort}" Width="120" Margin="5 0" BorderThickness="0 0 0 1"/>
                             </StackPanel>
+                          <StackPanel Orientation="Horizontal" Visibility="{Binding CurrentCommunication.CommunicationType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter='Siemens'}">
+                            <TextBlock Text="PLC型号:" />
+                            <ComboBox ItemsSource="{Binding CurrentCommunication.SiemensPlcTypes}" SelectedItem="{Binding CurrentCommunication.SiemensPlcType}" Width="120" Margin="5 0" BorderThickness="0 0 0 1"/>
+                          </StackPanel>
                           <StackPanel Orientation="Horizontal" Visibility="{Binding CurrentCommunication.CommunicationType,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter='Opc'}">
                             <TextBlock Text="节点前缀:" />
                             <TextBox Text="{Binding CurrentCommunication.RemoteNote}" Width="120" Margin="5 0" BorderThickness="0 0 0 1"/>
