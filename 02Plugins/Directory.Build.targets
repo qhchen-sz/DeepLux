@@ -1,0 +1,19 @@
+<Project>
+  <Target Name="GenerateVersionInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_FileVersion>$([System.DateTime]::Now.ToString(yyyy.MMdd.HHmm.ss))</_FileVersion>
+    </PropertyGroup>
+    <WriteLinesToFile
+        File="$(IntermediateOutputPath)VersionInfo.g.cs"
+        Lines="using System.Reflection%3B"
+        Overwrite="true" />
+    <WriteLinesToFile
+        File="$(IntermediateOutputPath)VersionInfo.g.cs"
+        Lines="[assembly: AssemblyFileVersion(&quot;$(_FileVersion)&quot;)]"
+        Overwrite="false" />
+    <ItemGroup>
+      <Compile Remove="$(IntermediateOutputPath)VersionInfo.g.cs" />
+      <Compile Include="$(IntermediateOutputPath)VersionInfo.g.cs" />
+    </ItemGroup>
+  </Target>
+</Project>
