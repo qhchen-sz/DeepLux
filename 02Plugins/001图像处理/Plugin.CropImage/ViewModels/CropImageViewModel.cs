@@ -567,16 +567,17 @@ namespace Plugin.CropImage.ViewModels
         {
             GetHomMat2D();
             var view = ModuleView as CropImageView;
-            VMHWindowControl mWindowH;
+            VMHWindowControl mWindowH = null;
             bool dispSearchRegion = true;
-            if (view == null || view.IsClosed)
+            if (DispImage !=  null && (view == null || view.IsClosed))
             {
                 mWindowH = ViewDic.GetView(DispImage.DispViewID);
                 dispSearchRegion = false;
             }
             else
             {
-                mWindowH = view.mWindowH;
+                if(view != null)
+                    mWindowH = view.mWindowH;
             }
 
             if (dispSearchRegion && SearchRegionSource == eROISource.手动输入)
@@ -613,7 +614,7 @@ namespace Plugin.CropImage.ViewModels
                     });
                 }
             }
-            else if (dispSearchRegion && SearchRegionSource == eROISource.链接数组)
+            else if (mWindowH != null && dispSearchRegion && SearchRegionSource == eROISource.链接数组)
             {
                 mWindowH.WindowH.notDisplayRoi();
                 RoiList.Clear();
