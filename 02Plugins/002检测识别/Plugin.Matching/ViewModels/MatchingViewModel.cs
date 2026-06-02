@@ -1555,7 +1555,7 @@ namespace Plugin.Matching.ViewModels
             obj["SearchRegionSource"] = (int)SearchRegionSource;
             obj["ModelType"] = (int)ModelType;
             obj["Levels"] = Levels;
-            obj["MathNum"] = MathNum?.Text ?? "1";
+            obj["MathNum"] = int.Parse(GetLinkValue(MathNum).ToString());
             obj["MaxOverlap"] = MaxOverlap;
             obj["GreedDeg"] = GreedDeg;
             obj["MinScore"] = MinScore;
@@ -1585,7 +1585,7 @@ namespace Plugin.Matching.ViewModels
                 if (obj["SearchRegionSource"] != null) SearchRegionSource = (eSearchRegion)obj["SearchRegionSource"].Value<int>();
                 if (obj["ModelType"] != null) ModelType = (eModelType)obj["ModelType"].Value<int>();
                 if (obj["Levels"] != null) Levels = obj["Levels"].Value<int>();
-                if (obj["MathNum"] != null && MathNum != null) MathNum.Text = obj["MathNum"].ToString();
+                if (obj["MathNum"] != null && MathNum != null) MathNum.Value = obj["MathNum"].Value<int>();
                 if (obj["MaxOverlap"] != null) MaxOverlap = obj["MaxOverlap"].Value<double>();
                 if (obj["GreedDeg"] != null) GreedDeg = obj["GreedDeg"].Value<double>();
                 if (obj["MinScore"] != null) MinScore = obj["MinScore"].Value<double>();
