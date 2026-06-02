@@ -1,0 +1,252 @@
+<vb:ModuleViewBase x:Class="Plugin.FitPlane.Views.FitPlaneView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                   xmlns:local="clr-namespace:Plugin.FitPlane.Views"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:vm="clr-namespace:Plugin.FitPlane.ViewModels"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   Height="680" Width="980"
+                   Loaded="ModuleViewBase_Loaded">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary>
+                    <cvt:EnumConverter x:Key="EnumConverter"/>
+                    <cvt:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+                    <cvt:StatusConverter x:Key="StatusConverter"/>
+                    <vm:EnumDescConverter x:Key="EnumDescConverter"/>
+                </ResourceDictionary>
+                <ResourceDictionary Source="pack://application:,,,/HV;component/Assets/Collection.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl Style="{StaticResource VerTabControl}">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                <TabItem Header="基本参数">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+                        <Grid x:Name="gd">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="43*"/>
+                                <ColumnDefinition Width="114*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.ColumnSpan="2">
+                                <GroupBox Header="图像链接">
+                                    <StackPanel Orientation="Horizontal" Margin="5 0">
+                                        <TextBlock Text="输入图像" VerticalAlignment="Center"/>
+                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0"
+                                                 BorderThickness="0 0 0 1" IsReadOnly="True"
+                                                 Text="{Binding InputImageLinkText}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"
+                                                 mah:TextBoxHelper.Watermark="HImage"/>
+                                    </StackPanel>
+                                </GroupBox>
+                            </Border>
+                            <Border Grid.Row="1" Grid.ColumnSpan="2">
+                                <GroupBox Header="参数设置">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="拟合方式:" VerticalAlignment="Center" Width="140"/>
+                                            <ComboBox Width="150" Margin="5 0"
+                                                      ItemsSource="{Binding Source={enum:EnumBindingSource {x:Type vm:eFitMethod}}}"
+                                                      SelectedItem="{Binding FitMethod}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Converter={StaticResource EnumDescConverter}}"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding FitMethod}" Value="{x:Static vm:eFitMethod.tukey}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Text="迭代次数:" VerticalAlignment="Center" Width="140"/>
+                                            <mah:NumericUpDown Width="150" Margin="5 0"
+                                                              Value="{Binding NumIterations}"
+                                                              Minimum="1" Maximum="100" Interval="1"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding FitMethod}" Value="{x:Static vm:eFitMethod.tukey}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Text="异常点阈值（裁剪因子）:" VerticalAlignment="Center" Width="140"/>
+                                            <mah:NumericUpDown Width="150" Margin="5 0"
+                                                              Value="{Binding ClippingFactor, StringFormat=F2}"
+                                                              Minimum="0.01" Maximum="0.5" Interval="0.05"/>
+                                        </StackPanel>
+                                        <CheckBox Content="使用ROI" IsChecked="{Binding UseRoi}" Margin="5"/>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="中心X:" VerticalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding InitRoiCenterX.Text}"
+                                                     IsReadOnly="{Binding InitRoiCenterX.IsReadOnly}"
+                                                     mah:TextBoxHelper.Value="{Binding InitRoiCenterX.Value}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitRoiCenterX}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="中心Y:" VerticalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding InitRoiCenterY.Text}"
+                                                     IsReadOnly="{Binding InitRoiCenterY.IsReadOnly}"
+                                                     mah:TextBoxHelper.Value="{Binding InitRoiCenterY.Value}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitRoiCenterY}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="半长1:" VerticalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding InitRoiLength1.Text}"
+                                                     IsReadOnly="{Binding InitRoiLength1.IsReadOnly}"
+                                                     mah:TextBoxHelper.Value="{Binding InitRoiLength1.Value}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitRoiLength1}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="半长2:" VerticalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding InitRoiLength2.Text}"
+                                                     IsReadOnly="{Binding InitRoiLength2.IsReadOnly}"
+                                                     mah:TextBoxHelper.Value="{Binding InitRoiLength2.Value}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitRoiLength2}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="角度:" VerticalAlignment="Center" Width="60"/>
+                                            <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding InitRoiAngel.Text}"
+                                                     IsReadOnly="{Binding InitRoiAngel.IsReadOnly}"
+                                                     mah:TextBoxHelper.Value="{Binding InitRoiAngel.Value}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitRoiAngel}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </GroupBox>
+                            </Border>
+                            <Border Grid.Row="2" Grid.ColumnSpan="2">
+                                <GroupBox Header="输出数据">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="法向量Nx:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding NormalNx, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="法向量Ny:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding NormalNy, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="法向量Nz:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding NormalNz, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="平面距离D:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding PlaneD, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="平面度:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding Flatness, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="最大偏差:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding MaxDeviation, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="最小偏差:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding MinDeviation, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="5">
+                                                <TextBlock Text="RMS:" VerticalAlignment="Center" Width="70"/>
+                                                <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                         Text="{Binding RmsError, StringFormat=F6}" IsReadOnly="True"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </GroupBox>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="显示设置">
+                    <Grid x:Name="gd2">
+                        <GroupBox Header="显示设置">
+                            <StackPanel>
+                                <CheckBox Content="显示偏差图" IsChecked="{Binding ShowDeviationMap, Mode=TwoWay}" Margin="5"/>
+                                <CheckBox Content="显示拟合平面图" IsChecked="{Binding ShowPlaneMap, Mode=TwoWay}" Margin="5"/>
+                                <CheckBox Content="显示区域" IsChecked="{Binding ShowRegion, Mode=TwoWay}" Margin="5"/>
+                                <CheckBox Content="显示结果文字" IsChecked="{Binding ShowResultPoint, Mode=TwoWay}" Margin="5"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost"/>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/><Run Text="{Binding ModuleParam.ElapsedTime}"/><Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" Margin="10 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>

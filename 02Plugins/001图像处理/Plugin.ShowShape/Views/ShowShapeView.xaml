@@ -1,0 +1,492 @@
+<vb:ModuleViewBase x:Class="Plugin.ShowShape.Views.ShowShapeView"
+                   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                   xmlns:vb="clr-namespace:HV.Core;assembly=HV"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                   xmlns:local="clr-namespace:Plugin.ShowShape.Views"
+                   xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                   xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+                   xmlns:helper="clr-namespace:HV.Common.Helper;assembly=HV"
+                   xmlns:enum="clr-namespace:HV.Common.Enums;assembly=HV"
+                   xmlns:vm="clr-namespace:Plugin.ShowShape.ViewModels"
+                   xmlns:cvt="clr-namespace:HV.Assets.Converter;assembly=HV"
+                   xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+                   Icon="/Plugin.ShowShape;component/Assets/Images/Tool/ShowShape.png" 
+                   Height="680" Width="980"
+                   >
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="370"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl Style="{StaticResource VerTabControl}">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                
+                <!-- 基本参数 -->
+                <TabItem Header="基本参数">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0">
+                            <GroupBox Header="图像链接">
+                                <StackPanel HorizontalAlignment="Center" Margin="5">
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="输入图像:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Text="{Binding InputImageLinkText,UpdateSourceTrigger=PropertyChanged}"
+                                                 IsReadOnly="True"
+                                                 Style="{StaticResource LinkTextBox}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"
+                                                 mah:TextBoxHelper.Watermark="HImage"
+                                                 VerticalAlignment="Center" HorizontalAlignment="Center" Width="200" Margin="5 0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+                        <Border Grid.Row="1">
+                            <GroupBox Header="说明">
+                                <TextBlock TextWrapping="Wrap" Margin="10" Text="形状显示工具：支持手动输入参数绘制直线、圆、矩形，也可以引用上游模块输出的 ROI 对象进行显示。图像输入为可选，不输入时将使用空白画布。"/>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+                </TabItem>
+                
+                <!-- 直线 -->
+                <TabItem Header="直线">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                            <Button Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" 
+                                    ToolTip="添加直线" Command="{Binding ShapeOperateCommand}" CommandParameter="Add,Line"/>
+                            <Button Content="&#xe692;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0" 
+                                    ToolTip="删除直线" Command="{Binding ShapeOperateCommand}" CommandParameter="Delete,Line"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding LineParams}" 
+                                  FontSize="12" 
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="All"
+                                  CanUserAddRows="False"
+                                  SelectedIndex="{Binding nSelectLineIndex}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="索引" Binding="{Binding Index}" CanUserSort="True" IsReadOnly="True" Width="40"/>
+                                <DataGridTemplateColumn Header="起点X" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding StartX.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding StartX.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LineStartX}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="起点Y" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding StartY.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding StartY.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LineStartY}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="终点X" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding EndX.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding EndX.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LineEndX}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="终点Y" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding EndY.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding EndY.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.LineEndY}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="颜色" Binding="{Binding Color}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="填充" Binding="{Binding IsFill}" Width="45"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <!-- 圆 -->
+                <TabItem Header="圆">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                            <Button Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" 
+                                    ToolTip="添加圆" Command="{Binding ShapeOperateCommand}" CommandParameter="Add,Circle"/>
+                            <Button Content="&#xe692;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0" 
+                                    ToolTip="删除圆" Command="{Binding ShapeOperateCommand}" CommandParameter="Delete,Circle"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding CircleParams}" 
+                                  FontSize="12" 
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="All"
+                                  CanUserAddRows="False"
+                                  SelectedIndex="{Binding nSelectCircleIndex}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="索引" Binding="{Binding Index}" CanUserSort="True" IsReadOnly="True" Width="40"/>
+                                <DataGridTemplateColumn Header="圆心X" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding CenterX.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding CenterX.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.CircleCenterX}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="圆心Y" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding CenterY.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding CenterY.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.CircleCenterY}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="半径" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Radius.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Radius.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.CircleRadius}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="颜色" Binding="{Binding Color}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="填充" Binding="{Binding IsFill}" Width="45"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <!-- 矩形1 -->
+                <TabItem Header="矩形1">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                            <Button Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" 
+                                    ToolTip="添加矩形1" Command="{Binding ShapeOperateCommand}" CommandParameter="Add,Rect1"/>
+                            <Button Content="&#xe692;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0" 
+                                    ToolTip="删除矩形1" Command="{Binding ShapeOperateCommand}" CommandParameter="Delete,Rect1"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding Rect1Params}" 
+                                  FontSize="12" 
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="All"
+                                  CanUserAddRows="False"
+                                  SelectedIndex="{Binding nSelectRect1Index}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="索引" Binding="{Binding Index}" CanUserSort="True" IsReadOnly="True" Width="40"/>
+                                <DataGridTemplateColumn Header="Row1" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Row1.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Row1.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Row1}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Col1" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Col1.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Col1.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Col1}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Row2" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Row2.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Row2.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Row2}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Col2" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Col2.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Col2.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Col2}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="颜色" Binding="{Binding Color}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="填充" Binding="{Binding IsFill}" Width="45"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <!-- 矩形2 -->
+                <TabItem Header="矩形2">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                            <Button Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" 
+                                    ToolTip="添加矩形2" Command="{Binding ShapeOperateCommand}" CommandParameter="Add,Rect2"/>
+                            <Button Content="&#xe692;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18" 
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0" 
+                                    ToolTip="删除矩形2" Command="{Binding ShapeOperateCommand}" CommandParameter="Delete,Rect2"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding Rect2Params}" 
+                                  FontSize="12" 
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="All"
+                                  CanUserAddRows="False"
+                                  SelectedIndex="{Binding nSelectRect2Index}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="索引" Binding="{Binding Index}" CanUserSort="True" IsReadOnly="True" Width="40"/>
+                                <DataGridTemplateColumn Header="中心R" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding MidR.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding MidR.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2MidR}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="中心C" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding MidC.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding MidC.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2MidC}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="角度" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Phi.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Phi.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Phi}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Length1" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Length1.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Length1.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Length1}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Length2" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Length2.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     mah:TextBoxHelper.Value="{Binding Length2.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Length2}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="颜色" Binding="{Binding Color}" Width="50"/>
+                                <DataGridCheckBoxColumn Header="填充" Binding="{Binding IsFill}" Width="45"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <!-- ROI 引用 -->
+                <TabItem Header="ROI引用">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                            <Button Content="&#xe657;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18"
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}"
+                                    ToolTip="添加 ROI" Command="{Binding RoiOperateCommand}" CommandParameter="Add"/>
+                            <Button Content="&#xe692;" Width="30" Height="26" FontFamily="{DynamicResource iconfont}" FontSize="18"
+                                    Background="{StaticResource MahApps.Brushes.Accent4}"
+                                    BorderBrush="{StaticResource MahApps.Brushes.Accent4}" Margin="5 0"
+                                    ToolTip="删除 ROI" Command="{Binding RoiOperateCommand}" CommandParameter="Delete"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding RoiParam}"
+                                  FontSize="12"
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="All"
+                                  CanUserAddRows="False"
+                                  SelectedIndex="{Binding nSelectRoiIndex}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="索引" Binding="{Binding Index}" CanUserSort="True" IsReadOnly="True" Width="40"/>
+                                <DataGridTemplateColumn Header="ROI 链接" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding InputRoi.Text,UpdateSourceTrigger=PropertyChanged}"
+                                                     IsReadOnly="True"
+                                                     BorderThickness="0 0 0 0"
+                                                     mah:TextBoxHelper.Value="{Binding InputRoi.Value}"
+                                                     Style="{StaticResource LinkTextBox}"
+                                                     mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                     mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputRoiLink}"
+                                                     VerticalAlignment="Center" HorizontalAlignment="Stretch" Width="Auto" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="颜色" Binding="{Binding RoiColor}" Width="60"/>
+                                <DataGridCheckBoxColumn Header="填充" Binding="{Binding IsFill}" Width="50"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <!-- 显示设置 -->
+                <TabItem Header="显示设置">
+                    <Grid Margin="5 40 5 5" Background="{StaticResource MahApps.Brushes.ThemeBackground}">
+                        <GroupBox Header="图像参数">
+                            <StackPanel>
+                                <CheckBox Content="流程结束时显示结果图像" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" 
+                                          IsChecked="{Binding ShowResultRoi}"/>
+                                <StackPanel Orientation="Horizontal" Margin="10">
+                                    <TextBlock Text="显示窗体" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <ComboBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
+                                              SelectedIndex="{Binding DispViewID}" ItemsSource="{Binding CanvasList}"/>
+                                </StackPanel>
+                                <CheckBox Content="显示图像" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" IsChecked="{Binding ShowImage}"/>
+                                <CheckBox Content="显示OK日志" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" IsChecked="{Binding ShowOkLog}"/>
+                                <CheckBox Content="显示NG日志" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" IsChecked="{Binding ShowNgLog}"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
+            </WinFormHost:WindowsFormsHost>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="耗时:"/>
+                        <Run Text="{Binding ModuleParam.ElapsedTime}"/>
+                        <Run Text="ms"/>
+                    </TextBlock>
+                    <TextBlock>
+                        <Run Text="状态:"/>
+                        <Run Text="{Binding ModuleParam.Status,Converter={StaticResource StatusConverter}}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" Click="btnCancel_Click"/>
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>
