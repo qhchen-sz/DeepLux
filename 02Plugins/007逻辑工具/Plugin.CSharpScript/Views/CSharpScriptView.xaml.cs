@@ -71,6 +71,22 @@ namespace Plugin.CSharpScript.Views
             {
                 str = $"GetString(\"{varName}\")";
             }
+            else if (viewModel.Var.DataType == "double[]")
+            {
+                str = $"GetDoubleAry(\"{varName}\")";
+            }
+            else if (viewModel.Var.DataType == "int[]")
+            {
+                str = $"GetIntAry(\"{varName}\")";
+            }
+            else if (viewModel.Var.DataType == "bool[]")
+            {
+                str = $"GetBoolAry(\"{varName}\")";
+            }
+            else if (viewModel.Var.DataType == "string[]")
+            {
+                str = $"GetStringAry(\"{varName}\")";
+            }
             else
             {
                 return;
