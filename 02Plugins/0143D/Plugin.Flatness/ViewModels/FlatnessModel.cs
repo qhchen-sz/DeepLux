@@ -306,13 +306,6 @@ namespace Plugin.Flatness.ViewModels
                 ShowHRoi();
                 InitRoiMethod();
 
-                // ClearROI 会导致 real 类型深度图丢失颜色映射，重新设置 LUT
-                if (ModuleView is FlatnessView view && view.mWindowH != null && IsOpenWindows)
-                {
-                    HOperatorSet.SetLut(view.mWindowH.hControl.HalconWindow, "temperature");
-                    view.mWindowH.WindowH._hWndControl.Repaint();
-                }
-
                 // 释放临时对象
                 chObj.Dispose();
                 chRealObj.Dispose();
@@ -364,7 +357,59 @@ namespace Plugin.Flatness.ViewModels
 
         public override void ShowHRoi()
         {
-            base.ShowHRoi();
+            VMHWindowControl mWindowH;
+            int windowsW = 594;
+            int windowsH = 583;
+            HTuple width = new HTuple(), height = new HTuple();
+            double scale = 1;
+            if (ModuleView == null || ModuleView.IsClosed)
+            {
+                return;
+            }
+            else
+            {
+                mWindowH = ModuleView.mWindowH;
+                if (mWindowH != null)
+                {
+                    mWindowH.ClearROI();
+                    // 关键：在 ClearROI 之后、DispHobject 之前，重新触发 RGB 伪彩色显示
+                    mWindowH.HobjectToHimage(DispImage);
+                }
+            }
+            if (DispImage != null)
+            {
+                HOperatorSet.GetImageSize(DispImage, out width, out height);
+                windowsW = mWindowH.hControl.Width;
+                windowsH = mWindowH.hControl.Height;
+                double scaleX = width.D / windowsW;
+                double scaleY = height.D / windowsH;
+                scale = scaleX;
+            }
+            if (mWindowH != null)
+            {
+                mWindowH.DispText.Clear();
+                foreach (HRoi roi in mHRoi)
+                {
+                    if (roi.roiType == HRoiType.文字显示)
+                    {
+                        HText roiText = (HText)roi;
+                        ShowTool.SetFont(
+                            mWindowH.hControl.HalconWindow,
+                            roiText.size,
+                            "false",
+                            "false"
+                        );
+                        var size = Math.Ceiling(roiText.size / scale);
+                        HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)size);
+                        hText.originalSize = roiText.size;
+                        mWindowH.WindowH.DispText(hText);
+                    }
+                    else
+                    {
+                        mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
+                    }
+                }
+            }
         }
 
         public void InitRoiMethod()
