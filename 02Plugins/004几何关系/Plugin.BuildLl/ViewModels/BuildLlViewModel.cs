@@ -75,10 +75,9 @@ namespace Plugin.BuildLl.ViewModels
                     Line1 = (ROILine)Prj.GetParamByName(Line1LinkText).Value;
                     Line2 = (ROILine)Prj.GetParamByName(Line2LinkText).Value;
                     Dis.IntersectionLl(Line1, Line2, out double row, out double col, out double deg, out int isParallel);
-                    HOperatorSet.TupleDeg(deg, out HTuple hv_Deg);
-                    deg = Convert.ToDouble(hv_Deg.ToString());
                     CrossPointX = Math.Round(row, 3);
                     CrossPointY = Math.Round(col, 3);
+                    deg = deg / 180 * Math.PI;
                     Deg = Math.Round(deg, 3);
                     IsParallel = (isParallel == 1);
                     if (ShowResultPoint)
@@ -116,7 +115,7 @@ namespace Plugin.BuildLl.ViewModels
         {
             ModeCoord.X= CrossPointY;
             ModeCoord.Y=CrossPointX;
-            ModeCoord.Phi = Deg / 180 * Math.PI;
+            ModeCoord.Phi = Deg;
             ModeCoord.Status = true;
         }
 
