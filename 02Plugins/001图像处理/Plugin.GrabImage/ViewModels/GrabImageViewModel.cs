@@ -230,6 +230,12 @@ namespace Plugin.GrabImage.ViewModels
                             }
                         }
 
+                        if (DispImage != null)
+                        {
+                            DispImage.GetImageSize(out HTuple imgWidth, out HTuple imgHeight);
+                            Logger.AddLog($"相机采集完成：收到 {imgHeight.I} 行数据", eMsgType.Info);
+                        }
+
                         break;
                     default:
                         break;
