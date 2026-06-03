@@ -159,41 +159,38 @@ namespace Plugin.AreaOperations.ViewModels
                         break;
                 }
 
-                //// 根据显示设置显示区域,不设置
-                //if (ShowRegion)
-                //{
-                //    // 显示输入区域1（蓝色）
-                //    if (inputRegion1 != null && inputRegion1.IsInitialized())
-                //    {
-                //        //mWindowH.WindowH.DispHobject(inputRegion1, "blue", FillDisplay);
-                //        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
-                //                HRoiType.检测范围, "blue", new HObject(inputRegion1), FillDisplay));
-                //    }
+                // 根据显示设置显示输入区域（轮廓模式）
+                if (ShowRegion)
+                {
+                    // 显示输入区域1（蓝色）
+                    if (inputRegion1 != null && inputRegion1.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "_input1", ModuleParam.Remarks,
+                                HRoiType.检测范围, "blue", new HObject(inputRegion1), false));
+                    }
 
-                //    // 显示输入区域2（红色）
-                //    if (inputRegion2 != null && inputRegion2.IsInitialized())
-                //    {
-                //        //mWindowH.WindowH.DispHobject(inputRegion2, "red", FillDisplay);
-                //        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
-                //                HRoiType.检测范围, "yellow", new HObject(inputRegion2), FillDisplay));
-                //    }
-                //}
+                    // 显示输入区域2（黄色）
+                    if (inputRegion2 != null && inputRegion2.IsInitialized())
+                    {
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "_input2", ModuleParam.Remarks,
+                                HRoiType.检测范围, "yellow", new HObject(inputRegion2), false));
+                    }
+                }
 
                 // 显示运算结果区域（使用ROI形式）
-                if (OutRegion != null && OutRegion.IsInitialized())
+                if (FillDisplay && OutRegion != null && OutRegion.IsInitialized())
                 {
-                    //mWindowH.WindowH.DispHobject(OutRegion, "green", FillDisplay);
                     //如果为相加，两个区域单独显示
                     if (SelectedOperationType == OperationType.相加)
                     {
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "region1", ModuleParam.Remarks,
-                            HRoiType.检测结果, "blue", new HObject(inputRegion1), FillDisplay));
+                            HRoiType.检测结果, "blue", new HObject(inputRegion1), true));
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "region2", ModuleParam.Remarks,
-                            HRoiType.检测结果, "yellow", new HObject(inputRegion2), FillDisplay));
+                            HRoiType.检测结果, "yellow", new HObject(inputRegion2), true));
                     }
                     else {
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
-                                HRoiType.检测结果, "green", new HObject(OutRegion), FillDisplay));
+                                HRoiType.检测结果, "green", new HObject(OutRegion), true));
                     }
 
                 }

@@ -580,7 +580,7 @@ namespace Plugin.CropImage.ViewModels
                     mWindowH = view.mWindowH;
             }
 
-            if (dispSearchRegion && SearchRegionSource == eROISource.手动输入)
+            if (mWindowH != null && dispSearchRegion && SearchRegionSource == eROISource.手动输入)
             {
                 mWindowH.WindowH.notDisplayRoi();
                 RoiList.Clear();
