@@ -100,6 +100,10 @@
                             <StackPanel Orientation="Horizontal" Margin="10">
                                 <CheckBox Content="显示坐标轴" IsChecked="{Binding ShowCoordinate}"/>
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="10">
+                                <TextBlock Text="轴长度:" HorizontalAlignment="Center" VerticalAlignment="Center" Width="60"/>
+                                <TextBox Width="80" Margin="5 0" Text="{Binding AxisLength}"/>
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
                 </Border>

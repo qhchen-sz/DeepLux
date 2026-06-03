@@ -653,12 +653,16 @@ namespace Plugin.DistancePL.ViewModels
             JObject obj = JObject.Parse(base.HVSerialize());
             obj["UseManualLine"] = UseManualLine;
             obj["ManualLineAngle"] = ManualLineAngle;
+            obj["ManualLineAngleLinkText"] = ManualLineAngleLinkText ?? "";
+            obj["ManualLineAngleLinkValue"] = ManualLineAngleLinkValue;
             obj["ShowResultLine"] = ShowResultLine;
             obj["ShowResultPoint"] = ShowResultPoint;
             obj["InputImageLinkText"] = InputImageLinkText ?? "";
             obj["Line1LinkText"] = Line1LinkText ?? "";
             obj["PXLinkText"] = PXLinkText ?? "";
             obj["PYLinkText"] = PYLinkText ?? "";
+            obj["PXLinkValue"] = PXLinkValue;
+            obj["PYLinkValue"] = PYLinkValue;
             return obj.ToString();
         }
 
@@ -671,12 +675,16 @@ namespace Plugin.DistancePL.ViewModels
                 JObject obj = JObject.Parse(json);
                 if (obj["UseManualLine"] != null) UseManualLine = obj["UseManualLine"].Value<bool>();
                 if (obj["ManualLineAngle"] != null) ManualLineAngle = obj["ManualLineAngle"].Value<double>();
+                if (obj["ManualLineAngleLinkText"] != null) ManualLineAngleLinkText = obj["ManualLineAngleLinkText"].ToString();
+                if (obj["ManualLineAngleLinkValue"] != null) ManualLineAngleLinkValue = obj["ManualLineAngleLinkValue"].Value<double>();
                 if (obj["ShowResultLine"] != null) ShowResultLine = obj["ShowResultLine"].Value<bool>();
                 if (obj["ShowResultPoint"] != null) ShowResultPoint = obj["ShowResultPoint"].Value<bool>();
                 if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
                 if (obj["Line1LinkText"] != null) Line1LinkText = obj["Line1LinkText"].ToString();
                 if (obj["PXLinkText"] != null) PXLinkText = obj["PXLinkText"].ToString();
                 if (obj["PYLinkText"] != null) PYLinkText = obj["PYLinkText"].ToString();
+                if (obj["PXLinkValue"] != null) PXLinkValue = obj["PXLinkValue"].Value<double>();
+                if (obj["PYLinkValue"] != null) PYLinkValue = obj["PYLinkValue"].Value<double>();
             }
             catch (Exception ex)
 
