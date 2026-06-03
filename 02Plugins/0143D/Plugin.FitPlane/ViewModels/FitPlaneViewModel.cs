@@ -758,11 +758,25 @@ namespace Plugin.FitPlane.ViewModels
         private void InitRoiChanged()
         {
             if (InitRoiChanged_Flag) return;
-            InitRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
-            InitRoi.MidR = Convert.ToDouble(GetLinkValue(InitRoiCenterY));
-            InitRoi.Length1 = Convert.ToDouble(GetLinkValue(InitRoiLength1));
-            InitRoi.Length2 = Convert.ToDouble(GetLinkValue(InitRoiLength2));
-            InitRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
+            if (!double.TryParse(GetLinkValue(InitRoiCenterX)?.ToString(), out double midC)) return;
+            if (!double.TryParse(GetLinkValue(InitRoiCenterY)?.ToString(), out double midR)) return;
+            if (!double.TryParse(GetLinkValue(InitRoiLength1)?.ToString(), out double len1)) return;
+            if (!double.TryParse(GetLinkValue(InitRoiLength2)?.ToString(), out double len2)) return;
+            if (!double.TryParse(GetLinkValue(InitRoiAngel)?.ToString(), out double deg)) return;
+
+            InitRoi.MidC = midC;
+            InitRoi.MidR = midR;
+            InitRoi.Length1 = len1;
+            InitRoi.Length2 = len2;
+            InitRoi.Deg = deg;
+
+            // 同步更新 TempRoi，避免 ExeModule 在无仿射变换分支用旧值覆盖
+            TempRoi.MidC = midC;
+            TempRoi.MidR = midR;
+            TempRoi.Length1 = len1;
+            TempRoi.Length2 = len2;
+            TempRoi.Deg = deg;
+
             DisenableAffine2d = true;
             ExeModule();
             InitRoiMethod();

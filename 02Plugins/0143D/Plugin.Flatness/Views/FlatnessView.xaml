@@ -117,7 +117,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="中心X:" VerticalAlignment="Center" Width="60"/>
                                             <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                     Text="{Binding InitRoiCenterX.Text}"
+                                                     Text="{Binding InitRoiCenterX.Text, UpdateSourceTrigger=PropertyChanged}"
                                                      IsReadOnly="{Binding InitRoiCenterX.IsReadOnly}"
                                                      mah:TextBoxHelper.Value="{Binding InitRoiCenterX.Value}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
@@ -126,7 +126,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="中心Y:" VerticalAlignment="Center" Width="60"/>
                                             <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                     Text="{Binding InitRoiCenterY.Text}"
+                                                     Text="{Binding InitRoiCenterY.Text, UpdateSourceTrigger=PropertyChanged}"
                                                      IsReadOnly="{Binding InitRoiCenterY.IsReadOnly}"
                                                      mah:TextBoxHelper.Value="{Binding InitRoiCenterY.Value}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
@@ -135,7 +135,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="半长1:" VerticalAlignment="Center" Width="60"/>
                                             <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                     Text="{Binding InitRoiLength1.Text}"
+                                                     Text="{Binding InitRoiLength1.Text, UpdateSourceTrigger=PropertyChanged}"
                                                      IsReadOnly="{Binding InitRoiLength1.IsReadOnly}"
                                                      mah:TextBoxHelper.Value="{Binding InitRoiLength1.Value}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
@@ -144,7 +144,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="半长2:" VerticalAlignment="Center" Width="60"/>
                                             <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                     Text="{Binding InitRoiLength2.Text}"
+                                                     Text="{Binding InitRoiLength2.Text, UpdateSourceTrigger=PropertyChanged}"
                                                      IsReadOnly="{Binding InitRoiLength2.IsReadOnly}"
                                                      mah:TextBoxHelper.Value="{Binding InitRoiLength2.Value}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
@@ -153,7 +153,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="角度:" VerticalAlignment="Center" Width="60"/>
                                             <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                     Text="{Binding InitRoiAngel.Text}"
+                                                     Text="{Binding InitRoiAngel.Text, UpdateSourceTrigger=PropertyChanged}"
                                                      IsReadOnly="{Binding InitRoiAngel.IsReadOnly}"
                                                      mah:TextBoxHelper.Value="{Binding InitRoiAngel.Value}"
                                                      mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
