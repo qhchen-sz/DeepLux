@@ -108,14 +108,7 @@ namespace Plugin.Coordinate.ViewModels
                 ClearRoiAndText();
                 MathCoord.X = double.Parse(GetLinkValue(XLinkText).ToString());
                 MathCoord.Y = double.Parse(GetLinkValue(YLinkText).ToString());
-                if (PhiType == ComponentsType.模板匹配)
-                {
-                    MathCoord.Phi = double.Parse(GetLinkValue(DegLinkText).ToString());
-                }
-                else
-                {
-                    MathCoord.Phi = double.Parse(GetLinkValue(DegLinkText).ToString()) / 180 * Math.PI;
-                }
+                MathCoord.Phi = double.Parse(GetLinkValue(DegLinkText).ToString());
                 HOperatorSet.VectorAngleToRigid(ModeCoord.Y, ModeCoord.X, ModeCoord.Phi, MathCoord.Y, MathCoord.X, MathCoord.Phi, out HomMat2D);
                 HOperatorSet.VectorAngleToRigid(MathCoord.Y, MathCoord.X, MathCoord.Phi, ModeCoord.Y, ModeCoord.X, ModeCoord.Phi, out HomMat2D_Inverse);
                 RefreshDisplay();
@@ -175,6 +168,20 @@ namespace Plugin.Coordinate.ViewModels
         {
             get { return _DegLinkText; }
             set { Set(ref _DegLinkText, value); }
+        }
+        private double _AxisLength = 60;
+        /// <summary>
+        /// 半十字轴长度
+        /// </summary>
+        public double AxisLength
+        {
+            get { return _AxisLength; }
+            set
+            {
+                Set(ref _AxisLength, value);
+                if (DispImage != null && DispImage.IsInitialized())
+                    ExeModule();
+            }
         }
         private bool _ShowCoordinate=true;
         /// <summary>
@@ -332,7 +339,9 @@ namespace Plugin.Coordinate.ViewModels
             double x = MathCoord.X;
             double y = MathCoord.Y;
             double phi = MathCoord.Phi;
-            double len = 60;
+            double len = AxisLength;
+            double arrowSize = 5 * len / 60;
+            double crossSize = 6 * len / 60;
 
             double dyX, dxX; // X轴端点偏移(row, col)
             double dyY, dxY; // Y轴端点偏移(row, col)
@@ -360,15 +369,15 @@ namespace Plugin.Coordinate.ViewModels
             double endY_x = x + dxY;
 
             // X轴箭头（红色）
-            ROICoordLine.GenArrow(out HObject hoArrowX, y, x, endX_y, endX_x, 5, 5);
+            ROICoordLine.GenArrow(out HObject hoArrowX, y, x, endX_y, endX_x, arrowSize, arrowSize);
             ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测X点, "red", hoArrowX));
 
             // Y轴箭头（绿色）
-            ROICoordLine.GenArrow(out HObject hoArrowY, y, x, endY_y, endY_x, 5, 5);
+            ROICoordLine.GenArrow(out HObject hoArrowY, y, x, endY_y, endY_x, arrowSize, arrowSize);
             ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测Y点, "green", hoArrowY));
 
             // 中心十字标记（蓝色）
-            HOperatorSet.GenCrossContourXld(out HObject hoCenter, y, x, 6, 0);
+            HOperatorSet.GenCrossContourXld(out HObject hoCenter, y, x, crossSize, 0);
             ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.参考坐标, "blue", hoCenter));
         }
 
@@ -406,6 +415,7 @@ namespace Plugin.Coordinate.ViewModels
             obj["YLinkText"] = YLinkText?.Text ?? "";
             obj["DegLinkText"] = DegLinkText?.Text ?? "";
             obj["ShowCoordinate"] = ShowCoordinate;
+            obj["AxisLength"] = AxisLength;
             return obj.ToString();
         }
 
@@ -421,6 +431,7 @@ namespace Plugin.Coordinate.ViewModels
                 if (obj["YLinkText"] != null && YLinkText != null) YLinkText.Text = obj["YLinkText"].ToString();
                 if (obj["DegLinkText"] != null && DegLinkText != null) DegLinkText.Text = obj["DegLinkText"].ToString();
                 if (obj["ShowCoordinate"] != null) ShowCoordinate = obj["ShowCoordinate"].Value<bool>();
+                if (obj["AxisLength"] != null) AxisLength = obj["AxisLength"].Value<double>();
             }
             catch (Exception ex)
 
