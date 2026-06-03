@@ -69,7 +69,6 @@ namespace Plugin.Coordinate.ViewModels
         
             for (int i = index - 1; i >= 0; i--)
             {
-                /*extractedText*/
                 if (Prj.ModuleList[i].ModuleParam.ModuleName.Contains("模板匹配"))
                 {
                     PhiType = ComponentsType.模板匹配;
@@ -106,7 +105,7 @@ namespace Plugin.Coordinate.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                GetModeCoord();
+                ClearRoiAndText();
                 MathCoord.X = double.Parse(GetLinkValue(XLinkText).ToString());
                 MathCoord.Y = double.Parse(GetLinkValue(YLinkText).ToString());
                 if (PhiType == ComponentsType.模板匹配)
@@ -119,6 +118,8 @@ namespace Plugin.Coordinate.ViewModels
                 }
                 HOperatorSet.VectorAngleToRigid(ModeCoord.Y, ModeCoord.X, ModeCoord.Phi, MathCoord.Y, MathCoord.X, MathCoord.Phi, out HomMat2D);
                 HOperatorSet.VectorAngleToRigid(MathCoord.Y, MathCoord.X, MathCoord.Phi, ModeCoord.Y, ModeCoord.X, ModeCoord.Phi, out HomMat2D_Inverse);
+                RefreshDisplay();
+                ShowHRoi();
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
             }
@@ -182,7 +183,12 @@ namespace Plugin.Coordinate.ViewModels
         public bool ShowCoordinate
         {
             get { return _ShowCoordinate; }
-            set { Set(ref _ShowCoordinate, value); }
+            set
+            {
+                Set(ref _ShowCoordinate, value);
+                if (DispImage != null && DispImage.IsInitialized())
+                    ExeModule();
+            }
         }
 
         #endregion
@@ -202,7 +208,6 @@ namespace Plugin.Coordinate.ViewModels
                 }
                 if (DispImage == null )
                 {
-                    SetDefaultLink();
                     if (InputImageLinkText == null) return;
                 }
                 GetDispImage(InputImageLinkText,true);
@@ -308,34 +313,87 @@ namespace Plugin.Coordinate.ViewModels
         #endregion
 
         #region Method
-        /// <summary>
-        /// 获取模板坐标
-        /// </summary>
-        private void GetModeCoord()
+        private void RefreshDisplay()
         {
-            int index = Prj.ModuleList.IndexOf(this);
-            string extractedText = null;
-            if (!string.IsNullOrEmpty(XLinkText.Text))
+            if (DispImage == null || !DispImage.IsInitialized())
+                return;
+
+            DispImage.RemoveHRoi(ModuleParam.ModuleName);
+
+            if (ShowCoordinate)
+                DrawCoordinateAxis();
+        }
+
+        /// <summary>
+        /// 以MathCoord的X,Y为原点，绘制半十字坐标轴（X右Y下），按角度Phi逆时针旋转
+        /// </summary>
+        private void DrawCoordinateAxis()
+        {
+            double x = MathCoord.X;
+            double y = MathCoord.Y;
+            double phi = MathCoord.Phi;
+            double len = 60;
+
+            double dyX, dxX; // X轴端点偏移(row, col)
+            double dyY, dxY; // Y轴端点偏移(row, col)
+
+            if (Math.Abs(phi) > 1e-10)
             {
-                string input = XLinkText.Text.ToString();
-                int startIndex = input.IndexOf('&') + 1;
-                int endIndex = input.IndexOf('.');
-                if(endIndex>0)
-                    extractedText = input.Substring(startIndex, endIndex - startIndex);
-                else
-                    extractedText = XLinkText.Text.ToString();
-
-
+                double cosA = Math.Cos(phi);
+                double sinA = Math.Sin(phi);
+                // X轴：朝右(0, len) → 逆时针旋转phi
+                dyX = -len * sinA;
+                dxX = len * cosA;
+                // Y轴：朝下(len, 0) → 逆时针旋转phi
+                dyY = len * cosA;
+                dxY = len * sinA;
             }
-            for (int i = index-1; i >= 0; i--)
+            else
             {
-                /*extractedText*/
-                if (!string.IsNullOrEmpty(extractedText)&&Prj.ModuleList[i].ModuleParam.ModuleName.StartsWith(extractedText))
-                {
-                    ModeCoord = Prj.ModuleList[i].ModeCoord; return;
-                }
-               
+                dyX = 0; dxX = len;   // X轴：朝右
+                dyY = len; dxY = 0;   // Y轴：朝下
+            }
 
+            double endX_y = y + dyX;
+            double endX_x = x + dxX;
+            double endY_y = y + dyY;
+            double endY_x = x + dxY;
+
+            // X轴箭头（红色）
+            ROICoordLine.GenArrow(out HObject hoArrowX, y, x, endX_y, endX_x, 5, 5);
+            ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测X点, "red", hoArrowX));
+
+            // Y轴箭头（绿色）
+            ROICoordLine.GenArrow(out HObject hoArrowY, y, x, endY_y, endY_x, 5, 5);
+            ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测Y点, "green", hoArrowY));
+
+            // 中心十字标记（蓝色）
+            HOperatorSet.GenCrossContourXld(out HObject hoCenter, y, x, 6, 0);
+            ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.参考坐标, "blue", hoCenter));
+        }
+
+        private new void ShowHRoi()
+        {
+            var view = ModuleView as CoordinateView;
+            if (view == null || view.IsClosed) return;
+
+            VMHWindowControl mWindowH = view.mWindowH;
+            if (mWindowH == null) return;
+
+            mWindowH.HobjectToHimage(DispImage);
+            List<HRoi> roiList = mHRoi.Where(c => c.ModuleName == ModuleParam.ModuleName && c.ModuleEncode == ModuleParam.ModuleEncode).ToList();
+            foreach (HRoi roi in roiList)
+            {
+                if (roi.roiType == HRoiType.文字显示)
+                {
+                    HText roiText = (HText)roi;
+                    ShowTool.SetFont(mWindowH.hControl.HalconWindow, roiText.size, "false", "false");
+                    ShowTool.SetMsg(mWindowH.hControl.HalconWindow, roiText.text, "image", roiText.row, roiText.col, roiText.drawColor, "false");
+                }
+                else
+                {
+                    mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor);
+                }
             }
         }
         #endregion
