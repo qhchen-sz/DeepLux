@@ -144,7 +144,8 @@
                             </GroupBox>
 
                             <!-- 连续轮廓 -->
-                            <GroupBox Header="连续轮廓" Margin="0 0 0 5">
+                            <GroupBox Header="连续轮廓" Margin="0 0 0 5"
+                                      Visibility="{Binding IsContinuousContourVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Grid Margin="5">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="80"/>

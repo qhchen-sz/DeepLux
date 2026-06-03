@@ -257,7 +257,7 @@ namespace Plugin.ContourDetection.ViewModels
                         ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
                         break;
                     case eDetectionType.单条轮廓:
-                        // TODO: 待后续实现
+                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
                         break;
                     case eDetectionType.链接路径:
                         // TODO: 待后续实现
@@ -345,7 +345,7 @@ namespace Plugin.ContourDetection.ViewModels
                         ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
                         break;
                     case eDetectionType.单条轮廓:
-                        // TODO: 待后续实现
+                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
                         break;
                     case eDetectionType.链接路径:
                         // TODO: 待后续实现
@@ -470,7 +470,13 @@ namespace Plugin.ContourDetection.ViewModels
         public eDetectionType DetectionType
         {
             get { return _DetectionType; }
-            set { Set(ref _DetectionType, value); }
+            set
+            {
+                Set(ref _DetectionType, value, () =>
+                {
+                    RaisePropertyChanged(nameof(IsContinuousContourVisible));
+                });
+            }
         }
 
         private LinkVarModel _RoiCenterRow = new LinkVarModel() { Text = "100" };
@@ -582,6 +588,14 @@ namespace Plugin.ContourDetection.ViewModels
         public bool IsFixedCountVisible
         {
             get { return _IsFixedInterval; }
+        }
+
+        /// <summary>
+        /// 控制"连续轮廓"GroupBox的可见性：仅在检测类型为"连续轮廓"时显示
+        /// </summary>
+        public bool IsContinuousContourVisible
+        {
+            get { return DetectionType == eDetectionType.连续轮廓; }
         }
 
         #endregion
@@ -1170,6 +1184,109 @@ namespace Plugin.ContourDetection.ViewModels
 
             // 更新最大索引值（用于UI绑定Maximum）
             MaxContourIndex = localOffsets.Count - 1;
+        }
+
+        /// <summary>
+        /// 单条轮廓检测：仅生成 ROI 中心位置的一条轮廓条带
+        /// </summary>
+        private void ExeSingleContour(HImage heightImage, double roiCenterRow, double roiCenterCol,
+            double roiLength1, double roiLength2, double roiPhi)
+        {
+            List<ContourResultItem> results = new List<ContourResultItem>();
+            int contourWidth = ContourWidth;
+
+            if (contourWidth <= 0) return;
+            if (!WorkflowItems.Any(item => item.m_enable)) return;
+
+            double halfWidth = contourWidth / 2.0;
+
+            // 清除上次保存的数据
+            _contourStripDataMap.Clear();
+            foreach (var kv in _contourRectMap)
+            {
+                if (kv.Value != null) kv.Value.Dispose();
+            }
+            _contourRectMap.Clear();
+
+            // 调用模型处理单条中心条带
+            var (resultVal, resultRow, resultCol, pointY, pointX, zValues, hasData) =
+                ContourDetectionModel.ProcessSingleStrip(
+                    heightImage, roiCenterRow, roiCenterCol, roiPhi,
+                    roiLength1, halfWidth,
+                    WorkflowItems.Where(item => item.m_enable));
+
+            // 保存轮廓矩形（用于主窗口黄色高亮）
+            HObject contourRectObj;
+            HOperatorSet.GenRectangle2ContourXld(out contourRectObj,
+                roiCenterRow, roiCenterCol, -roiPhi, roiLength1, halfWidth);
+            _contourRectMap[0] = contourRectObj.Clone();
+
+            if (!hasData)
+            {
+                results.Add(new ContourResultItem
+                {
+                    Index = 1,
+                    Value = double.NaN,
+                    Row = roiCenterRow,
+                    Col = roiCenterCol
+                });
+            }
+            else
+            {
+                results.Add(new ContourResultItem
+                {
+                    Index = 1,
+                    Value = resultVal,
+                    Row = resultRow,
+                    Col = resultCol
+                });
+
+                // 保存条带原始数据（用于子窗口散点图）
+                _contourStripDataMap[0] = new ContourStripData
+                {
+                    PointY = pointY,
+                    PointX = pointX,
+                    ZValues = zValues,
+                    ResultRow = resultRow,
+                    ResultCol = resultCol,
+                    ResultValue = resultVal,
+                    CenterRow = roiCenterRow,
+                    CenterCol = roiCenterCol,
+                    Phi = -roiPhi,
+                    Length1 = roiLength1,
+                    HalfWidth = halfWidth
+                };
+            }
+
+            // 同步结果到UI
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                ContourResults.Clear();
+                foreach (var item in results)
+                {
+                    if (!double.IsNaN(item.Value))
+                        ContourResults.Add(item);
+                }
+            });
+
+            // 绘制检测点（红色十字）
+            if (ShowResultPoints && hasData && !double.IsNaN(resultVal))
+            {
+                HObject cross;
+                HOperatorSet.GenCrossContourXld(out cross, resultRow, resultCol, 6, 0.785398);
+                ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                    HRoiType.检测点, "red", new HObject(cross)));
+            }
+
+            // 绘制轮廓矩形框
+            if (ShowResultRois)
+            {
+                ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
+                    HRoiType.检测结果, "cyan", new HObject(contourRectObj)));
+            }
+
+            // 只有一条轮廓，索引固定为0
+            MaxContourIndex = 0;
         }
 
         /// <summary>
