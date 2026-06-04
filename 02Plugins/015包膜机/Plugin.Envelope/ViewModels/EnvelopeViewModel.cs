@@ -32,6 +32,7 @@ using EVDll;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
+using System.Threading;
 using System.Windows;
 using HV.Services;
 using Newtonsoft.Json.Linq;
@@ -79,6 +80,8 @@ namespace Plugin.Envelope.ViewModels
     [Serializable]
     public class EnvelopeViewModel : ModuleBase
     {
+        private static string TimeThreadPrefix => $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}][Thread:{Thread.CurrentThread.ManagedThreadId}]";
+
         [NonSerialized]
         HImage _image;
         public override void SetDefaultLink()
@@ -98,15 +101,25 @@ namespace Plugin.Envelope.ViewModels
 
             try
             {
+
+                Logger.AddLog($"{TimeThreadPrefix}正常进入包膜算法模块：{ModuleParam.ModuleName}");
+
                 ClearRoiAndText();
+                //熔点到顶盖距离
                 ResultValue1 = 0;
+                //左膜到顶盖距离
                 ResultValue2 = 0;
+                //右膜到顶盖距离
                 ResultValue3 = 0;
-                ResultValue4= 0;
+                //熔点宽度
+                ResultValue4 = 0;
+                //熔点高度
                 ResultValue5 = 0;
+                //熔点面积
                 ResultValue6 = 0;
                 if (InputImageLinkText == null)
                 {
+                    Logger.AddLog($"{TimeThreadPrefix}NGInputImageLinkText离开包膜算法模块：{ModuleParam.ModuleName}");
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
@@ -114,6 +127,7 @@ namespace Plugin.Envelope.ViewModels
                 string erro = "";
                 if (ClassAi == null || !ClassAi.IsRunning)
                 {
+                    Logger.AddLog($"{TimeThreadPrefix}NG ClassAi == null离开包膜算法模块：{ModuleParam.ModuleName}");
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
@@ -122,26 +136,47 @@ namespace Plugin.Envelope.ViewModels
                 if (DispImage !=null && DispImage.IsInitialized())
                 {
 
-                
+                Logger.AddLog($"{TimeThreadPrefix}进入Task.Run前耗时：{Stopwatch.ElapsedMilliseconds}ms");
                 var task = Task.Run(() =>
                 {
                     HImage Temp = DispImage.CopyImage();
-                    Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":"+this.ModuleParam.ModuleName+ "进入推理：", eMsgType.Warn);
+                    Logger.AddLog(TimeThreadPrefix + Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":"+this.ModuleParam.ModuleName+ "进入推理：", eMsgType.Warn);
+                    var swInfer = Stopwatch.StartNew();
                     Result = ClassAi.AiRun(Temp, ref erro, this.CONF_THRESHOLD, this.NMS_THRESHOLD);
-                    Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "推理结束：", eMsgType.Warn);
+                    swInfer.Stop();
+                    Logger.AddLog(TimeThreadPrefix + Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + $"推理结束，耗时：{swInfer.ElapsedMilliseconds}ms", eMsgType.Warn);
 
                     if (IsFilterBlueMembrane)
+                    {
+                        Logger.AddLog($"{TimeThreadPrefix}开始过滤最小蓝膜");
+                        var swFilter = Stopwatch.StartNew();
                         Algorithm.FilterSmallBlueMembrane(Result, BlueMembraneMinArea, out Result);
+                        swFilter.Stop();
+                        Logger.AddLog($"{TimeThreadPrefix}过滤最小蓝膜完成，耗时：{swFilter.ElapsedMilliseconds}ms");
+
+                        Logger.AddLog($"{TimeThreadPrefix}开始过滤最小顶盖");
+                        swFilter = Stopwatch.StartNew();
+                        Algorithm.FilterSmallTopCover(Result, BlueMembraneMinArea, out Result);
+                        swFilter.Stop();
+                        Logger.AddLog($"{TimeThreadPrefix}过滤最小顶盖完成，耗时：{swFilter.ElapsedMilliseconds}ms");
+                    }
 
                     //面积
                     //像素当量换算
-
                     double.TryParse(GetLinkValue(Scale).ToString(), out double SS);
                     ResultValue6 = Result.Threshold(3.0, 3.0).RegionFeatures("area") * SS * SS;
-                    ResultValue4= Result.Threshold(3.0, 3.0).RegionFeatures("width") * SS ;
+                    Logger.AddLog($"{TimeThreadPrefix}计算熔点面积：{ResultValue6}");
+
+                    ResultValue4 = Result.Threshold(3.0, 3.0).RegionFeatures("width") * SS ;
+                    Logger.AddLog($"{TimeThreadPrefix}熔点宽度：{ResultValue4}");
+
                     ResultValue5 = Result.Threshold(3.0, 3.0).RegionFeatures("height") * SS;
+                    Logger.AddLog($"{TimeThreadPrefix}熔点高度：{ResultValue5}");
+
                     _image = new HImage();
                     _image = Result.ScaleImage(50.0, 0);
+                    Logger.AddLog($"{TimeThreadPrefix}开始显示AI区域");
+                    var swDisp = Stopwatch.StartNew();
                     if (IsDispAiRegion)
                     {
                         HRegion region1 = new HRegion();
@@ -183,61 +218,51 @@ namespace Plugin.Envelope.ViewModels
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai3_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)4).ToString(), new HObject(region3_1), false));
                         region3_1.Dispose();
                     }
-                    //if (IsDistanceLine)
-                    //{
-                    //    HRegion region4_1 = new HRegion();
-                    //    region4_1 = Result.Threshold(4.0, 4.0);
-                    //    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ai4_1", ModuleParam.Remarks, HRoiType.检测结果, ((eAiColor)5).ToString(), new HObject(region4_1), false));
-                    //    region4_1.Dispose();
-                    //}
+                    swDisp.Stop();
+                    Logger.AddLog($"{TimeThreadPrefix}显示AI区域完成，耗时：{swDisp.ElapsedMilliseconds}ms");
+
+                    var swFind = Stopwatch.StartNew();
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "进入传统寻边算法：", eMsgType.Warn);
                     Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject Line, 
                         out HObject Arrow, out HObject Cross, SelectLocation.ToString(), 
                         out HTuple Distance1, out HTuple Distance2, out HObject TopCoverArrow, 
                         out HTuple DistanceTopCover, out HObject RongDianArrow);
+
+                    swFind.Stop();
                     //HOperatorSet.WriteImage(Result.ScaleImage(60.0, 0), "bmp", 0, @"C:\Users\Administrator\Desktop\ai\rongdian\1.bmp");
                     Result.Dispose();
-                    Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "传统寻边算法结束：", eMsgType.Warn);
+                    Logger.AddLog(TimeThreadPrefix + Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + $"传统寻边算法结束，耗时：{swFind.ElapsedMilliseconds}ms", eMsgType.Warn);
+                    var swCalc = Stopwatch.StartNew();
                     ResultValue1 = Math.Round((double)(Distance1[0] * SS), 2);
+                    
+                    Logger.AddLog($"{TimeThreadPrefix}熔点到顶盖距离：{ResultValue1}");
                     ResultValue2 = 0;
                     ResultValue3 = 0;
-                    //ResultValue4 = 0;
-                    //ResultValue5 = 0;
-                    //if (SelectLocation.ToString() == "Left")
-                    //{
-                    //    ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
-                    //}
-                    //else if (SelectLocation.ToString() == "Right")
-                    //{
-                    //    ResultValue3 = Math.Round((double)(Distance2[1] * SS), 2);
-                    //}
-                    //else
-                    //{
-                    //    ResultValue2 = Math.Round((double)(Distance2[0] * SS), 2);
-                    //    ResultValue3 = Math.Round((double)(Distance2[1] * SS), 2);
 
 
-                    //}
-
-                    //蓝膜到顶盖距离
                     if (SelectLocation.ToString() == "Left")
                     {
                         ResultValue2 = Math.Round(DistanceTopCover.TupleLength() > 0 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
+                        Logger.AddLog($"{TimeThreadPrefix}左膜到顶盖距离：{ResultValue2}");
                     }
                     else if (SelectLocation.ToString() == "Right")
                     {
                         ResultValue3 = Math.Round(DistanceTopCover.TupleLength() > 0 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
+                        Logger.AddLog($"{TimeThreadPrefix}右膜到顶盖距离：{ResultValue3}");
                     }
                     else
                     {
                         ResultValue2 = Math.Round(DistanceTopCover.TupleLength() > 1 ? (double)(DistanceTopCover[0] * SS) : 0.0, 2);
                         ResultValue3 = Math.Round(DistanceTopCover.TupleLength() > 1 ? 
                             (double)(DistanceTopCover[DistanceTopCover.TupleLength()-1] * SS) : 0.0, 2);
+                        Logger.AddLog($"{TimeThreadPrefix}左膜到顶盖距离：{ResultValue2}");
+                        Logger.AddLog($"{TimeThreadPrefix}右膜到顶盖距离：{ResultValue3}");
 
 
                     }
-
-                    //是否显示传统测距线条（传统寻边算法结果）
+                    swCalc.Stop();
+                    Logger.AddLog($"{TimeThreadPrefix}寻边后数据计算完成，耗时：{swCalc.ElapsedMilliseconds}ms");
+                    var swShowRoi = Stopwatch.StartNew();
                     if (IsDistanceLine) {
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "DingGaiLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(Line)));
                         //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 2, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Arrow)));
@@ -249,34 +274,36 @@ namespace Plugin.Envelope.ViewModels
                     TopCoverArrow.Dispose();
                     RongDianArrow.Dispose();
 
-
                     ShowHRoi();
+                    swShowRoi.Stop();
+                    Logger.AddLog($"{TimeThreadPrefix}显示寻边结果完成，耗时：{swShowRoi.ElapsedMilliseconds}ms");
                     ChangeModuleRunStatus(eRunStatus.OK);
                 }
                 
 
                 );
-                if (task.Wait(TimeSpan.FromSeconds(2))) // 30秒超时
+                if (task.Wait(TimeSpan.FromSeconds(2.5))) // 2.5秒超时
                 {
-                     
                 }
                 else
                 {
                     // 处理超时
                     ChangeModuleRunStatus(eRunStatus.NG);
-                    Logger.AddLog("AI推理超时",eMsgType.Error);
+                    Logger.AddLog($"{TimeThreadPrefix}超时离开包膜算法模块：{ModuleParam.ModuleName}");
+                    Logger.AddLog(TimeThreadPrefix + "包膜机算法AI推理（耗时2.5秒）超时", eMsgType.Error);
                     return false;
                 }
                 }
                 else
                 {
+                    Logger.AddLog($"{TimeThreadPrefix}NG离开包膜算法模块：{ModuleParam.ModuleName}");
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
                 //HImage Result = ClassAi.AiRun(temp, ref erro, this.CONF_THRESHOLD, this.NMS_THRESHOLD);
 
 
-
+                Logger.AddLog($"{TimeThreadPrefix}正常离开包膜算法模块：{ModuleParam.ModuleName}");
                 return true;
             }
             catch (Exception ex)
@@ -953,7 +980,6 @@ namespace Plugin.Envelope.ViewModels
             obj["IsHeatFusionJoint"] = IsHeatFusionJoint;
             obj["IsTopCover"] = IsTopCover;
             obj["IsBlueMembrane"] = IsBlueMembrane;
-            obj["IsDiaphragm"] = IsDiaphragm;
             obj["IsFilterBlueMembrane"] = IsFilterBlueMembrane;
             obj["BlueMembraneMinArea"] = BlueMembraneMinArea;
             obj["OutPutMaxArea"] = OutPutMaxArea;
@@ -1003,7 +1029,6 @@ namespace Plugin.Envelope.ViewModels
                 if (obj["IsHeatFusionJoint"] != null) IsHeatFusionJoint = obj["IsHeatFusionJoint"].Value<bool>();
                 if (obj["IsTopCover"] != null) IsTopCover = obj["IsTopCover"].Value<bool>();
                 if (obj["IsBlueMembrane"] != null) IsBlueMembrane = obj["IsBlueMembrane"].Value<bool>();
-                if (obj["IsDiaphragm"] != null) IsDiaphragm = obj["IsDiaphragm"].Value<bool>();
                 if (obj["IsFilterBlueMembrane"] != null) IsFilterBlueMembrane = obj["IsFilterBlueMembrane"].Value<bool>();
                 if (obj["BlueMembraneMinArea"] != null) BlueMembraneMinArea = obj["BlueMembraneMinArea"].Value<double>();
                 if (obj["OutPutMaxArea"] != null) OutPutMaxArea = obj["OutPutMaxArea"].Value<bool>();

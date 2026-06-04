@@ -157,11 +157,11 @@
                                             <TextBox Text="{Binding ResultValue3 , UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="120" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Margin="10" Orientation="Horizontal" Visibility="{Binding SelectLocation, Converter={StaticResource StrToVisibilityConverter}, ConverterParameter=Left}">
-                                            <TextBlock Text="左隔膜到顶盖距离：" HorizontalAlignment="Left" VerticalAlignment="Center" Width="120"/>
+                                            <TextBlock Text="熔点宽度：" HorizontalAlignment="Left" VerticalAlignment="Center" Width="120"/>
                                             <TextBox Text="{Binding ResultValue4 , UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="120" IsReadOnly="True"/>
                                         </StackPanel>
                                         <StackPanel Margin="10" Orientation="Horizontal" Visibility="{Binding SelectLocation, Converter={StaticResource StrToVisibilityConverter}, ConverterParameter=Right}">
-                                            <TextBlock Text="右隔膜到顶盖距离：" HorizontalAlignment="Left" VerticalAlignment="Center" Width="120" />
+                                            <TextBlock Text="熔点高度：" HorizontalAlignment="Left" VerticalAlignment="Center" Width="120" />
                                             <TextBox Text="{Binding ResultValue5 , UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Width="120" IsReadOnly="True"/>
                                         </StackPanel>
                                     </StackPanel>
