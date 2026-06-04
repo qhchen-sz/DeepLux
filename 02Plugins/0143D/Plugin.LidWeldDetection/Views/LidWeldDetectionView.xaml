@@ -105,15 +105,29 @@
                                 </GroupBox>
                             </Border>
 
-                            <!-- 分辨率设置 -->
+                            <!-- 高度换算设置 -->
                             <Border Grid.Row="2">
-                                <GroupBox Header="分辨率设置">
+                                <GroupBox Header="高度换算">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="5">
-                                            <TextBlock Text="Z分辨率:" VerticalAlignment="Center" Width="90"/>
+                                            <TextBlock Text="Z像素单位:" VerticalAlignment="Center" Width="90"/>
                                             <mah:NumericUpDown Width="180" Margin="5 0"
                                                                Value="{Binding ResolutionZ}"
-                                                               Minimum="0.000001" Maximum="999999999" Interval="0.1"
+                                                               Minimum="0.000000001" Maximum="999999999" Interval="0.001"
+                                                               StringFormat="0.#########"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="最小有效高度:" VerticalAlignment="Center" Width="90"/>
+                                            <mah:NumericUpDown Width="180" Margin="5 0"
+                                                               Value="{Binding MinValidHeight}"
+                                                               Minimum="-999999999" Maximum="999999999" Interval="1"
+                                                               StringFormat="0.######"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="最大有效高度:" VerticalAlignment="Center" Width="90"/>
+                                            <mah:NumericUpDown Width="180" Margin="5 0"
+                                                               Value="{Binding MaxValidHeight}"
+                                                               Minimum="-999999999" Maximum="999999999" Interval="100"
                                                                StringFormat="0.######"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -181,6 +195,31 @@
                                                                StringFormat="0.##"/>
                                         </StackPanel>
 
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="最小缺陷面积:" VerticalAlignment="Center" Width="90"/>
+                                            <mah:NumericUpDown Width="180" Margin="5 0"
+                                                               Value="{Binding MinDefectArea}"
+                                                               Minimum="0" Maximum="999999999" Interval="10"
+                                                               StringFormat="0.##"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="最大缺陷面积:" VerticalAlignment="Center" Width="90"/>
+                                            <mah:NumericUpDown Width="180" Margin="5 0"
+                                                               Value="{Binding MaxDefectArea}"
+                                                               Minimum="0" Maximum="999999999" Interval="100"
+                                                               StringFormat="0.##"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <CheckBox Content="显示工件轮廓" IsChecked="{Binding ShowWorkpieceContour}"
+                                                      VerticalAlignment="Center" Width="120"/>
+                                            <TextBlock Text="偏移(px):" VerticalAlignment="Center" Margin="8 0 0 0"/>
+                                            <mah:NumericUpDown Width="95" Margin="5 0"
+                                                               Value="{Binding ContourOffset}"
+                                                               Minimum="-9999" Maximum="9999" Interval="1"
+                                                               StringFormat="0.##"/>
+                                        </StackPanel>
                                         <CheckBox Content="显示缺陷区域" IsChecked="{Binding ShowDefectRegion}" Margin="5"/>
                                     </StackPanel>
                                 </GroupBox>
@@ -214,6 +253,11 @@
                             <Border>
                                 <GroupBox Header="缺陷统计">
                                     <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="5">
+                                            <TextBlock Text="是否有缺陷:" VerticalAlignment="Center" Width="90"/>
+                                            <TextBox Width="180" Margin="5 0" BorderThickness="0 0 0 1"
+                                                     Text="{Binding HasDefect}" IsReadOnly="True"/>
+                                        </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="5">
                                             <TextBlock Text="缺陷数量:" VerticalAlignment="Center" Width="90"/>
                                             <TextBox Width="180" Margin="5 0" BorderThickness="0 0 0 1"
