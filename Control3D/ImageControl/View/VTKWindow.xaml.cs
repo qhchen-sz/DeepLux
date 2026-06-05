@@ -23,6 +23,7 @@ namespace ImageControl
     public partial class VTKWindow : System.Windows.Window
     {
         private HObject _lastImage;
+        private HObject _lastBrightnessImage;
 
         public VTKWindow()
         {
@@ -45,10 +46,12 @@ namespace ImageControl
         public void ShowPointCloudHalcon(HObject img,
             double zScaleAuto = 1.0,
             double xScale = 1.0,
-            double yScale = 1.0)
+            double yScale = 1.0,
+            HObject brightnessImage = null)
         {
             _lastImage = img;
-            vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(img, zScaleAuto, xScale, yScale);
+            _lastBrightnessImage = brightnessImage;
+            vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(img, zScaleAuto, xScale, yScale, brightnessImage);
             vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
         }
 
@@ -67,7 +70,7 @@ namespace ImageControl
 
             if (_lastImage != null && _lastImage.IsInitialized())
             {
-                vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(_lastImage, zScale, xScale, yScale);
+                vtkControl.CreatePointCloudFromTiffFastHalcon_AutoScaleFast(_lastImage, zScale, xScale, yScale, _lastBrightnessImage);
                 vtkControl.vtkRenderWindow2.Is3DVisibleChild = true;
             }
         }

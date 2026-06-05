@@ -2647,7 +2647,8 @@ namespace ImageControl
         public void CreatePointCloudFromTiffFastHalcon_AutoScaleFast(HObject ho_Image,
             double zScaleAuto = 1.0,
             double xScale = 1.0,
-            double yScale = 1.0)
+            double yScale = 1.0,
+            HObject brightnessImage = null)
         {
             if (ho_Image == null || !ho_Image.IsInitialized())
                 return;
@@ -2700,6 +2701,24 @@ namespace ImageControl
 
             HTuple grayVals;
             HOperatorSet.GetGrayval(imgReal, rows, cols, out grayVals);
+
+            // 2.5) 如果有亮度图，获取亮度值用于着色
+            HTuple brightnessVals = null;
+            double bMin = 0, bMax = 255;
+            if (brightnessImage != null && brightnessImage.IsInitialized())
+            {
+                // 确保亮度图为 byte 类型
+                HOperatorSet.GetImageType(brightnessImage, out HTuple bType);
+                if (bType.S != "byte")
+                {
+                    HOperatorSet.ConvertImageType(brightnessImage, out HObject bImgByte, "byte");
+                    brightnessImage = bImgByte;
+                }
+                HOperatorSet.MinMaxGray(brightnessImage, brightnessImage, 0, out HTuple bMinT, out HTuple bMaxT, out _);
+                bMin = bMinT.D;
+                bMax = bMaxT.D;
+                HOperatorSet.GetGrayval(brightnessImage, rows, cols, out brightnessVals);
+            }
 
             // 3) 用百分位裁剪（1%~99%）获取稳定的显示范围
             HOperatorSet.TupleSort(grayVals, out HTuple sorted);
@@ -2785,6 +2804,7 @@ namespace ImageControl
                 pointData[idx3 + 1] = y;
                 pointData[idx3 + 2] = z;
 
+                // 基于高度值的伪彩色 LUT
                 double norm = (gClamped - zLow) / (zHigh - zLow);
                 norm = Math.Max(0.0, Math.Min(1.0, norm));
 
@@ -2795,9 +2815,30 @@ namespace ImageControl
                 if (c < 0) c = 0;
                 if (c >= N) c = N - 1;
 
-                colorData[idx3] = lutR[c];
-                colorData[idx3 + 1] = lutG[c];
-                colorData[idx3 + 2] = lutB[c];
+                double r = lutR[c];
+                double g = lutG[c];
+                double b = lutB[c];
+
+                if (brightnessVals != null)
+                {
+                    // 亮度纹理调制 LUT 色彩：暗区保留基础亮度避免全黑
+                    double bRange = Math.Max(1e-9, bMax - bMin);
+                    double bVal = brightnessVals[i].D;
+                    double bNorm = (bVal - bMin) / bRange;
+                    bNorm = Math.Max(0.0, Math.Min(1.0, bNorm));
+
+                    double bGamma = 0.8;
+                    bNorm = Math.Pow(bNorm, bGamma);
+
+                    double factor = 0.3 + 0.7 * bNorm;
+                    r *= factor;
+                    g *= factor;
+                    b *= factor;
+                }
+
+                colorData[idx3] = (byte)Math.Round(r);
+                colorData[idx3 + 1] = (byte)Math.Round(g);
+                colorData[idx3 + 2] = (byte)Math.Round(b);
             }
 
             // 8) 传给 VTK

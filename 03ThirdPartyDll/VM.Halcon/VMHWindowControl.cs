@@ -574,6 +574,7 @@ namespace VM.Halcon
             {
                 HTuple width = 0, height = 0;
                 HImage Height = new HImage();
+                HImage texture = null;
                 if (Image.IsInitialized())
                 {
                     Image.GetImageSize(out width, out height);
@@ -581,6 +582,7 @@ namespace VM.Halcon
                     if (ChannelsNum == 2)
                     {
                         Height = Image.Decompose2(out HImage hImage);
+                        texture = hImage;
                     }
                     else
                     {
@@ -589,12 +591,13 @@ namespace VM.Halcon
                     /*MessageBox.Show("width:" + width + "height:" + height);*/
                 }
                 /*                Mat imgvar = HImageToMat(img3d.GrayImage);*/
+                var _texture = texture;
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var win = new ImageControl.VTKWindow();
                     win.Show(); // 弹出
                     /*                    win.ShowPointCloud(imgvar); // 你的数据注入*/
-                    win.ShowPointCloudHalcon(Height);
+                    win.ShowPointCloudHalcon(Height, brightnessImage: _texture);
 
                 });
 
