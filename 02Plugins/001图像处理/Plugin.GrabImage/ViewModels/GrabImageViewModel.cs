@@ -43,7 +43,8 @@ namespace Plugin.GrabImage.ViewModels
         ImageHeight,
         ExposureTime,
         Gain,
-        DelayTime
+        DelayTime,
+        MeasureCalibLink
     }
     #endregion
 
@@ -297,7 +298,37 @@ namespace Plugin.GrabImage.ViewModels
                         RaisePropertyChanged(nameof(HeiImage));
                     }
 
-                    VMHWindowControl mWindowH;
+                    // === 链接测量标定：赋值像素当量 ===
+                    if (IsLinkMeasureCalib)
+                    {
+                        try
+                        {
+                            List<double> pixelEquivs = GetLinkArray(MeasureCalibLink);
+                            if (pixelEquivs != null && pixelEquivs.Count >= 3)
+                            {
+                                DispImage.ScaleX = pixelEquivs[0];
+                                DispImage.ScaleY = pixelEquivs[1];
+                                DispImage.ScaleZ = pixelEquivs[2];
+                                Logger.AddLog($"测量标定已应用: ScaleX={pixelEquivs[0]}, ScaleY={pixelEquivs[1]}, ScaleZ={pixelEquivs[2]}", eMsgType.Info);
+                            }
+                            else
+                            {
+                                Logger.AddLog("链接测量标定: 像素当量数据不足 (需要3个值)", eMsgType.Warn);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.AddLog($"链接测量标定失败: {ex.Message}", eMsgType.Warn);
+                        }
+                    }
+                    else
+                    {
+                        DispImage.ScaleX = 1;
+                        DispImage.ScaleY = 1;
+                        DispImage.ScaleZ = 1;
+                    }
+
+                    VMHWindowControl mWindowH = null;
                     if (ModuleView == null || ModuleView.IsClosed )
                     {
                         if (IsShow)
@@ -314,7 +345,7 @@ namespace Plugin.GrabImage.ViewModels
 
                     }
                     else
-                    
+
                     {
                         mWindowH = ModuleView.mWindowH;
                         if (mWindowH != null)
@@ -434,6 +465,26 @@ namespace Plugin.GrabImage.ViewModels
             {
                 Set(ref _OutputHeiImage, value);
             }
+        }
+
+        private bool _IsLinkMeasureCalib = false;
+        /// <summary>
+        /// 是否链接测量标定
+        /// </summary>
+        public bool IsLinkMeasureCalib
+        {
+            get { return _IsLinkMeasureCalib; }
+            set { Set(ref _IsLinkMeasureCalib, value); }
+        }
+
+        /// <summary>
+        /// 测量标定像素当量链接
+        /// </summary>
+        private LinkVarModel _MeasureCalibLink = new LinkVarModel();
+        public LinkVarModel MeasureCalibLink
+        {
+            get { return _MeasureCalibLink; }
+            set { _MeasureCalibLink = value; RaisePropertyChanged(); }
         }
 
         [NonSerialized]
@@ -876,6 +927,18 @@ namespace Plugin.GrabImage.ViewModels
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "int");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},DelayTime");
                                 break;
+                            case eLinkCommand.MeasureCalibLink:
+                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "");
+                                foreach (var module in VarLinkViewModel.Ins.Modules.ToList())
+                                {
+                                    var toRemove = module.VarModels.Where(v => v.DataType != "double[]").ToList();
+                                    foreach (var v in toRemove)
+                                        module.VarModels.Remove(v);
+                                    if (module.VarModels.Count == 0)
+                                        VarLinkViewModel.Ins.Modules.Remove(module);
+                                }
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},MeasureCalibLink");
+                                break;
                             default:
                                 break;
                         }
@@ -902,9 +965,38 @@ namespace Plugin.GrabImage.ViewModels
                 case eLinkCommand.DelayTime:
                     DelayTime.Text = obj.LinkName;
                     break;
+                case eLinkCommand.MeasureCalibLink:
+                    if (MeasureCalibLink == null)
+                        MeasureCalibLink = new LinkVarModel();
+                    MeasureCalibLink.Text = obj.LinkName;
+                    break;
                 default:
                     break;
             }
+        }
+
+        private List<double> GetLinkArray(LinkVarModel linkVar)
+        {
+            List<double> result = new List<double>();
+            if (linkVar == null || string.IsNullOrEmpty(linkVar.Text))
+                return result;
+            try
+            {
+                object value = GetLinkValue(linkVar);
+                if (value is List<double> list)
+                    result = list;
+                else if (value is double[] arr)
+                    result = new List<double>(arr);
+                else if (value is List<int> intList)
+                    result = intList.Select(x => (double)x).ToList();
+                else if (value is int[] intArr)
+                    result = intArr.Select(x => (double)x).ToList();
+            }
+            catch (Exception ex)
+            {
+                Logger.AddLog($"GrabImage.GetLinkArray 解析失败: {ex.Message}", eMsgType.Warn);
+            }
+            return result;
         }
 
         #endregion
@@ -930,6 +1022,8 @@ namespace Plugin.GrabImage.ViewModels
             obj["Gain"] = Gain?.Text ?? "";
             obj["DelayTime"] = DelayTime?.Text ?? "";
             obj["ImageHeight"] = ImageHeight?.Text ?? "";
+            obj["IsLinkMeasureCalib"] = IsLinkMeasureCalib;
+            obj["MeasureCalibLink"] = MeasureCalibLink?.Text ?? "";
             obj["CameraSerialNo"] = SelectedCameraModel?.SerialNo ?? "";
             JArray arr = new JArray();
             if (ImageNameModels != null)
@@ -972,6 +1066,13 @@ namespace Plugin.GrabImage.ViewModels
                 if (obj["Gain"] != null && Gain != null) Gain.Text = obj["Gain"].ToString();
                 if (obj["DelayTime"] != null && DelayTime != null) DelayTime.Text = obj["DelayTime"].ToString();
                 if (obj["ImageHeight"] != null && ImageHeight != null) ImageHeight.Text = obj["ImageHeight"].ToString();
+                if (obj["IsLinkMeasureCalib"] != null) IsLinkMeasureCalib = obj["IsLinkMeasureCalib"].Value<bool>();
+                if (obj["MeasureCalibLink"] != null)
+                {
+                    if (MeasureCalibLink == null)
+                        MeasureCalibLink = new LinkVarModel();
+                    MeasureCalibLink.Text = obj["MeasureCalibLink"].ToString();
+                }
                 if (obj["CameraSerialNo"] != null)
                 {
                     string serialNo = obj["CameraSerialNo"].ToString();

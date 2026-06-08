@@ -269,7 +269,19 @@
                                     <ComboBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0"
                                               SelectedIndex="{Binding DispViewID}" ItemsSource="{Binding CanvasList}"/>
                                 </StackPanel>
-                                <CheckBox Content="链接测量标定" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                <CheckBox Content="链接测量标定" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"
+                                          IsChecked="{Binding IsLinkMeasureCalib}"/>
+                                <StackPanel Orientation="Horizontal" Margin="10 5"
+                                            Visibility="{Binding IsLinkMeasureCalib,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Text="像素当量" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding MeasureCalibLink.Text,UpdateSourceTrigger=PropertyChanged}"
+                                             IsReadOnly="{Binding MeasureCalibLink.IsReadOnly}"
+                                             Style="{StaticResource LinkTextBox}"
+                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                             mah:TextBoxHelper.Watermark="double[]"
+                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.MeasureCalibLink}"
+                                             VerticalAlignment="Center" Width="220" Margin="5 0"/>
+                                </StackPanel>
                                 <CheckBox Content="链接拍照位置数据" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="离线图像增加标记" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="链接畸变标定" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
