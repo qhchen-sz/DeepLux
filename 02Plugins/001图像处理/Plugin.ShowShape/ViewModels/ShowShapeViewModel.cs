@@ -295,6 +295,9 @@ namespace Plugin.ShowShape.ViewModels
                     if (DispImage == null || !DispImage.IsInitialized())
                     {
                         DispImage = new RImage(new HImage("byte", 500, 500));
+                        var view = ModuleView as ShowShapeView;
+                        if (view != null && view.mWindowH != null && !view.IsClosed)
+                            view.mWindowH.HobjectToHimage(DispImage);
                     }
                 }
 
@@ -646,6 +649,17 @@ namespace Plugin.ShowShape.ViewModels
                 foreach (var item in Rect1Params) item.LinkCommand = LinkCommand;
                 foreach (var item in Rect2Params) item.LinkCommand = LinkCommand;
                 foreach (var item in RoiParam) item.LinkCommand = LinkCommand;
+
+                if (!string.IsNullOrEmpty(InputImageLinkText))
+                {
+                    GetDispImage(InputImageLinkText, true);
+                    view.mWindowH.HobjectToHimage(DispImage);
+                }
+                else if (DispImage == null || !DispImage.IsInitialized())
+                {
+                    DispImage = new RImage(new HImage("byte", 500, 500));
+                    view.mWindowH.HobjectToHimage(DispImage);
+                }
             }
         }
 
@@ -988,48 +1002,27 @@ namespace Plugin.ShowShape.ViewModels
             if (mWindowH == null || mWindowH.IsDisposed)
                 return;
 
-            mWindowH.BeginInvoke(new Action(() =>
+            mWindowH.ClearROI();
+
+            foreach (HRoi roi in mHRoi)
             {
-                lock (HWndCtrl._displayLock)
+                if (roi.roiType == HRoiType.文字显示)
                 {
-                    int windowsW = 594;
-                    int windowsH = 583;
-                    HTuple width = new HTuple(), height = new HTuple();
-
-                    if (DispImage != null && DispImage.IsInitialized())
-                    {
-                        HOperatorSet.GetImageSize(DispImage, out width, out height);
-                        windowsW = mWindowH.hControl.Width;
-                        windowsH = mWindowH.hControl.Height;
-                    }
-
-                    if (mWindowH != null)
-                    {
-                        mWindowH.ClearWindow();
-                        mWindowH.Image = new RImage(DispImage);
-
-                        foreach (HRoi roi in mHRoi)
-                        {
-                            if (roi.roiType == HRoiType.文字显示)
-                            {
-                                HText roiText = (HText)roi;
-                                ShowTool.SetFont(
-                                    mWindowH.hControl.HalconWindow,
-                                    roiText.size,
-                                    "false",
-                                    "false"
-                                );
-                                HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)roiText.size);
-                                mWindowH.WindowH.DispText(hText);
-                            }
-                            else
-                            {
-                                mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
-                            }
-                        }
-                    }
+                    HText roiText = (HText)roi;
+                    ShowTool.SetFont(
+                        mWindowH.hControl.HalconWindow,
+                        roiText.size,
+                        "false",
+                        "false"
+                    );
+                    HText hText = new HText(roiText.drawColor, roiText.text, roiText.row, roiText.col, (int)roiText.size);
+                    mWindowH.WindowH.DispText(hText);
                 }
-            }));
+                else
+                {
+                    mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
+                }
+            }
         }
         #endregion
 
