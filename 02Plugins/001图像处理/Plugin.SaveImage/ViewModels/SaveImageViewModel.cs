@@ -27,6 +27,10 @@ using System.Globalization;
 using System.Threading;
 using System.Collections.Concurrent;
 using Newtonsoft.Json.Linq;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 
 namespace Plugin.SaveImage.ViewModels
 {
@@ -456,44 +460,285 @@ namespace Plugin.SaveImage.ViewModels
         }
 
         /// <summary>
-        /// 异步保存截图（需要访问UI窗口，必须回到主线程执行）
+        /// 用 Halcon 图像合成方式保存截图，不依赖 UI 窗口，无 SetWindowExtents 风险
         /// </summary>
         private void SaveScreenshotAsync(HImage image, string imageFullPath, List<HRoi> roiCopy)
         {
             System.Diagnostics.Stopwatch saveStopwatch = new System.Diagnostics.Stopwatch();
             try
             {
-                // UI操作必须回到主线程执行
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    lock (_viewLock)
-                    {
-                        saveStopwatch.Start();
-                        VMHWindowControl mWindowH = VisionView.Ins.GetImageBox(99);
-
-                        HWindow hWindow = mWindowH.hControl.HalconWindow;
-                        HOperatorSet.GetImageSize(image, out HTuple Width, out HTuple Height);
-                        hWindow.SetWindowExtents(0, 0, Width, Height);
-                        mWindowH.HobjectToHimage(image);
-
-                        // ROI信息已在主线程获取并传入，直接使用
-                        if (roiCopy != null && roiCopy.Count > 0)
-                        {
-                            ShowHRoiForSave(mWindowH, roiCopy, imageFullPath);
-                        }
-                        else
-                        {
-                            HOperatorSet.DumpWindow(hWindow, "jpeg", imageFullPath);
-                        }
-                        saveStopwatch.Stop();
-                        Logger.AddLog($"保存截图完成，路径: {imageFullPath}，耗时: {saveStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
-                    }
-                });
+			    saveStopwatch.Start();
+                SaveImageWithRoi(image, roiCopy, imageFullPath);
+                saveStopwatch.Stop();
+                Logger.AddLog($"保存截图完成，路径: {imageFullPath}，耗时: {saveStopwatch.ElapsedMilliseconds}ms", eMsgType.Info);
             }
             catch (Exception ex)
             {
                 Logger.AddLog($"保存截图失败: {ex.Message}", eMsgType.Error);
             }
+        }
+
+        /// <summary>
+        /// <summary>
+        /// 将 ROI 合成到图像上保存。所有 ROI（文字 + 图形）均走 GDI+ 绘制，
+        /// 不调用 OverpaintRegion / Compose3，彻底避免单通道图内存共享问题。
+        /// </summary>
+        private void SaveImageWithRoi(HImage image, List<HRoi> roiCopy, string imageFullPath)
+        {
+            if (roiCopy == null || roiCopy.Count == 0)
+            {
+                HOperatorSet.WriteImage(image, "jpeg", 0, imageFullPath);
+                return;
+            }
+
+            // 分离文字和非文字 ROI
+            var shapeRois = new List<HRoi>();
+            var textRois = new List<HText>();
+            foreach (HRoi roi in roiCopy)
+            {
+                if (roi is HText roiText)
+                    textRois.Add(roiText);
+                else if (roi.hobject != null && roi.hobject.IsInitialized())
+                    shapeRois.Add(roi);
+            }
+
+            // HImage → Bitmap（单通道自动扩成 RGB，无需 Compose3）
+            using (Bitmap bmp = HImageToBitmap(image))
+            {
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                    // 先画 shape ROI
+                    foreach (HRoi roi in shapeRois)
+                    {
+                        HTuple rgb = GetRgbTuple(roi.drawColor);
+                        Color color = Color.FromArgb(rgb[0].I, rgb[1].I, rgb[2].I);
+                        PaintShapeRoi(g, roi.hobject, roi.IsFillDisp, color);
+                    }
+
+                    // 再画文字 ROI（覆盖在 shape 之上）
+                    foreach (HText roiText in textRois)
+                    {
+                        HTuple rgb = GetRgbTuple(roiText.drawColor);
+                        using (var brush = new SolidBrush(Color.FromArgb(rgb[0].I, rgb[1].I, rgb[2].I)))
+                        {
+                            string fontName = MapFontName(roiText.font);
+                            using (var fontFamily = new FontFamily(fontName))
+                            using (var font = new Font(fontFamily, roiText.size, System.Drawing.FontStyle.Regular, GraphicsUnit.Pixel))
+                            {
+                                g.DrawString(roiText.text, font, brush, (float)roiText.row, (float)roiText.col);
+                            }
+                        }
+                    }
+                }
+
+                bmp.Save(imageFullPath, ImageFormat.Jpeg);
+            }
+        }
+
+        /// <summary>
+        /// HImage → Bitmap。单通道自动扩成 24bpp RGB，3 通道直接拷贝，
+        /// 不经过 Compose3 / CopyImage，峰值仅一份 Bitmap。
+        /// </summary>
+        private static Bitmap HImageToBitmap(HImage image)
+        {
+            HOperatorSet.CountChannels(image, out HTuple channels);
+            HOperatorSet.GetImageSize(image, out HTuple width, out HTuple height);
+            int w = width.I;
+            int h = height.I;
+
+            Bitmap bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+            BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+            int stride = bmpData.Stride;
+            IntPtr dstPtr = bmpData.Scan0;
+
+            if (channels.I == 1)
+            {
+                HOperatorSet.GetImagePointer1(image, out HTuple ptr, out HTuple _, out _, out _);
+                IntPtr srcPtr = ptr.IP;
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        byte gray = Marshal.ReadByte(srcPtr, y * w + x);
+                        int dstIdx = y * stride + x * 3;
+                        Marshal.WriteByte(dstPtr, dstIdx, gray);      // B
+                        Marshal.WriteByte(dstPtr, dstIdx + 1, gray);  // G
+                        Marshal.WriteByte(dstPtr, dstIdx + 2, gray);  // R
+                    }
+                }
+            }
+            else if (channels.I == 3)
+            {
+                HOperatorSet.GetImagePointer3(image, out HTuple ptrR, out HTuple ptrG, out HTuple ptrB,
+                    out HTuple _, out _, out _);
+                IntPtr rPtr = ptrR.IP;
+                IntPtr gPtr = ptrG.IP;
+                IntPtr bPtr = ptrB.IP;
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int srcIdx = y * w + x;
+                        int dstIdx = y * stride + x * 3;
+                        Marshal.WriteByte(dstPtr, dstIdx, Marshal.ReadByte(bPtr, srcIdx));      // B
+                        Marshal.WriteByte(dstPtr, dstIdx + 1, Marshal.ReadByte(gPtr, srcIdx));  // G
+                        Marshal.WriteByte(dstPtr, dstIdx + 2, Marshal.ReadByte(rPtr, srcIdx));  // R
+                    }
+                }
+            }
+            else
+            {
+                // 非 1/3 通道：取前 3 通道（或重复第 1 通道）
+                HOperatorSet.AccessChannel(image, out HObject ch1, 1);
+                HOperatorSet.AccessChannel(image, out HObject ch2, Math.Min(2, channels.I));
+                HOperatorSet.AccessChannel(image, out HObject ch3, Math.Min(3, channels.I));
+                HOperatorSet.GetImagePointer1(ch1, out HTuple ptr1, out _, out _, out _);
+                HOperatorSet.GetImagePointer1(ch2, out HTuple ptr2, out _, out _, out _);
+                HOperatorSet.GetImagePointer1(ch3, out HTuple ptr3, out _, out _, out _);
+                IntPtr p1 = ptr1.IP, p2 = ptr2.IP, p3 = ptr3.IP;
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int srcIdx = y * w + x;
+                        int dstIdx = y * stride + x * 3;
+                        Marshal.WriteByte(dstPtr, dstIdx, Marshal.ReadByte(p3, srcIdx));      // B
+                        Marshal.WriteByte(dstPtr, dstIdx + 1, Marshal.ReadByte(p2, srcIdx));  // G
+                        Marshal.WriteByte(dstPtr, dstIdx + 2, Marshal.ReadByte(p1, srcIdx));  // R
+                    }
+                }
+                ch1.Dispose(); ch2.Dispose(); ch3.Dispose();
+            }
+
+            bmp.UnlockBits(bmpData);
+            return bmp;
+        }
+
+        private static string MapFontName(string halconFont)
+        {
+            switch (halconFont?.ToLower())
+            {
+                case "mono": return "Consolas";
+                case "sans": return "Microsoft Sans Serif";
+                case "serif": return "Times New Roman";
+                default: return halconFont ?? "Microsoft Sans Serif";
+            }
+        }
+
+        /// <summary>
+        /// 在 Bitmap 上用 GDI+ 绘制非文字 ROI 图形（Region/XLD）。
+        /// 支持 object tuple（多个 region/xld），自动 CountObj + SelectObj 逐个拆解。
+        /// 统一走 GetRegionRuns + FillRectangle，像素级精确，和 OverpaintRegion 行为等价。
+        /// </summary>
+        private void PaintShapeRoi(Graphics g, HObject hobj, bool isFill, Color color)
+        {
+            if (hobj == null || !hobj.IsInitialized()) return;
+            HOperatorSet.GetObjClass(hobj, out HTuple objClass);
+            if (objClass.Length == 0) return;
+            string type = objClass.S;
+
+            if (type == "region")
+            {
+                HOperatorSet.CountObj(hobj, out HTuple count);
+                for (int idx = 1; idx <= count.I; idx++)
+                {
+                    HOperatorSet.SelectObj(hobj, out HObject singleRegion, idx);
+                    try
+                    {
+                        HObject regionToDraw = singleRegion;
+                        if (!isFill)
+                        {
+                            // margin 模式：提取内边界并膨胀到约 2~3 像素宽，避免 JPEG 色度下采样压暗细线
+                            HOperatorSet.Boundary(singleRegion, out HObject boundary, "inner");
+                            HOperatorSet.DilationCircle(boundary, out HObject thickBoundary, 1.5);
+                            regionToDraw = thickBoundary;
+                            boundary.Dispose();
+                        }
+
+                        HOperatorSet.GetRegionRuns(regionToDraw, out HTuple row, out HTuple colBeg, out HTuple colEnd);
+                        using (var brush = new SolidBrush(color))
+                        {
+                            for (int i = 0; i < row.Length; i++)
+                            {
+                                int y = row[i].I;
+                                int x1 = colBeg[i].I;
+                                int x2 = colEnd[i].I;
+                                g.FillRectangle(brush, x1, y, x2 - x1 + 1, 1);
+                            }
+                        }
+                        row.Dispose(); colBeg.Dispose(); colEnd.Dispose();
+
+                        if (!isFill)
+                            regionToDraw.Dispose();
+                    }
+                    finally
+                    {
+                        singleRegion.Dispose();
+                    }
+                }
+                count.Dispose();
+            }
+            else if (type.StartsWith("xld"))
+            {
+                HOperatorSet.CountObj(hobj, out HTuple count);
+                for (int idx = 1; idx <= count.I; idx++)
+                {
+                    HOperatorSet.SelectObj(hobj, out HObject singleXld, idx);
+                    try
+                    {
+                        HOperatorSet.GetContourXld(singleXld, out HTuple row, out HTuple col);
+                        if (row.Length < 2) continue;
+
+                        PointF[] points = new PointF[row.Length];
+                        for (int i = 0; i < row.Length; i++)
+                            points[i] = new PointF(col[i].F, row[i].F);
+
+                        if (isFill)
+                        {
+                            using (var brush = new SolidBrush(color))
+                                g.FillPolygon(brush, points);
+                        }
+                        else
+                        {
+                            // Pen.Width=3 约等价于 DilationCircle(1.5) 的 3px 线宽
+                            using (var pen = new Pen(color, 3))
+                                g.DrawLines(pen, points);
+                        }
+
+                        row.Dispose(); col.Dispose();
+                    }
+                    finally
+                    {
+                        singleXld.Dispose();
+                    }
+                }
+                count.Dispose();
+            }
+        }
+
+        private static readonly Dictionary<string, HTuple> s_colorRgbMap = new Dictionary<string, HTuple>
+        {
+            {"red", new HTuple(255, 0, 0)},
+            {"green", new HTuple(0, 255, 0)},
+            {"blue", new HTuple(0, 0, 255)},
+            {"yellow", new HTuple(255, 255, 0)},
+            {"cyan", new HTuple(0, 255, 255)},
+            {"magenta", new HTuple(255, 0, 255)},
+            {"orange", new HTuple(255, 128, 0)},
+            {"coral", new HTuple(255, 128, 80)},
+            {"pink", new HTuple(255, 192, 203)},
+            {"white", new HTuple(255, 255, 255)},
+            {"black", new HTuple(0, 0, 0)},
+            {"gray", new HTuple(128, 128, 128)},
+        };
+
+        private static HTuple GetRgbTuple(string colorName)
+        {
+            if (!string.IsNullOrEmpty(colorName) && s_colorRgbMap.TryGetValue(colorName.ToLower(), out HTuple rgb))
+                return rgb;
+            return s_colorRgbMap["red"]; // 默认红色
         }
 
         /// <summary>
@@ -774,16 +1019,7 @@ namespace Plugin.SaveImage.ViewModels
                     HOperatorSet.WriteImage(DispImage, ImageStytleList[SelectedIndex], 0, imageFullPath);
                     break;
                 case eSaveShape.截图:
-                    // 在需要访问共享资源的地方加锁
-                    lock (_viewLock)
-                    {
-                        VMHWindowControl mWindowH = VisionView.Ins.GetImageBox(99);
-                        HWindow hWindow = mWindowH.hControl.HalconWindow;
-                        HOperatorSet.GetImageSize(DispImage, out HTuple Width, out HTuple Height);
-                        hWindow.SetWindowExtents(0, 0, Width, Height);
-                        mWindowH.HobjectToHimage(DispImage);
-                        ShowHRoiForSave(mWindowH, DispImage.mHRoi, imageFullPath);
-                    }
+                    SaveImageWithRoi(DispImage, DispImage.mHRoi, imageFullPath);
                     break;
                 case eSaveShape.离线图片:
                     // 离线图片处理逻辑
@@ -1204,82 +1440,6 @@ namespace Plugin.SaveImage.ViewModels
             catch (Exception ex)
             {
                 Logger.AddLog($"删除空目录失败: {directoryPath}, 错误: {ex.Message}", eMsgType.Warn);
-            }
-        }
-
-        public void ShowHRoiForSave(VMHWindowControl windos, List<HRoi> hRois, string ImageNames)
-        {
-            if (windos != null)
-            {
-                windos.DispText.Clear();
-                List<HRoi> Temp = new List<HRoi>(hRois);
-
-                // 计算文字大小补偿系数
-                // CalcDisplaySize 内部做 originalSize / (ImageWidth / ViewPort.Width)
-                // 为使全分辨率截图中文字保持 originalSize，提前乘以该系数
-                double textScale = 1.0;
-                if (windos.hv_imageWidth > 0 && windos.hControl.Width > 0)
-                {
-                    textScale = (double)windos.hv_imageWidth / windos.hControl.Width;
-                }
-
-                // 保存原始值，用于 DumpWindow 后还原，避免影响显示窗口
-                Dictionary<HText, int> savedOriginalSizes = new Dictionary<HText, int>();
-
-                foreach (HRoi roi in Temp)
-                {
-                    if (roi.roiType == HRoiType.文字显示)
-                    {
-                        HText roiText = (HText)roi;
-                        if (roiText.originalSize > 0 && textScale > 1.0)
-                        {
-                            savedOriginalSizes[roiText] = roiText.originalSize;
-                            roiText.originalSize = (int)(roiText.originalSize * textScale);
-                        }
-                        ShowTool.SetFont(
-                            windos.hControl.HalconWindow,
-                            roiText.size,
-                            "false",
-                            "false"
-                        );
-                        windos.WindowH.DispText(roiText);
-                    }
-                    else
-                    {
-                        windos.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
-                    }
-                }
-                windos.WindowH.ResetWindowImage(false);
-                HOperatorSet.DumpWindow(windos.hControl.HalconWindow, "jpeg", ImageNames);
-
-                // 还原 originalSize，避免影响后续显示
-                foreach (var kv in savedOriginalSizes)
-                {
-                    kv.Key.originalSize = kv.Value;
-                }
-                //windos.DispText.Clear();
-
-                //foreach (HRoi roi in hRois)
-                //{
-                //    if (roi.roiType == HRoiType.文字显示)
-                //    {
-                //        HText roiText = (HText)roi;
-                //        roiText.size = roiText.size / 5;
-                //        ShowTool.SetFont(
-                //            windos.hControl.HalconWindow,
-                //            roiText.size,
-                //            "false",
-                //            "false"
-                //        );
-                //        windos.WindowH.DispText(roiText);
-                //    }
-                //}
-
-                //windos.WindowH.ResetWindowImage(true);
-                //Application.Current.Dispatcher.Invoke(() =>
-                //{
-                //    VisionView.Ins.ViewMode = Solution.Ins.ViewMode;
-                //});
             }
         }
 
