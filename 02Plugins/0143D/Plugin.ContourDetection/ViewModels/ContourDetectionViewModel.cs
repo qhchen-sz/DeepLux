@@ -63,6 +63,24 @@ namespace Plugin.ContourDetection.ViewModels
         ContourLength
     }
 
+    public enum eEdgeShape
+    {
+        上升沿,
+        下降沿
+    }
+
+    public enum eEdgeSelect
+    {
+        第一个,
+        最后一个
+    }
+
+    public enum eARoiMode
+    {
+        固定位置,
+        整体跟随
+    }
+
     #endregion
 
     #region Models
@@ -125,6 +143,18 @@ namespace Plugin.ContourDetection.ViewModels
                 return OperationName;
             }
         }
+
+        private InflectionParams _InflectionParams;
+        public InflectionParams InflectionParams
+        {
+            get
+            {
+                if (_InflectionParams == null)
+                    _InflectionParams = new InflectionParams();
+                return _InflectionParams;
+            }
+            set { Set(ref _InflectionParams, value); }
+        }
     }
 
     public class ContourStripData
@@ -170,6 +200,68 @@ namespace Plugin.ContourDetection.ViewModels
         {
             get { return _Col; }
             set { Set(ref _Col, value); }
+        }
+    }
+
+    [Serializable]
+    public class InflectionParams : NotifyPropertyBase
+    {
+        private eEdgeShape _Shape = eEdgeShape.上升沿;
+        public eEdgeShape Shape
+        {
+            get { return _Shape; }
+            set { Set(ref _Shape, value); }
+        }
+
+        private eEdgeSelect _Select = eEdgeSelect.第一个;
+        public eEdgeSelect Select
+        {
+            get { return _Select; }
+            set { Set(ref _Select, value); }
+        }
+
+        private double _Sensitivity = 0.1;
+        public double Sensitivity
+        {
+            get { return _Sensitivity; }
+            set { Set(ref _Sensitivity, value); }
+        }
+
+        private eARoiMode _ARoiMode = eARoiMode.固定位置;
+        public eARoiMode ARoiMode
+        {
+            get { return _ARoiMode; }
+            set
+            {
+                Set(ref _ARoiMode, value);
+                RaisePropertyChanged(nameof(IsFollowModeVisible));
+            }
+        }
+
+        public bool IsFollowModeVisible
+        {
+            get { return ARoiMode == eARoiMode.整体跟随; }
+        }
+
+        private string _Follow1;
+        public string Follow1
+        {
+            get { return _Follow1; }
+            set { Set(ref _Follow1, value); }
+        }
+
+        private double _Offset1;
+        public double Offset1
+        {
+            get { return _Offset1; }
+            set { Set(ref _Offset1, value); }
+        }
+
+        private double _Width1 = 10;
+        public double Width1
+        {
+            get { return _Width1; }
+            set { Set(ref _Width1, value); }
         }
     }
 
@@ -623,12 +715,67 @@ namespace Plugin.ContourDetection.ViewModels
         public WorkflowItem SelectedWorkflowItem
         {
             get { return _SelectedWorkflowItem; }
-            set { Set(ref _SelectedWorkflowItem, value); }
+            set
+            {
+                if (_SelectedWorkflowItem != null)
+                    _SelectedWorkflowItem.PropertyChanged -= OnSelectedItemPropertyChanged;
+                Set(ref _SelectedWorkflowItem, value);
+                if (_SelectedWorkflowItem != null)
+                    _SelectedWorkflowItem.PropertyChanged += OnSelectedItemPropertyChanged;
+                RaisePropertyChanged(nameof(IsInflectionPointSelected));
+                RaisePropertyChanged(nameof(FollowOptions));
+            }
+        }
+
+        private void OnSelectedItemPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(WorkflowItem.PointType))
+            {
+                RaisePropertyChanged(nameof(IsInflectionPointSelected));
+            }
         }
 
         public Array PointTypeOptions
         {
             get { return Enum.GetValues(typeof(ePointType)); }
+        }
+
+        public Array EdgeShapeOptions
+        {
+            get { return Enum.GetValues(typeof(eEdgeShape)); }
+        }
+
+        public Array EdgeSelectOptions
+        {
+            get { return Enum.GetValues(typeof(eEdgeSelect)); }
+        }
+
+        public Array ARoiModeOptions
+        {
+            get { return Enum.GetValues(typeof(eARoiMode)); }
+        }
+
+        /// <summary>
+        /// 当前选中项是否为拐点类型，控制拐点参数UI显隐
+        /// </summary>
+        public bool IsInflectionPointSelected
+        {
+            get { return SelectedWorkflowItem != null && SelectedWorkflowItem.PointType == ePointType.拐点; }
+        }
+
+        /// <summary>
+        /// 跟随1可选对象列表：当前工作流中除自身外的启用项
+        /// </summary>
+        public IEnumerable<string> FollowOptions
+        {
+            get
+            {
+                if (SelectedWorkflowItem == null)
+                    return Enumerable.Empty<string>();
+                return WorkflowItems
+                    .Where(item => item != SelectedWorkflowItem && item.m_enable)
+                    .Select(item => item.DisplayText);
+            }
         }
 
         private ePointType _SelectedPointType = ePointType.Z最大值;
@@ -1211,7 +1358,7 @@ namespace Plugin.ContourDetection.ViewModels
             // 调用模型处理单条中心条带
             var (resultVal, resultRow, resultCol, pointY, pointX, zValues, hasData) =
                 ContourDetectionModel.ProcessSingleStrip(
-                    heightImage, roiCenterRow, roiCenterCol, roiPhi,
+                    heightImage, roiCenterRow, roiCenterCol, -roiPhi,
                     roiLength1, halfWidth,
                     WorkflowItems.Where(item => item.m_enable));
 
@@ -1241,12 +1388,22 @@ namespace Plugin.ContourDetection.ViewModels
                     Col = resultCol
                 });
 
-                // 保存条带原始数据（用于子窗口散点图）
+                // 按 Col 聚合数据（消除多行影响），用于子窗口散点图
+                var (aggCols, aggRows, aggZ) = ContourDetectionModel.AggregateByCol(pointX, pointY, zValues);
+                // ---- 调试：导出原始点云数据（x y z） ----
+                using (var sw = System.IO.File.CreateText(@"D:\ContourDebug_Schmitt_Show.txt"))
+                {
+                    for (int i = 0; i < aggZ.Length; i++)
+                        sw.WriteLine($"{aggCols[i]:F8} {aggRows[i]:F8} {aggZ[i]:F8}");
+                }
+                // ---- 调试结束 ----
+
+                // 保存聚合后的条带数据（用于子窗口散点图）
                 _contourStripDataMap[0] = new ContourStripData
                 {
-                    PointY = pointY,
-                    PointX = pointX,
-                    ZValues = zValues,
+                    PointY = aggRows,
+                    PointX = aggCols,
+                    ZValues = aggZ,
                     ResultRow = resultRow,
                     ResultCol = resultCol,
                     ResultValue = resultVal,
@@ -1362,14 +1519,13 @@ namespace Plugin.ContourDetection.ViewModels
                 if (stripData.PointY == null || stripData.PointY.Length == 0) return;
                 if (double.IsNaN(stripData.ResultValue)) return;
 
-                // 筛选检测点所在行的所有点（Row坐标相同）
-                int targetRow = (int)Math.Round(stripData.ResultRow);
+                // 显示条带内所有有效数据点（Col-Z 散点图）
                 List<double> filterCols = new List<double>();
                 List<double> filterZ = new List<double>();
 
-                for (int i = 0; i < stripData.PointY.Length; i++)
+                for (int i = 0; i < stripData.PointX.Length; i++)
                 {
-                    if ((int)Math.Round(stripData.PointY[i]) == targetRow)
+                    if (!double.IsNaN(stripData.ZValues[i]))
                     {
                         filterCols.Add(stripData.PointX[i]);
                         filterZ.Add(stripData.ZValues[i]);

@@ -285,15 +285,82 @@
 
                         <!-- 参数编辑区 -->
                         <GroupBox Header="参数" Grid.Row="2" Margin="0 5 0 0">
-                            <StackPanel Margin="5">
-                                <!-- 构建→点：点类型选择 -->
-                                <StackPanel Orientation="Horizontal" Margin="0 5">
-                                    <TextBlock Text="点类型:" VerticalAlignment="Center" Margin="0 0 10 0"/>
-                                    <ComboBox ItemsSource="{Binding PointTypeOptions}"
-                                              SelectedItem="{Binding SelectedWorkflowItem.PointType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              Width="150" HorizontalAlignment="Left"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="5">
+                                    <!-- 构建→点：点类型选择 -->
+                                    <StackPanel Orientation="Horizontal" Margin="0 5">
+                                        <TextBlock Text="点类型:" VerticalAlignment="Center" Margin="0 0 10 0"/>
+                                        <ComboBox ItemsSource="{Binding PointTypeOptions}"
+                                                  SelectedItem="{Binding SelectedWorkflowItem.PointType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  Width="150" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+
+                                    <!-- 拐点参数（仅当选中的工作流项点类型为"拐点"时显示） -->
+                                    <StackPanel Visibility="{Binding IsInflectionPointSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <!-- 分隔线 -->
+                                        <Separator Margin="0 5"/>
+
+                                        <!-- 参数1: 形状 -->
+                                        <StackPanel Orientation="Horizontal" Margin="0 5">
+                                            <TextBlock Text="形状:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                            <ComboBox ItemsSource="{Binding EdgeShapeOptions}"
+                                                      SelectedItem="{Binding SelectedWorkflowItem.InflectionParams.Shape}"
+                                                      Width="120" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+
+                                        <!-- 参数2: 选择 -->
+                                        <StackPanel Orientation="Horizontal" Margin="0 5">
+                                            <TextBlock Text="选择:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                            <ComboBox ItemsSource="{Binding EdgeSelectOptions}"
+                                                      SelectedItem="{Binding SelectedWorkflowItem.InflectionParams.Select}"
+                                                      Width="120" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+
+                                        <!-- 参数3: 灵敏度 -->
+                                        <StackPanel Orientation="Horizontal" Margin="0 5">
+                                            <TextBlock Text="灵敏度:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                            <mah:NumericUpDown Width="120" Minimum="0" Maximum="1"
+                                                               NumericInputMode="Decimal" Interval="0.1" StringFormat="0.0"
+                                                               Value="{Binding SelectedWorkflowItem.InflectionParams.Sensitivity}"/>
+                                        </StackPanel>
+
+                                        <!-- 参数4: A-ROI -->
+                                        <StackPanel Orientation="Horizontal" Margin="0 5">
+                                            <TextBlock Text="A-ROI:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                            <ComboBox ItemsSource="{Binding ARoiModeOptions}"
+                                                      SelectedItem="{Binding SelectedWorkflowItem.InflectionParams.ARoiMode}"
+                                                      Width="120" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+
+                                        <!-- 整体跟随子参数（仅当A-ROI=整体跟随时显示） -->
+                                        <StackPanel Visibility="{Binding SelectedWorkflowItem.InflectionParams.IsFollowModeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Separator Margin="0 5"/>
+
+                                            <!-- 跟随1 -->
+                                            <StackPanel Orientation="Horizontal" Margin="0 5">
+                                                <TextBlock Text="跟随1:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                                <ComboBox ItemsSource="{Binding FollowOptions}"
+                                                          SelectedItem="{Binding SelectedWorkflowItem.InflectionParams.Follow1}"
+                                                          Width="120" HorizontalAlignment="Left"/>
+                                            </StackPanel>
+
+                                            <!-- 偏移1 -->
+                                            <StackPanel Orientation="Horizontal" Margin="0 5">
+                                                <TextBlock Text="偏移1:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                                <mah:NumericUpDown Width="120" Minimum="-9999" Maximum="9999"
+                                                                   Value="{Binding SelectedWorkflowItem.InflectionParams.Offset1}"/>
+                                            </StackPanel>
+
+                                            <!-- 宽度1 -->
+                                            <StackPanel Orientation="Horizontal" Margin="0 5">
+                                                <TextBlock Text="宽度1:" VerticalAlignment="Center" Margin="0 0 10 0" Width="60"/>
+                                                <mah:NumericUpDown Width="120" Minimum="1" Maximum="9999"
+                                                                   Value="{Binding SelectedWorkflowItem.InflectionParams.Width1}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
+                            </ScrollViewer>
                         </GroupBox>
                     </Grid>
                 </TabItem>
