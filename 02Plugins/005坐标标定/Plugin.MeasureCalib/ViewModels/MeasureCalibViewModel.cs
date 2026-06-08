@@ -132,12 +132,12 @@ namespace Plugin.MeasureCalib.ViewModels
                     if (_PixelEquivalentX > 0)
                     {
                         _PixelEquivalentX = -0.1;
-                        Logger.AddLog("像素当量X不能为0，已自动跳至-0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量X不能为0，已自动跳至-0.1", eMsgType.Warn);
                     }
                     else if (_PixelEquivalentX < 0)
                     {
                         _PixelEquivalentX = 0.1;
-                        Logger.AddLog("像素当量X不能为0，已自动跳至0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量X不能为0，已自动跳至0.1", eMsgType.Warn);
                     }
                 }
                 else
@@ -162,12 +162,12 @@ namespace Plugin.MeasureCalib.ViewModels
                     if (_PixelEquivalentY > 0)
                     {
                         _PixelEquivalentY = -0.1;
-                        Logger.AddLog("像素当量Y不能为0，已自动跳至-0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量Y不能为0，已自动跳至-0.1", eMsgType.Warn);
                     }
                     else if (_PixelEquivalentY < 0)
                     {
                         _PixelEquivalentY = 0.1;
-                        Logger.AddLog("像素当量Y不能为0，已自动跳至0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量Y不能为0，已自动跳至0.1", eMsgType.Warn);
                     }
                 }
                 else
@@ -192,12 +192,12 @@ namespace Plugin.MeasureCalib.ViewModels
                     if (_PixelEquivalentZ > 0)
                     {
                         _PixelEquivalentZ = -0.1;
-                        Logger.AddLog("像素当量Z不能为0，已自动跳至-0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量Z不能为0，已自动跳至-0.1", eMsgType.Warn);
                     }
                     else if (_PixelEquivalentZ < 0)
                     {
                         _PixelEquivalentZ = 0.1;
-                        Logger.AddLog("像素当量Z不能为0，已自动跳至0.1", eMsgType.Warn);
+                        //Logger.AddLog("像素当量Z不能为0，已自动跳至0.1", eMsgType.Warn);
                     }
                 }
                 else
