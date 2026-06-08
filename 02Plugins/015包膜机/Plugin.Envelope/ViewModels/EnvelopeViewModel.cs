@@ -223,10 +223,14 @@ namespace Plugin.Envelope.ViewModels
 
                     var swFind = Stopwatch.StartNew();
                     Logger.AddLog(Solution.Ins.GetProjectById(ModuleParam.ProjectID).ProjectInfo.ProcessName + ":" + this.ModuleParam.ModuleName + "进入传统寻边算法：", eMsgType.Warn);
-                    Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject Line, 
-                        out HObject Arrow, out HObject Cross, SelectLocation.ToString(), 
-                        out HTuple Distance1, out HTuple Distance2, out HObject TopCoverArrow, 
-                        out HTuple DistanceTopCover, out HObject RongDianArrow);
+                    Algorithm.Find_RongDian(Result.ScaleImage(60.0,0), out HObject LineLeft,
+                        out HObject LineMid, out HObject LineRight, out HObject ConnectLine,
+                        out HObject RegionLeftTop, out HObject RegionMidTop, out HObject RegionRightTop,
+                        SelectLocation.ToString(),
+                        out HTuple Distance1, out HObject TopCoverArrow,
+                        out HTuple DistanceTopCover, out HObject RongDianArrow,
+                        out HObject DistanceLine, out HObject DistanceScale,
+                        out HObject MembraneRegion, out HTuple MemTopRow, out HTuple MemTopCol);
 
                     swFind.Stop();
                     //HOperatorSet.WriteImage(Result.ScaleImage(60.0, 0), "bmp", 0, @"C:\Users\Administrator\Desktop\ai\rongdian\1.bmp");
@@ -264,15 +268,38 @@ namespace Plugin.Envelope.ViewModels
                     Logger.AddLog($"{TimeThreadPrefix}寻边后数据计算完成，耗时：{swCalc.ElapsedMilliseconds}ms");
                     var swShowRoi = Stopwatch.StartNew();
                     if (IsDistanceLine) {
-                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "DingGaiLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(Line)));
-                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + 2, ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(Arrow)));
+                        //// 三条顶盖线：蓝色
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "LeftTopLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(LineLeft)));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "MidTopLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(LineMid)));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "RightTopLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(LineRight)));
+                        // 连接线：红色
+                        ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "ConnectLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(ConnectLine)));
+                        ////// 三个顶盖子区域：粉色填充
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "LeftTopRegion", ModuleParam.Remarks, HRoiType.检测结果, "pink", new HObject(RegionLeftTop), true));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "MidTopRegion", ModuleParam.Remarks, HRoiType.检测结果, "pink", new HObject(RegionMidTop), true));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "RightTopRegion", ModuleParam.Remarks, HRoiType.检测结果, "pink", new HObject(RegionRightTop), true));
+                        // 膜、熔点的箭头
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "LanMoArrow", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.green.ToString(), new HObject(TopCoverArrow)));
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "RongDianArrow", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.blue.ToString(), new HObject(RongDianArrow)));
+                        // 距离线、标尺
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "DistanceLine", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(DistanceLine)));
+                        //ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName + "DistanceScale", ModuleParam.Remarks, HRoiType.检测结果, eAiColor.red.ToString(), new HObject(DistanceScale)));
                     }
-                    Line.Dispose();
-                    Arrow.Dispose();
+
+                    MemTopRow.Dispose();
+                    MemTopCol.Dispose();
+                    LineLeft.Dispose();
+                    LineMid.Dispose();
+                    LineRight.Dispose();
+                    ConnectLine.Dispose();
+                    RegionLeftTop.Dispose();
+                    RegionMidTop.Dispose();
+                    RegionRightTop.Dispose();
                     TopCoverArrow.Dispose();
                     RongDianArrow.Dispose();
+                    DistanceLine.Dispose();
+                    DistanceScale.Dispose();
+                    MembraneRegion.Dispose();
 
                     ShowHRoi();
                     swShowRoi.Stop();
