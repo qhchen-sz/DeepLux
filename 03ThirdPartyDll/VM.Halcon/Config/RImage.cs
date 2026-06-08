@@ -39,6 +39,8 @@ namespace VM.Halcon.Config
         public double ScaleX = 1;
         /// <summary> Y方向像素比率</summary>
         public double ScaleY = 1;
+        /// <summary> Z方向像素比率</summary>
+        public double ScaleZ = 1;
         #region 区域标定映射
         /// <summary> 标定板行坐标</summary>
         public HTuple BoardRow { get; set; }
@@ -58,7 +60,7 @@ namespace VM.Halcon.Config
         #region 构造函数
         public RImage() : base() { /*Type = "2D"; */}
         public RImage(int dispViewID) : base() { DispViewID = dispViewID; Type = this.Type; }
-        public RImage(HObject obj) : base(obj) 
+        public RImage(HObject obj) : base(obj)
         {
             HOperatorSet.GetImageType(obj, out HTuple type);
             if (type == "byte")
@@ -71,8 +73,12 @@ namespace VM.Halcon.Config
                 //DispImage.HeightImage = obj as HImage;
                 /*                DispImage.HeightImage = obj as HImage;*/
             }
-                
-            
+            if (obj is RImage rImg)
+            {
+                ScaleX = rImg.ScaleX;
+                ScaleY = rImg.ScaleY;
+                ScaleZ = rImg.ScaleZ;
+            }
         }
         public RImage(string fileName) : base(fileName) 
         {
@@ -148,6 +154,7 @@ namespace VM.Halcon.Config
                 info.AddValue("PhiY", PhiY);
                 info.AddValue("ScaleX", ScaleX);
                 info.AddValue("ScaleY", ScaleY);
+                info.AddValue("ScaleZ", ScaleZ);
                 info.AddValue("Status", Status);
                 info.AddValue("mHRoi", mHRoi);
                 info.AddValue("mHText", mHText);

@@ -597,7 +597,9 @@ namespace VM.Halcon
                     var win = new ImageControl.VTKWindow();
                     win.Show(); // 弹出
                     /*                    win.ShowPointCloud(imgvar); // 你的数据注入*/
-                    win.ShowPointCloudHalcon(Height, brightnessImage: _texture);
+                    //win.ShowPointCloudHalcon(Height, brightnessImage: _texture);
+                    RImage rImg = hv_image as RImage;
+                    win.ShowPointCloudHalcon(Height, zScaleAuto: rImg?.ScaleZ ?? 1, xScale: rImg?.ScaleX ?? 1, yScale: rImg?.ScaleY ?? 1, brightnessImage: _texture);
 
                 });
 
