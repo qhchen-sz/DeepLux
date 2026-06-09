@@ -326,49 +326,14 @@ namespace Plugin.ContourDetection.ViewModels
             }
             // ---- 调试结束 ----
 
-            // 按 Col 聚合：同一 Col 位置的多个点取 Z 均值，消除多行数据的影响
-            List<double> aggCols = new List<double>();
-            List<double> aggRows = new List<double>();
-            List<double> aggZ = new List<double>();
+            if (n < 2) return (double.NaN, 0, 0);
+
+            // 计算有效 Z 范围（直接在排序后的数据上计算）
+            double zMin = sortedZ[0], zMax = sortedZ[0];
+            for (int i = 1; i < n; i++)
             {
-                int j = 0;
-                while (j < n)
-                {
-                    int colKey = (int)Math.Round(sortedX[j]);
-                    double sumZ = 0, sumY = 0;
-                    int count = 0;
-                    while (j < n && (int)Math.Round(sortedX[j]) == colKey)
-                    {
-                        if (!double.IsNaN(sortedZ[j]))
-                        {
-                            sumZ += sortedZ[j];
-                            sumY += sortedY[j];
-                            count++;
-                        }
-                        j++;
-                    }
-                    if (count > 0)
-                    {
-                        aggCols.Add(colKey);
-                        aggRows.Add((sumY) / count);
-                        aggZ.Add(sumZ / count);
-                    }
-                }
-            }
-
-            int m = aggZ.Count;
-            if (m < 2) return (double.NaN, 0, 0);
-
-            double[] profileX = aggCols.ToArray();
-            double[] profileY = aggRows.ToArray();
-            double[] profileZ = aggZ.ToArray();
-
-            // 计算有效 Z 范围
-            double zMin = profileZ[0], zMax = profileZ[0];
-            for (int i = 1; i < m; i++)
-            {
-                if (profileZ[i] < zMin) zMin = profileZ[i];
-                if (profileZ[i] > zMax) zMax = profileZ[i];
+                if (sortedZ[i] < zMin) zMin = sortedZ[i];
+                if (sortedZ[i] > zMax) zMax = sortedZ[i];
             }
             if (zMin >= zMax) return (double.NaN, 0, 0); // Z 值无变化
 
@@ -381,20 +346,20 @@ namespace Plugin.ContourDetection.ViewModels
             double highThreshold = mid + sensitivity * zRange / 2.0;
             double lowThreshold = mid - sensitivity * zRange / 2.0;
 
-            // 状态机遍历聚合后的 1D 剖面
+            // 状态机遍历 1D 剖面
             const int LOW = 0, HIGH = 1;
             int state = LOW;
             List<int> risingEdges = new List<int>();
             List<int> fallingEdges = new List<int>();
 
-            for (int i = 0; i < m; i++)
+            for (int i = 0; i < n; i++)
             {
-                if (state == LOW && profileZ[i] >= highThreshold)
+                if (state == LOW && sortedZ[i] >= highThreshold)
                 {
                     state = HIGH;
                     risingEdges.Add(i);
                 }
-                else if (state == HIGH && profileZ[i] <= lowThreshold)
+                else if (state == HIGH && sortedZ[i] <= lowThreshold)
                 {
                     state = LOW;
                     fallingEdges.Add(i);
@@ -411,7 +376,7 @@ namespace Plugin.ContourDetection.ViewModels
                 ? candidates[0]
                 : candidates[candidates.Count - 1];
 
-            return (profileZ[targetIdx], profileY[targetIdx], profileX[targetIdx]);
+            return (sortedZ[targetIdx], sortedY[targetIdx], sortedX[targetIdx]);
         }
 
         /// <summary>

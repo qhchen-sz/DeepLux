@@ -317,6 +317,15 @@ namespace Plugin.ContourDetection.ViewModels
                     return false;
                 }
 
+                // 提取测量标定缩放系数
+                double scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+                if (DispImage != null)
+                {
+                    if (Math.Abs(DispImage.ScaleX) > 1e-10) scaleX = DispImage.ScaleX;
+                    if (Math.Abs(DispImage.ScaleY) > 1e-10) scaleY = DispImage.ScaleY;
+                    if (Math.Abs(DispImage.ScaleZ) > 1e-10) scaleZ = DispImage.ScaleZ;
+                }
+
                 // 提取高度图
                 HImage heightImage;
                 int channels = DispImage.CountChannels();
@@ -346,10 +355,10 @@ namespace Plugin.ContourDetection.ViewModels
                 switch (DetectionType)
                 {
                     case eDetectionType.连续轮廓:
-                        ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
+                        ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi, scaleX, scaleY, scaleZ);
                         break;
                     case eDetectionType.单条轮廓:
-                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
+                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi, scaleX, scaleY, scaleZ);
                         break;
                     case eDetectionType.链接路径:
                         // TODO: 待后续实现
@@ -405,6 +414,15 @@ namespace Plugin.ContourDetection.ViewModels
                     return false;
                 }
 
+                // 提取测量标定缩放系数
+                double scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+                if (DispImage != null)
+                {
+                    if (Math.Abs(DispImage.ScaleX) > 1e-10) scaleX = DispImage.ScaleX;
+                    if (Math.Abs(DispImage.ScaleY) > 1e-10) scaleY = DispImage.ScaleY;
+                    if (Math.Abs(DispImage.ScaleZ) > 1e-10) scaleZ = DispImage.ScaleZ;
+                }
+
                 // 提取高度图
                 HImage heightImage;
                 int channels = DispImage.CountChannels();
@@ -434,10 +452,10 @@ namespace Plugin.ContourDetection.ViewModels
                 switch (DetectionType)
                 {
                     case eDetectionType.连续轮廓:
-                        ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
+                        ExeContinuousContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi, scaleX, scaleY, scaleZ);
                         break;
                     case eDetectionType.单条轮廓:
-                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi);
+                        ExeSingleContour(heightImage, roiCenterRow, roiCenterCol, roiLength1, roiLength2, roiPhi, scaleX, scaleY, scaleZ);
                         break;
                     case eDetectionType.链接路径:
                         // TODO: 待后续实现
@@ -1108,7 +1126,7 @@ namespace Plugin.ContourDetection.ViewModels
         /// 连续轮廓检测
         /// </summary>
         private void ExeContinuousContour(HImage heightImage, double roiCenterRow, double roiCenterCol,
-            double roiLength1, double roiLength2, double roiPhi)
+            double roiLength1, double roiLength2, double roiPhi, double scaleX, double scaleY, double scaleZ)
         {
             // 使用本地List收集结果，避免在后台线程直接操作UI绑定的ObservableCollection
             List<ContourResultItem> results = new List<ContourResultItem>();
@@ -1237,10 +1255,29 @@ namespace Plugin.ContourDetection.ViewModels
 
                 HTuple zValues = reducedImage.GetGrayval(pointY, pointX);
 
+                // 应用测量标定缩放系数，将点云从像素空间变换到物理空间
+                if (Math.Abs(scaleX - 1.0) > 1e-10 ||
+                    Math.Abs(scaleY - 1.0) > 1e-10 ||
+                    Math.Abs(scaleZ - 1.0) > 1e-10)
+                {
+                    double[] xArr = pointX.ToDArr();
+                    double[] yArr = pointY.ToDArr();
+                    double[] zArr = zValues.ToDArr();
+                    for (int k = 0; k < zArr.Length; k++)
+                    {
+                        xArr[k] *= scaleX;
+                        yArr[k] *= scaleY;
+                        zArr[k] *= scaleZ;
+                    }
+                    pointX = new HTuple(xArr);
+                    pointY = new HTuple(yArr);
+                    zValues = new HTuple(zArr);
+                }
+
                 // 工作流分发
                 double resultVal = 0;
-                double resultRow = stripeCenterRow;
-                double resultCol = stripeCenterCol;
+                double resultRowPhys = stripeCenterRow * scaleY;
+                double resultColPhys = stripeCenterCol * scaleX;
                 foreach (var item in WorkflowItems)
                 {
                     if (!item.m_enable) continue;
@@ -1252,8 +1289,8 @@ namespace Plugin.ContourDetection.ViewModels
                             resultVal = val;
                             if (row != 0 || col != 0)
                             {
-                                resultRow = row;
-                                resultCol = col;
+                                resultRowPhys = row;
+                                resultColPhys = col;
                             }
                             break;
                         case eWorkflowCategory.测量:
@@ -1265,22 +1302,26 @@ namespace Plugin.ContourDetection.ViewModels
                     }
                 }
 
+                // 将物理空间检测结果反变换回像素坐标（用于十字标记绘制）
+                double pixelResultRow = Math.Abs(scaleY) > 1e-10 ? resultRowPhys / scaleY : resultRowPhys;
+                double pixelResultCol = Math.Abs(scaleX) > 1e-10 ? resultColPhys / scaleX : resultColPhys;
+
                 results.Add(new ContourResultItem
                 {
                     Index = i + 1,
                     Value = resultVal,
-                    Row = resultRow,
-                    Col = resultCol
+                    Row = pixelResultRow,
+                    Col = pixelResultCol
                 });
 
-                // 保存小轮廓原始数据（用于索引高亮和子窗口过滤显示）
+                // 保存小轮廓数据（物理单位，用于子窗口散点图）
                 _contourStripDataMap[i] = new ContourStripData
                 {
                     PointY = pointY.ToDArr(),
                     PointX = pointX.ToDArr(),
                     ZValues = zValues.ToDArr(),
-                    ResultRow = resultRow,
-                    ResultCol = resultCol,
+                    ResultRow = resultRowPhys,
+                    ResultCol = resultColPhys,
                     ResultValue = resultVal,
                     CenterRow = stripeCenterRow,
                     CenterCol = stripeCenterCol,
@@ -1337,7 +1378,7 @@ namespace Plugin.ContourDetection.ViewModels
         /// 单条轮廓检测：仅生成 ROI 中心位置的一条轮廓条带
         /// </summary>
         private void ExeSingleContour(HImage heightImage, double roiCenterRow, double roiCenterCol,
-            double roiLength1, double roiLength2, double roiPhi)
+            double roiLength1, double roiLength2, double roiPhi, double scaleX, double scaleY, double scaleZ)
         {
             List<ContourResultItem> results = new List<ContourResultItem>();
             int contourWidth = ContourWidth;
@@ -1355,64 +1396,170 @@ namespace Plugin.ContourDetection.ViewModels
             }
             _contourRectMap.Clear();
 
-            // 调用模型处理单条中心条带
-            var (resultVal, resultRow, resultCol, pointY, pointX, zValues, hasData) =
-                ContourDetectionModel.ProcessSingleStrip(
-                    heightImage, roiCenterRow, roiCenterCol, -roiPhi,
-                    roiLength1, halfWidth,
-                    WorkflowItems.Where(item => item.m_enable));
-
             // 保存轮廓矩形（用于主窗口黄色高亮）
             HObject contourRectObj;
             HOperatorSet.GenRectangle2ContourXld(out contourRectObj,
                 roiCenterRow, roiCenterCol, -roiPhi, roiLength1, halfWidth);
             _contourRectMap[0] = contourRectObj.Clone();
 
-            if (!hasData)
-            {
-                results.Add(new ContourResultItem
-                {
-                    Index = 1,
-                    Value = double.NaN,
-                    Row = roiCenterRow,
-                    Col = roiCenterCol
-                });
-            }
-            else
-            {
-                results.Add(new ContourResultItem
-                {
-                    Index = 1,
-                    Value = resultVal,
-                    Row = resultRow,
-                    Col = resultCol
-                });
+            // 提取条带区域数据
+            HRegion subRegion = new HRegion();
+            HImage reducedImage = null;
+            HRegion domain = null;
 
-                // 按 Col 聚合数据（消除多行影响），用于子窗口散点图
-                var (aggCols, aggRows, aggZ) = ContourDetectionModel.AggregateByCol(pointX, pointY, zValues);
-                // ---- 调试：导出原始点云数据（x y z） ----
-                using (var sw = System.IO.File.CreateText(@"D:\ContourDebug_Schmitt_Show.txt"))
+            try
+            {
+                subRegion.GenRectangle2(roiCenterRow, roiCenterCol, -roiPhi, roiLength1, halfWidth);
+                reducedImage = heightImage.ReduceDomain(subRegion);
+                domain = reducedImage.GetDomain();
+                domain.GetRegionPoints(out HTuple pointY, out HTuple pointX);
+
+                if (pointY.Length == 0)
                 {
-                    for (int i = 0; i < aggZ.Length; i++)
-                        sw.WriteLine($"{aggCols[i]:F8} {aggRows[i]:F8} {aggZ[i]:F8}");
+                    results.Add(new ContourResultItem
+                    {
+                        Index = 1,
+                        Value = double.NaN,
+                        Row = roiCenterRow,
+                        Col = roiCenterCol
+                    });
                 }
-                // ---- 调试结束 ----
-
-                // 保存聚合后的条带数据（用于子窗口散点图）
-                _contourStripDataMap[0] = new ContourStripData
+                else
                 {
-                    PointY = aggRows,
-                    PointX = aggCols,
-                    ZValues = aggZ,
-                    ResultRow = resultRow,
-                    ResultCol = resultCol,
-                    ResultValue = resultVal,
-                    CenterRow = roiCenterRow,
-                    CenterCol = roiCenterCol,
-                    Phi = -roiPhi,
-                    Length1 = roiLength1,
-                    HalfWidth = halfWidth
-                };
+                    HTuple zValues = reducedImage.GetGrayval(pointY, pointX);
+
+                    double[] xArr = pointX.ToDArr();
+                    double[] yArr = pointY.ToDArr();
+                    double[] zArr = zValues.ToDArr();
+
+                    // 1. 应用测量标定缩放系数（pixel → physical）到原始数据
+                    if (Math.Abs(scaleX - 1.0) > 1e-10 ||
+                        Math.Abs(scaleY - 1.0) > 1e-10 ||
+                        Math.Abs(scaleZ - 1.0) > 1e-10)
+                    {
+                        for (int i = 0; i < xArr.Length; i++)
+                        {
+                            xArr[i] *= scaleX;
+                            yArr[i] *= scaleY;
+                            zArr[i] *= scaleZ;
+                        }
+                    }
+
+                    // 2. 判断是否有拐点类型的工作流项（需要聚合数据）
+                    bool needsAgg = WorkflowItems.Any(w =>
+                        w.m_enable && w.Category == eWorkflowCategory.构建
+                        && w.OperationName == "点" && w.PointType == ePointType.拐点);
+
+                    // 3. 仅拐点类型需要按 Col 聚合（像素空间聚合，避免物理空间取整误差）
+                    double[] aggCols = null, aggRows = null, aggZ = null;
+                    if (needsAgg)
+                    {
+                        // 用像素坐标聚合，再把聚合结果缩放到物理空间
+                        double[] pxArr = pointX.ToDArr();
+                        double[] pyArr = pointY.ToDArr();
+                        double[] pzArr = zValues.ToDArr();
+                        var (aCols, aRows, aZ) = ContourDetectionModel.AggregateByCol(pxArr, pyArr, pzArr);
+                        if (aCols.Length > 0 &&
+                            (Math.Abs(scaleX - 1.0) > 1e-10 ||
+                             Math.Abs(scaleY - 1.0) > 1e-10 ||
+                             Math.Abs(scaleZ - 1.0) > 1e-10))
+                        {
+                            for (int i = 0; i < aCols.Length; i++)
+                            {
+                                aCols[i] *= scaleX;
+                                aRows[i] *= scaleY;
+                                aZ[i] *= scaleZ;
+                            }
+                        }
+                        aggCols = aCols;
+                        aggRows = aRows;
+                        aggZ = aZ;
+                    }
+
+                    // 4. 运行工作流检测
+                    double resultVal = 0;
+                    double resultRowPhys = roiCenterRow * scaleY;
+                    double resultColPhys = roiCenterCol * scaleX;
+                    bool workflowExecuted = false;
+
+                    HTuple rawXHT = new HTuple(xArr);
+                    HTuple rawYHT = new HTuple(yArr);
+                    HTuple rawZHT = new HTuple(zArr);
+                    HTuple aggColsHT = aggCols != null ? new HTuple(aggCols) : null;
+                    HTuple aggRowsHT = aggRows != null ? new HTuple(aggRows) : null;
+                    HTuple aggZHT = aggZ != null ? new HTuple(aggZ) : null;
+
+                    foreach (var item in WorkflowItems.Where(w => w.m_enable))
+                    {
+                        switch (item.Category)
+                        {
+                            case eWorkflowCategory.构建:
+                                bool isInflection = item.OperationName == "点" && item.PointType == ePointType.拐点;
+                                HTuple dataZ = isInflection ? aggZHT : rawZHT;
+                                HTuple dataY = isInflection ? aggRowsHT : rawYHT;
+                                HTuple dataX = isInflection ? aggColsHT : rawXHT;
+
+                                // 拐点但聚合数据为空，跳过
+                                if (isInflection && (dataX == null || dataX.Length == 0)) continue;
+
+                                var (val, row, col) = ContourDetectionModel.ExeBuildWorkflow(item, dataZ, dataY, dataX);
+                                resultVal = val;
+                                if (row != 0 || col != 0)
+                                {
+                                    resultRowPhys = row;
+                                    resultColPhys = col;
+                                }
+                                workflowExecuted = true;
+                                break;
+                            case eWorkflowCategory.测量:
+                                // TODO: 待后续实现
+                                break;
+                            case eWorkflowCategory.计算:
+                                // TODO: 待后续实现
+                                break;
+                        }
+                    }
+
+                    if (!workflowExecuted)
+                    {
+                        resultVal = 0;
+                    }
+
+                    // 5. 将物理空间检测结果反变换回像素坐标（用于十字标记绘制）
+                    double pixelResultRow = Math.Abs(scaleY) > 1e-10 ? resultRowPhys / scaleY : resultRowPhys;
+                    double pixelResultCol = Math.Abs(scaleX) > 1e-10 ? resultColPhys / scaleX : resultColPhys;
+
+                    results.Add(new ContourResultItem
+                    {
+                        Index = 1,
+                        Value = resultVal,
+                        Row = pixelResultRow,
+                        Col = pixelResultCol
+                    });
+
+                    // 6. 保存条带数据（物理单位，用于子窗口散点图）
+                    //    拐点类型存聚合数据（干净的一维剖面），其他类型存原始数据
+                    _contourStripDataMap[0] = new ContourStripData
+                    {
+                        PointY = needsAgg && aggRows != null ? aggRows : yArr,
+                        PointX = needsAgg && aggCols != null ? aggCols : xArr,
+                        ZValues = needsAgg && aggZ != null ? aggZ : zArr,
+                        ResultRow = resultRowPhys,
+                        ResultCol = resultColPhys,
+                        ResultValue = resultVal,
+                        CenterRow = roiCenterRow,
+                        CenterCol = roiCenterCol,
+                        Phi = -roiPhi,
+                        Length1 = roiLength1,
+                        HalfWidth = halfWidth
+                    };
+                }
+            }
+            finally
+            {
+                subRegion?.Dispose();
+                reducedImage?.Dispose();
+                domain?.Dispose();
             }
 
             // 同步结果到UI
@@ -1426,11 +1573,11 @@ namespace Plugin.ContourDetection.ViewModels
                 }
             });
 
-            // 绘制检测点（红色十字）
-            if (ShowResultPoints && hasData && !double.IsNaN(resultVal))
+            // 绘制检测点（红色十字）- 使用反算的像素坐标
+            if (ShowResultPoints && results.Count > 0 && !double.IsNaN(results[0].Value))
             {
                 HObject cross;
-                HOperatorSet.GenCrossContourXld(out cross, resultRow, resultCol, 6, 0.785398);
+                HOperatorSet.GenCrossContourXld(out cross, results[0].Row, results[0].Col, 6, 0.785398);
                 ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks,
                     HRoiType.检测点, "red", new HObject(cross)));
             }
@@ -1484,11 +1631,18 @@ namespace Plugin.ContourDetection.ViewModels
         private void UpdateContourHighlight()
         {
             var view = ModuleView as ContourDetectionView;
-            if (view == null || view.IsClosed) return;
+            if (view == null || view.IsClosed)
+            {
+                Logger.AddLog("UpdateContourHighlight: 视图未就绪或已关闭", eMsgType.Warn);
+                return;
+            }
 
             // 索引超出范围则不做任何操作
             if (_contourStripDataMap == null || !_contourStripDataMap.ContainsKey(ContourIndex))
+            {
+                Logger.AddLog($"UpdateContourHighlight: ContourIndex={ContourIndex} 无对应条带数据（map为null={_contourStripDataMap == null}，key数={_contourStripDataMap?.Count}）", eMsgType.Warn);
                 return;
+            }
 
             // === 主窗口：黄色高亮选中索引的小轮廓 ===
             try
@@ -1513,11 +1667,23 @@ namespace Plugin.ContourDetection.ViewModels
             // === 子窗口：只显示选中索引的检测点所在行数据（散点图） ===
             try
             {
-                if (view.SubWindowH == null) return;
+                if (view.SubWindowH == null)
+                {
+                    Logger.AddLog("UpdateContourHighlight: 子窗口未初始化", eMsgType.Warn);
+                    return;
+                }
 
                 var stripData = _contourStripDataMap[ContourIndex];
-                if (stripData.PointY == null || stripData.PointY.Length == 0) return;
-                if (double.IsNaN(stripData.ResultValue)) return;
+                if (stripData.PointY == null || stripData.PointY.Length == 0)
+                {
+                    Logger.AddLog($"UpdateContourHighlight: 条带数据为空（PointY=null={stripData.PointY == null}）", eMsgType.Warn);
+                    return;
+                }
+                if (double.IsNaN(stripData.ResultValue))
+                {
+                    Logger.AddLog("UpdateContourHighlight: ResultValue 为 NaN，跳过散点图绘制", eMsgType.Warn);
+                    return;
+                }
 
                 // 显示条带内所有有效数据点（Col-Z 散点图）
                 List<double> filterCols = new List<double>();
@@ -1532,7 +1698,11 @@ namespace Plugin.ContourDetection.ViewModels
                     }
                 }
 
-                if (filterCols.Count == 0) return;
+                if (filterCols.Count == 0)
+                {
+                    Logger.AddLog("UpdateContourHighlight: 过滤后无有效数据点（filterCols为空）", eMsgType.Warn);
+                    return;
+                }
 
                 // 最大点数采样：均匀下采样保留首尾+检测目标点，只降密度不裁剪范围
                 if (filterCols.Count > ShowMaxPoints)
