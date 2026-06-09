@@ -68,6 +68,9 @@ namespace Plugin.CreateROI.ViewModels
 
         public override bool ExeModule()
         {
+            // 【关键】在创建任何region之前设置系统参数
+            HOperatorSet.SetSystem("clip_region", "false");
+
             Stopwatch.Restart();
             try
             {
@@ -141,6 +144,10 @@ namespace Plugin.CreateROI.ViewModels
                 ChangeModuleRunStatus(eRunStatus.NG);
                 Logger.GetExceptionMsg(ex);
                 return false;
+            }
+            finally
+            {
+                HOperatorSet.SetSystem("clip_region", "true");
             }
         }
 
@@ -345,7 +352,6 @@ namespace Plugin.CreateROI.ViewModels
                 view.winFormHost.Child = view.mWindowH;
             }
 
-            // 尝试获取图像（可能为空）
             if (DispImage == null || !DispImage.IsInitialized())
             {
                 SetDefaultLink();
@@ -511,38 +517,30 @@ namespace Plugin.CreateROI.ViewModels
             {
                 case eDrawShape.矩形:
                     ROIRectangle2 rectangle2 = (ROIRectangle2)roi;
-                    double displayRow = rectangle2.MidR;
-                    double displayCol = rectangle2.MidC;
-                    double displayPhi = rectangle2.Phi;
-                    double displayLen1 = rectangle2.Length1;
-                    double displayLen2 = rectangle2.Length2;
-
                     if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                     {
-                        HRegion region = rectangle2.GetRegion();
-                        region = region.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
-                        region.SmallestRectangle2(out double originalRow, out double originalCol, out double originalPhi, out double originalLen1, out double originalLen2);
-                        UpdateRect2Parameters(originalRow, originalCol, originalPhi, originalLen1, originalLen2);
+                        HHomMat2D homInv = new HHomMat2D(HomMat2D_Inverse);
+                        double originalRow = homInv.AffineTransPoint2d(rectangle2.MidR, rectangle2.MidC, out double originalCol);
+                        double _Phi1 = ((HTuple)homInv[0]).TupleAcos().D;
+                        double _Phi2 = ((HTuple)homInv[1]).TupleAsin().D;
+                        double _Phi3 = ((HTuple)homInv[4]).TupleAcos().D;
+                        double _Phi = _Phi2 <= 0 ? _Phi1 : -_Phi3;
+                        UpdateRect2Parameters(originalRow, originalCol, rectangle2.Phi - _Phi, rectangle2.Length1, rectangle2.Length2);
                     }
                     else
-                        UpdateRect2Parameters(displayRow, displayCol, displayPhi, displayLen1, displayLen2);
+                        UpdateRect2Parameters(rectangle2.MidR, rectangle2.MidC, rectangle2.Phi, rectangle2.Length1, rectangle2.Length2);
                     break;
 
                 case eDrawShape.圆形:
                     ROICircle circle = (ROICircle)roi;
-                    double displayCenterY = circle.CenterY;
-                    double displayCenterX = circle.CenterX;
-                    double displayRadius = circle.Radius;
-
                     if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                     {
-                        HRegion region2 = circle.GetRegion();
-                        region2 = region2.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
-                        region2.SmallestCircle(out double originalRow, out double originalCol, out double originalRadius);
-                        UpdateCircleParameters(originalRow, originalCol, originalRadius);
+                        ROICircle originalCircle = new ROICircle();
+                        Aff.Affine2d(HomMat2D_Inverse, circle, originalCircle);
+                        UpdateCircleParameters(originalCircle.CenterY, originalCircle.CenterX, originalCircle.Radius);
                     }
                     else
-                        UpdateCircleParameters(displayCenterY, displayCenterX, displayRadius);
+                        UpdateCircleParameters(circle.CenterY, circle.CenterX, circle.Radius);
                     break;
             }
             RoiChanged();
@@ -638,23 +636,23 @@ namespace Plugin.CreateROI.ViewModels
                 switch (SelectedROIType)
                 {
                     case eDrawShape.矩形:
-                        double rectRow, rectCol, rectPhi, rectLen1, rectLen2;
                         try
                         {
-                            rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
-                            rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
-                            rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
-                            rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
-                            rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
+                            double rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
+                            double rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
+                            double rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
+                            double rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
+                            double rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
 
                             if (HomMat2D != null && HomMat2D.Length > 0)
                             {
-                                using (HRegion tempRegion = new HRegion())
-                                {
-                                    tempRegion.GenRectangle2(rectRow, rectCol, rectPhi, rectLen1, rectLen2);
-                                    tempRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                                    tempRegion.SmallestRectangle2(out rectRow, out rectCol, out rectPhi, out rectLen1, out rectLen2);
-                                }
+                                HHomMat2D homMat = new HHomMat2D(HomMat2D);
+                                rectRow = homMat.AffineTransPoint2d(rectRow, rectCol, out rectCol);
+                                double _Phi1 = ((HTuple)homMat[0]).TupleAcos().D;
+                                double _Phi2 = ((HTuple)homMat[1]).TupleAsin().D;
+                                double _Phi3 = ((HTuple)homMat[4]).TupleAcos().D;
+                                double _Phi = _Phi2 <= 0 ? _Phi1 : -_Phi3;
+                                rectPhi = rectPhi - _Phi;
                             }
                             mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rectRow, rectCol, -rectPhi, rectLen1, rectLen2, ref RoiList);
                         }
@@ -665,23 +663,20 @@ namespace Plugin.CreateROI.ViewModels
                         break;
 
                     case eDrawShape.圆形:
-                        double circleRow, circleCol, circleRadius;
                         try
                         {
-                            circleRow = Convert.ToDouble(GetLinkValue(CircleY));
-                            circleCol = Convert.ToDouble(GetLinkValue(CircleX));
-                            circleRadius = Convert.ToDouble(GetLinkValue(CircleRadius));
+                            ROICircle circle = new ROICircle(
+                                Convert.ToDouble(GetLinkValue(CircleY)),
+                                Convert.ToDouble(GetLinkValue(CircleX)),
+                                Convert.ToDouble(GetLinkValue(CircleRadius)));
 
                             if (HomMat2D != null && HomMat2D.Length > 0)
                             {
-                                using (HRegion tempRegion = new HRegion())
-                                {
-                                    tempRegion.GenCircle(circleRow, circleCol, circleRadius);
-                                    tempRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                                    tempRegion.SmallestCircle(out circleRow, out circleCol, out circleRadius);
-                                }
+                                ROICircle tranCircle = new ROICircle();
+                                Aff.Affine2d(HomMat2D, circle, tranCircle);
+                                circle = tranCircle;
                             }
-                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, circleRow, circleCol, circleRadius, ref RoiList);
+                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, circle.CenterY, circle.CenterX, circle.Radius, ref RoiList);
                         }
                         catch
                         {

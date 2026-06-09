@@ -284,6 +284,8 @@ namespace Plugin.ShowShape.ViewModels
             {
                 ClearRoiAndText();
 
+                HOperatorSet.SetSystem("clip_region", "false");
+
                 // 获取输入图像（可选）
                 if (!string.IsNullOrEmpty(InputImageLinkText))
                 {
@@ -312,10 +314,10 @@ namespace Plugin.ShowShape.ViewModels
                 {
                     try
                     {
-                        double sx = Convert.ToDouble(GetLinkValue(item.StartX));
-                        double sy = Convert.ToDouble(GetLinkValue(item.StartY));
-                        double ex = Convert.ToDouble(GetLinkValue(item.EndX));
-                        double ey = Convert.ToDouble(GetLinkValue(item.EndY));
+                        double sx = Convert.ToDouble(GetLinkValue(item.StartX.Text));
+                        double sy = Convert.ToDouble(GetLinkValue(item.StartY.Text));
+                        double ex = Convert.ToDouble(GetLinkValue(item.EndX.Text));
+                        double ey = Convert.ToDouble(GetLinkValue(item.EndY.Text));
 
                         item.OutRoi = new ROILine();
                         item.OutRoi.CreateLine(sy, sx, ey, ex);
@@ -344,9 +346,9 @@ namespace Plugin.ShowShape.ViewModels
                 {
                     try
                     {
-                        double cx = Convert.ToDouble(GetLinkValue(item.CenterX));
-                        double cy = Convert.ToDouble(GetLinkValue(item.CenterY));
-                        double r = Convert.ToDouble(GetLinkValue(item.Radius));
+                        double cx = Convert.ToDouble(GetLinkValue(item.CenterX.Text));
+                        double cy = Convert.ToDouble(GetLinkValue(item.CenterY.Text));
+                        double r = Convert.ToDouble(GetLinkValue(item.Radius.Text));
 
                         item.OutRoi = new ROICircle();
                         item.OutRoi.CreateCircle(cy, cx, r);
@@ -375,10 +377,10 @@ namespace Plugin.ShowShape.ViewModels
                 {
                     try
                     {
-                        double r1 = Convert.ToDouble(GetLinkValue(item.Row1));
-                        double c1 = Convert.ToDouble(GetLinkValue(item.Col1));
-                        double r2 = Convert.ToDouble(GetLinkValue(item.Row2));
-                        double c2 = Convert.ToDouble(GetLinkValue(item.Col2));
+                        double r1 = Convert.ToDouble(GetLinkValue(item.Row1.Text));
+                        double c1 = Convert.ToDouble(GetLinkValue(item.Col1.Text));
+                        double r2 = Convert.ToDouble(GetLinkValue(item.Row2.Text));
+                        double c2 = Convert.ToDouble(GetLinkValue(item.Col2.Text));
 
                         item.OutRoi = new ROIRectangle1();
                         item.OutRoi.CreateRectangle1(r1, c1, r2, c2);
@@ -407,11 +409,11 @@ namespace Plugin.ShowShape.ViewModels
                 {
                     try
                     {
-                        double mr = Convert.ToDouble(GetLinkValue(item.MidR));
-                        double mc = Convert.ToDouble(GetLinkValue(item.MidC));
-                        double phi = Convert.ToDouble(GetLinkValue(item.Phi));
-                        double len1 = Convert.ToDouble(GetLinkValue(item.Length1));
-                        double len2 = Convert.ToDouble(GetLinkValue(item.Length2));
+                        double mr = Convert.ToDouble(GetLinkValue(item.MidR.Text));
+                        double mc = Convert.ToDouble(GetLinkValue(item.MidC.Text));
+                        double phi = Convert.ToDouble(GetLinkValue(item.Phi.Text));
+                        double len1 = Convert.ToDouble(GetLinkValue(item.Length1.Text));
+                        double len2 = Convert.ToDouble(GetLinkValue(item.Length2.Text));
 
                         item.OutRoi = new ROIRectangle2();
                         item.OutRoi.CreateRectangle2(mr, mc, phi, len1, len2);
@@ -442,7 +444,7 @@ namespace Plugin.ShowShape.ViewModels
                         continue;
                     try
                     {
-                        var obj = GetLinkValue(RoiParam[i].InputRoi);
+                        var obj = GetLinkValue(RoiParam[i].InputRoi.Text);
                         if (obj != null)
                         {
                             HObject hObj = null;
@@ -484,6 +486,7 @@ namespace Plugin.ShowShape.ViewModels
 
                 ShowHRoi();
                 ChangeModuleRunStatus(eRunStatus.OK);
+                HOperatorSet.SetSystem("clip_region", "true");
                 return true;
             }
             catch (Exception ex)
@@ -491,6 +494,10 @@ namespace Plugin.ShowShape.ViewModels
                 ChangeModuleRunStatus(eRunStatus.NG);
                 Logger.GetExceptionMsg(ex);
                 return false;
+            }
+            finally
+            {
+                HOperatorSet.SetSystem("clip_region", "true");
             }
         }
         #endregion
@@ -893,18 +900,26 @@ namespace Plugin.ShowShape.ViewModels
                                     case "Line":
                                         if (nSelectLineIndex < 0) return;
                                         LineParams.RemoveAt(nSelectLineIndex);
+                                        for (int i = 0; i < LineParams.Count; i++)
+                                            LineParams[i].Index = i;
                                         break;
                                     case "Circle":
                                         if (nSelectCircleIndex < 0) return;
                                         CircleParams.RemoveAt(nSelectCircleIndex);
+                                        for (int i = 0; i < CircleParams.Count; i++)
+                                            CircleParams[i].Index = i;
                                         break;
                                     case "Rect1":
                                         if (nSelectRect1Index < 0) return;
                                         Rect1Params.RemoveAt(nSelectRect1Index);
+                                        for (int i = 0; i < Rect1Params.Count; i++)
+                                            Rect1Params[i].Index = i;
                                         break;
                                     case "Rect2":
                                         if (nSelectRect2Index < 0) return;
                                         Rect2Params.RemoveAt(nSelectRect2Index);
+                                        for (int i = 0; i < Rect2Params.Count; i++)
+                                            Rect2Params[i].Index = i;
                                         break;
                                 }
                                 break;
@@ -937,6 +952,8 @@ namespace Plugin.ShowShape.ViewModels
                             case "Delete":
                                 if (nSelectRoiIndex < 0) return;
                                 RoiParam.RemoveAt(nSelectRoiIndex);
+                                for (int i = 0; i < RoiParam.Count; i++)
+                                    RoiParam[i].Index = i;
                                 break;
                             default:
                                 break;
