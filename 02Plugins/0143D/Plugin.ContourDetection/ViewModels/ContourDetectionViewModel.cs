@@ -72,7 +72,8 @@ namespace Plugin.ContourDetection.ViewModels
     public enum eEdgeSelect
     {
         第一个,
-        最后一个
+        最后一个,
+        最强点
     }
 
     public enum eARoiMode

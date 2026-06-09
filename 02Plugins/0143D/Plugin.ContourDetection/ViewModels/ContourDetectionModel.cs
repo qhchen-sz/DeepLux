@@ -28,7 +28,7 @@ namespace Plugin.ContourDetection.ViewModels
                 case ePointType.D平均值:
                     return (CalcDMean(zValues), 0, 0);
                 case ePointType.拐点:
-                    return CalcSchmittInflection(zValues, pointY, pointX, inflectionParams);
+                    return CalcDerivativeInflection(zValues, pointY, pointX, inflectionParams);
                 default:
                     return (0, 0, 0);
             }
@@ -278,6 +278,156 @@ namespace Plugin.ContourDetection.ViewModels
             double resultRow = sortedY[targetIdx];
             double resultCol = sortedX[targetIdx];
             return (resultZ, resultRow, resultCol);
+        }
+
+        /// <summary>
+        /// 拐点检测（求导法）：沿图像宽度方向（Col）分析高度剖面，
+        /// 对 Z 剖面求导并做滑动窗口平滑，检测上升沿/下降沿位置。
+        /// sensitivity 同时控制平滑窗口大小和导数阈值：
+        ///   sensitivity 越小 → 窗口越小、阈值越低 → 越灵敏（检测细微边缘）
+        ///   sensitivity 越大 → 窗口越大、阈值越高 → 越抗干扰（只检测强边缘）
+        /// </summary>
+        public static (double value, double row, double col) CalcDerivativeInflection(
+            HTuple zValues, HTuple pointY, HTuple pointX, InflectionParams inflectionParams)
+        {
+            if (zValues.Length < 2) return (double.NaN, 0, 0);
+
+            double[] zArr = zValues.ToDArr();
+            double[] yArr = pointY.ToDArr();
+            double[] xArr = pointX.ToDArr();
+            int n = zArr.Length;
+
+            // 解析参数
+            eEdgeShape shape = inflectionParams?.Shape ?? eEdgeShape.上升沿;
+            eEdgeSelect select = inflectionParams?.Select ?? eEdgeSelect.第一个;
+            double sensitivity = inflectionParams?.Sensitivity ?? 0.1;
+            if (sensitivity <= 0) sensitivity = 0.1;
+            if (sensitivity > 1) sensitivity = 1.0;
+
+            // 按 Col 升序排序，形成从左到右的高度剖面
+            int[] indices = Enumerable.Range(0, n).ToArray();
+            Array.Sort(indices, (a, b) => xArr[a].CompareTo(xArr[b]));
+
+            double[] sortedX = new double[n];
+            double[] sortedY = new double[n];
+            double[] sortedZ = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                int idx = indices[i];
+                sortedX[i] = xArr[idx];
+                sortedY[i] = yArr[idx];
+                sortedZ[i] = zArr[idx];
+            }
+
+            // ---- 调试：导出原始点云数据（x y z） ----
+            using (var sw = System.IO.File.CreateText(@"D:\ContourDebug_Derivative.txt"))
+            {
+                for (int i = 0; i < n; i++)
+                    sw.WriteLine($"{sortedX[i]:F8} {sortedY[i]:F8} {sortedZ[i]:F8}");
+            }
+            // ---- 调试结束 ----
+
+            // 1. 计算前向差分导数 dZ/dX
+            int dn = n - 1;
+            double[] deriv = new double[dn];
+            for (int i = 0; i < dn; i++)
+            {
+                double dx = sortedX[i + 1] - sortedX[i];
+                deriv[i] = Math.Abs(dx) > 1e-12
+                    ? (sortedZ[i + 1] - sortedZ[i]) / dx
+                    : 0.0;
+            }
+
+            // 2. 滑动窗口均值平滑导数（窗口大小由 sensitivity 控制）
+            int halfWin = Math.Max(1, (int)(sensitivity * Math.Sqrt(dn)));
+            double[] smoothDeriv = new double[dn];
+            for (int i = 0; i < dn; i++)
+            {
+                int lo = Math.Max(0, i - halfWin);
+                int hi = Math.Min(dn - 1, i + halfWin);
+                double sum = 0;
+                for (int j = lo; j <= hi; j++)
+                    sum += deriv[j];
+                smoothDeriv[i] = sum / (hi - lo + 1);
+            }
+
+            // 3. 计算导数阈值
+            double maxAbsDeriv = 0;
+            for (int i = 0; i < dn; i++)
+            {
+                double absVal = Math.Abs(smoothDeriv[i]);
+                if (absVal > maxAbsDeriv) maxAbsDeriv = absVal;
+            }
+            if (maxAbsDeriv < 1e-12) return (double.NaN, 0, 0); // 导数无变化
+
+            double threshold = sensitivity * maxAbsDeriv;
+
+            // 4. 按形状筛选候选段（连续满足阈值的点归为一段）
+            List<List<int>> segments = new List<List<int>>();
+            List<int> currentSeg = null;
+            for (int i = 0; i < dn; i++)
+            {
+                bool isMatch = shape == eEdgeShape.上升沿
+                    ? smoothDeriv[i] > threshold
+                    : smoothDeriv[i] < -threshold;
+
+                if (isMatch)
+                {
+                    if (currentSeg == null)
+                        currentSeg = new List<int>();
+                    currentSeg.Add(i);
+                }
+                else
+                {
+                    if (currentSeg != null)
+                    {
+                        segments.Add(currentSeg);
+                        currentSeg = null;
+                    }
+                }
+            }
+            if (currentSeg != null)
+                segments.Add(currentSeg);
+
+            if (segments.Count == 0)
+                return (double.NaN, 0, 0);
+
+            // 5. 按选择模式取点
+            int targetIdx;
+            switch (select)
+            {
+                case eEdgeSelect.最后一个:
+                    // 最后一段的末尾索引
+                    var lastSeg = segments[segments.Count - 1];
+                    targetIdx = lastSeg[lastSeg.Count - 1];
+                    break;
+
+                case eEdgeSelect.最强点:
+                    // 所有候选段中 |smoothDeriv| 最大的索引（最高置信度）
+                    targetIdx = 0;
+                    double bestAbs = 0;
+                    for (int s = 0; s < segments.Count; s++)
+                    {
+                        for (int j = 0; j < segments[s].Count; j++)
+                        {
+                            int idx = segments[s][j];
+                            double absVal = Math.Abs(smoothDeriv[idx]);
+                            if (absVal > bestAbs)
+                            {
+                                bestAbs = absVal;
+                                targetIdx = idx;
+                            }
+                        }
+                    }
+                    break;
+
+                default: // 第一个
+                    // 第一段的起始索引
+                    targetIdx = segments[0][0];
+                    break;
+            }
+
+            return (sortedZ[targetIdx], sortedY[targetIdx], sortedX[targetIdx]);
         }
 
         /// <summary>
