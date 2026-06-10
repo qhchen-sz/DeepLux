@@ -1,0 +1,295 @@
+<vb:ModuleViewBase
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:vb="clr-namespace:HV.Core;assembly=HV"      
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Plugin._3DPreProcessing.Views"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:vm="clr-namespace:Plugin._3DPreProcessing.ViewModels"
+             xmlns:m="clr-namespace:Plugin._3DPreProcessing.Models"
+             xmlns:WinFormHost="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+             xmlns:Converter="clr-namespace:HV.Assets.Converter;assembly=HV" x:Class="Plugin._3DPreProcessing.Views.PreProcessing3DView"
+             Height="680" Width="980" Icon="/Plugin.3DPreProcessing;component/Assets/Images/Tool/3DPreProcessing.png" Loaded="ModuleViewBase_Loaded" >
+    <vb:ModuleViewBase.Resources>
+        <Converter:Bool2VisibilityConverter x:Key="Bool2VisibilityConverter"/>
+    </vb:ModuleViewBase.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="55"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="370"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TabControl>
+                <TabControl.Resources>
+                    <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource VerTabItem}"/>
+                </TabControl.Resources>
+                <TabControl.Style>
+                    <StaticResource ResourceKey="VerTabControl"/>
+                </TabControl.Style>
+                <TabItem Header="基本参数">
+                    <Grid x:Name="gd">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="100"/>
+                            <RowDefinition Height="60"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border >
+                            <GroupBox Header="图像链接">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="5 0">
+                                    <TextBlock Text="输入图像" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBox HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="0 0 0 1" Width="200" Margin="5 0" IsReadOnly="True"
+                                             Style="{StaticResource LinkTextBox}"
+                                             Text="{Binding InputImageLinkText}"
+                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand, Mode=OneWay}"
+                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InputImageLink}"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+
+                        <Border Grid.Row="1">
+                            <GroupBox Header="ROI类型">
+                                <StackPanel Orientation="Horizontal" Margin="5 0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <RadioButton Content="全图" Margin="5 0" 
+                                                 IsChecked="{Binding SelectedROIType, ConverterParameter={x:Static vm:eRoiType.全图}, Converter={StaticResource EnumConverter}}"/>
+                                    <RadioButton Content="ROI链接" Margin="35 0" 
+                                                 IsChecked="{Binding SelectedROIType, ConverterParameter={x:Static vm:eRoiType.ROI链接}, Converter={StaticResource EnumConverter}}"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Border>
+
+                        <Border x:Name="bd" Grid.Row="2">
+                            <GroupBox Header="ROI信息" >
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="AUTO"/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <Grid Visibility="{Binding SelectedROIType, ConverterParameter={x:Static vm:eRoiType.ROI链接}, Converter={StaticResource EnumToVisibilityConverter}}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="30 10">
+                                                <TextBlock Text="ROI:" VerticalAlignment="Center" HorizontalAlignment="Center" Width="60"/>
+                                                <TextBox Style="{StaticResource LinkTextBox}" Width="200"
+                                                 Text="{Binding InputRoiLinkText}" 
+                                                 IsReadOnly="True"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand, Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Roi}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </GroupBox>
+                        </Border>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="参数设置" Height="30" VerticalAlignment="Bottom">
+                    <Grid x:Name="gd1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="50"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Grid.Row="0" Cursor="">
+                            <Menu VerticalAlignment="Center" Margin="10,0,0,0" ToolTip="添加">
+                                <MenuItem Header="➕" HorizontalAlignment="Center" VerticalContentAlignment="Center" >
+                                    <MenuItem Header="3维滤波" HorizontalAlignment="Center" VerticalContentAlignment="Center" >
+                                        <MenuItem Header="均值滤波" Command="{Binding DataOperateCommand}" CommandParameter="add_均值滤波"/>
+                                        <MenuItem Header="中值滤波" Command="{Binding DataOperateCommand}" CommandParameter="add_中值滤波"/>
+                                        <MenuItem Header="高斯滤波" Command="{Binding DataOperateCommand}" CommandParameter="add_高斯滤波"/>
+                                    </MenuItem>
+                                    <MenuItem Header="3维形态学" HorizontalAlignment="Center" VerticalContentAlignment="Center" >
+                                        <MenuItem Header="膨胀" Command="{Binding DataOperateCommand}" CommandParameter="add_膨胀"/>
+                                        <MenuItem Header="腐蚀" Command="{Binding DataOperateCommand}" CommandParameter="add_腐蚀"/>
+                                        <MenuItem Header="开运算" Command="{Binding DataOperateCommand}" CommandParameter="add_开运算"/>
+                                        <MenuItem Header="闭运算" Command="{Binding DataOperateCommand}" CommandParameter="add_闭运算"/>
+                                    </MenuItem>
+                                    <MenuItem Header="深度处理" HorizontalAlignment="Center" VerticalContentAlignment="Center" >
+                                        <MenuItem Header="深度阈值裁剪" Command="{Binding DataOperateCommand}" CommandParameter="add_深度阈值裁剪"/>
+                                        <MenuItem Header="深度填充" Command="{Binding DataOperateCommand}" CommandParameter="add_深度填充"/>
+                                    </MenuItem>
+                                </MenuItem>
+                            </Menu>
+
+                            <Button Style="{StaticResource ToolBarButtonStyle}" ToolTip="删除" Margin="10,0,0,0"
+                                    Command="{Binding DataOperateCommand}" CommandParameter="remove">
+                                <Image Source="/Plugin.3DPreProcessing;component/Assets/Images/Tool/delete.png"/>
+                            </Button>
+                            <Button Style="{StaticResource ToolBarButtonStyle}" ToolTip="上移" Margin="10,0,0,0"
+                                    Command="{Binding DataOperateCommand}" CommandParameter="up">
+                                <Image Source="/Plugin.3DPreProcessing;component/Assets/Images/Tool/up.png"/>
+                            </Button>
+                            <Button Style="{StaticResource ToolBarButtonStyle}" ToolTip="下移" Margin="10,0,0,0"
+                                    Command="{Binding DataOperateCommand}" CommandParameter="down">
+                                <Image Source="/Plugin.3DPreProcessing;component/Assets/Images/Tool/down.png"/>
+                            </Button>
+                            <CheckBox Content="实时刷新" Margin="30,0,0,0" />
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False" x:Name="dg"
+                                  EnableColumnVirtualization="true"
+                                  EnableRowVirtualization="true"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  ItemsSource="{Binding m_ToolList}" SelectedItem="{Binding SelectedText}" SelectedIndex="{Binding SelectedIndex}"
+                                  FontSize="14" 
+                                  RowHeaderWidth="20"
+                                  SelectionUnit="FullRow"                               
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"                                 
+                                  IsReadOnly="True" CanUserAddRows="False">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="启用" IsReadOnly="True" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding m_enable ,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center" IsEnabled="True" MinWidth="0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="类型" IsReadOnly="True" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding m_name}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="参数" IsReadOnly="True" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding m_value}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <GroupBox Header="参数" Grid.Row="2">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition />
+                                </Grid.RowDefinitions>
+                                <!--均值滤波-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.均值滤波}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_MeanImageWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_MeanImageHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--中值滤波-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.中值滤波}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_MedianImageWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_MedianImageHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--高斯滤波-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.高斯滤波}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="大小:" VerticalAlignment="Center" Width="60"/>
+                                        <Slider Minimum="3" Maximum="11" Value="{Binding SelectedText.m_GaussImageSize}" Width="200" Margin="5 0" TickFrequency="2"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--膨胀-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.膨胀}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_DilationWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_DilationHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--腐蚀-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.腐蚀}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ErosionWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ErosionHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--开运算-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.开运算}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_OpeningWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_OpeningHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--闭运算-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.闭运算}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ClosingWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ClosingHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--深度阈值裁剪-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.深度阈值裁剪}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最小Z:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="-99999" Value="{Binding SelectedText.m_ClipMin}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大Z:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="-99999" Value="{Binding SelectedText.m_ClipMax}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--深度填充-->
+                                <StackPanel Orientation="Vertical"  Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.深度填充}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_FillWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_FillHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </GroupBox>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Column="1"/>
+            <WinFormHost:WindowsFormsHost Margin="5" Grid.Column="2" x:Name="winFormHost">
+            </WinFormHost:WindowsFormsHost>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="White" BorderThickness="0 0.5 0 0">
+            <DockPanel LastChildFill="True">
+                <StackPanel Margin="10 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock><Run Text="耗时:"/><Run Text=" "/><Run Text="{Binding ModuleParam.ElapsedTime}"/><Run Text=" "/><Run Text="ms"/></TextBlock>
+                    <TextBlock><Run Text="状态:"/><Run Text=" "/><Run Text="{Binding ModuleParam.Status, Converter={StaticResource StatusConverter}}"/></TextBlock>
+                </StackPanel>
+                <StackPanel Margin="150 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button x:Name="btnComp" Content="对比原图" PreviewMouseLeftButtonDown="btnComp_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="btnComp_PreviewMouseLeftButtonUp"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}"/>
+                    <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" />
+                    <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
+                            Background="#FFFF2000" BorderBrush="#FFFF2000"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</vb:ModuleViewBase>

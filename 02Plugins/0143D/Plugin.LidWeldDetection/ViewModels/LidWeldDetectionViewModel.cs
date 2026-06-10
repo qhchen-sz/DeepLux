@@ -22,11 +22,16 @@ using VM.Halcon.Config;
 namespace Plugin.LidWeldDetection.ViewModels
 {
     #region enums
+    /// <summary>变量链接命令</summary>
     public enum eLinkCommand
     {
         InputImageLink,
     }
 
+    /// <summary>
+    /// 上采样插值方式（降采样→上采样流程中的上采样阶段）
+    /// 降采样阶段固定使用 "constant"（最近邻），避免无效值扩散
+    /// </summary>
     public enum eInterpolationMethod
     {
         [EnumDescription("线性邻插值")] Bilinear,
@@ -36,6 +41,7 @@ namespace Plugin.LidWeldDetection.ViewModels
         [EnumDescription("natural cubic插值")] NaturalCubic,
     }
 
+    /// <summary>缺陷检测类型：凹缺陷、凸缺陷、或两者都检</summary>
     public enum eDefectType
     {
         [EnumDescription("凹")] Concave,
@@ -43,6 +49,13 @@ namespace Plugin.LidWeldDetection.ViewModels
         [EnumDescription("凹&凸")] Both,
     }
 
+    /// <summary>
+    /// 主窗口显示模式
+    /// Original = 原始深度图
+    /// Fitted = 拟合曲面伪彩色
+    /// Difference = 残差图（原始-拟合）
+    /// Detection = 残差图 + 缺陷区域标记
+    /// </summary>
     public enum eDisplayMode
     {
         [EnumDescription("原始图像")] Original,
@@ -52,23 +65,41 @@ namespace Plugin.LidWeldDetection.ViewModels
     }
     #endregion
 
+    /// <summary>
+    /// 顶盖焊检测插件 — 基于3D高度图检测焊接表面的凹/凸缺陷
+    ///
+    /// 算法原理：
+    /// 1. 提取高度通道，按连通域分割成独立工件区域
+    /// 2. 对每个工件区域做降采样→上采样（图像缩放），利用缩放过程中的插值平滑去除局部缺陷信号，得到光滑参考面
+    /// 3. 原始高度图 - 光滑参考面 = 残差图（缺陷信号被凸显）
+    /// 4. 在残差图上按凹/凸阈值分割出缺陷区域
+    /// 5. 统计缺陷数量、面积、最大凹陷深度、最大凸起高度
+    ///
+    /// 注意：参考面构建方式为降采样+上采样（空间低通滤波），非多项式曲面拟合或高斯拟合
+    /// 参考：顶盖（lid）焊接质量检测，如圆柱电池封口焊接
+    /// </summary>
     [Category("3D")]
     [DisplayName("顶盖焊检测")]
     [ModuleImageName("LidWeldDetection")]
     [Serializable]
     public class LidWeldDetectionViewModel : ModuleBase
     {
+        /// <summary>
+        /// 运行时图像/区域缓存，用于切换显示模式时复用，避免重复计算
+        /// NonSerialized：不参与方案保存，每次打开窗口需重新执行
+        /// </summary>
         #region Runtime image caches
-        [NonSerialized] private HImage _originalImage;
-        [NonSerialized] private HImage _fittedImage;
-        [NonSerialized] private HImage _diffImage;
-        [NonSerialized] private HRegion _defectRegion;
-        [NonSerialized] private HRegion _concaveRegion;
-        [NonSerialized] private HRegion _convexRegion;
-        [NonSerialized] private HRegion _workpieceContourRegion;
-        [NonSerialized] private HRegion _inspectionRegion;
+        [NonSerialized] private HImage _originalImage;          // 原始深度图缓存
+        [NonSerialized] private HImage _fittedImage;            // 光滑参考面缓存（降采样→上采样结果）
+        [NonSerialized] private HImage _diffImage;              // 残差图缓存（原始-拟合）
+        [NonSerialized] private HRegion _defectRegion;          // 合并后的缺陷区域
+        [NonSerialized] private HRegion _concaveRegion;         // 凹缺陷区域
+        [NonSerialized] private HRegion _convexRegion;          // 凸缺陷区域
+        [NonSerialized] private HRegion _workpieceContourRegion;// 工件轮廓线（黄色高亮）
+        [NonSerialized] private HRegion _inspectionRegion;      // 实际检测区域（轮廓偏移后与有效区域取交集）
         #endregion
 
+        /// <summary>自动链接到上游最后一个 HImage 类型的输出</summary>
         public override void SetDefaultLink()
         {
             CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
@@ -84,6 +115,7 @@ namespace Plugin.LidWeldDetection.ViewModels
         public override bool ExeModule()
         {
             Stopwatch.Restart();
+            // 局部变量声明，finally 中统一释放
             HImage sourceImage = null;
             HObject chObj = null;
             HObject chRealObj = null;
@@ -101,7 +133,7 @@ namespace Plugin.LidWeldDetection.ViewModels
 
             try
             {
-                // 释放旧的缓存图像
+                // ===== 步骤0：清理旧缓存，重置输出变量 =====
                 _originalImage?.Dispose(); _originalImage = null;
                 _fittedImage?.Dispose(); _fittedImage = null;
                 _diffImage?.Dispose(); _diffImage = null;
@@ -124,7 +156,7 @@ namespace Plugin.LidWeldDetection.ViewModels
                     return false;
                 }
 
-                // === 获取输入图像 ===
+                // ===== 步骤1：获取输入图像并缓存原始图（用于显示模式切换）=====
                 GetDispImage(InputImageLinkText, true);
                 if (DispImage == null || !DispImage.IsInitialized())
                 {
@@ -134,7 +166,8 @@ namespace Plugin.LidWeldDetection.ViewModels
                 sourceImage = new HImage(DispImage);
                 _originalImage = new HImage(DispImage);
 
-                // 提取高度通道（通道1），转 real 类型
+                // ===== 步骤2：提取高度通道（Ch1）并转为 real 浮点类型 =====
+                // 3D 深度图可能为多通道（Ch1=高度, Ch2=亮度），统一取第1通道
                 HOperatorSet.CountChannels(sourceImage, out HTuple channelCount);
                 if (channelCount.I < 1)
                 {
@@ -145,8 +178,9 @@ namespace Plugin.LidWeldDetection.ViewModels
                 HOperatorSet.AccessChannel(sourceImage, out chObj, 1);
                 HOperatorSet.ConvertImageType(chObj, out chRealObj, "real");
 
-                // Z像素单位换算：原始高度值 × ResolutionZ → 实际高度。
-                // 例如原始值单位为 um、希望以 mm 检测时，ResolutionZ 应设为 0.001。
+                // ===== 步骤3：Z像素单位换算 =====
+                // 原始高度值 × ResolutionZ → 实际物理高度
+                // 例如原始值单位为 μm、希望以 mm 检测时，ResolutionZ = 0.001
                 if (Math.Abs(ResolutionZ - 1.0) > 1e-12)
                 {
                     HOperatorSet.ScaleImage(new HImage(chRealObj), out HObject scaledObj, ResolutionZ, 0.0);
@@ -160,10 +194,9 @@ namespace Plugin.LidWeldDetection.ViewModels
                 int srcW = width.I;
                 int srcH = height.I;
 
-                // === 过滤无效数据 ===
-                // Keyence 高度图常用负哨兵值表示无效点，例如 -21474836。
-                // 有效高度范围使用换算后的实际高度单位；默认把负高度过滤掉。
-                // 如果现场确认 0 也是空点，可把最小有效高度调到 0.0001。
+                // ===== 步骤4：过滤无效数据 =====
+                // Keyence 等传感器的高度图常用负哨兵值（如 -21474836）表示无效点
+                // 通过 MinValidHeight/MaxValidHeight 参数设定有效高度范围
                 double validMin = MinValidHeight;
                 double validMax = Math.Max(validMin, MaxValidHeight);
                 HOperatorSet.Threshold(chRealObj, out HObject validRegionObj, validMin, validMax);
@@ -176,6 +209,9 @@ namespace Plugin.LidWeldDetection.ViewModels
                     return false;
                 }
 
+                // ===== 步骤5：构建检测区域（轮廓偏移后取交集）=====
+                // 有效区域向内/外偏移 ContourOffset，排除边缘不可靠数据
+                // 再与原始有效区域取交集，确保检测区域不超出有效数据范围
                 offsetWorkpieceRegion = BuildOffsetWorkpieceRegion(validRegion, ContourOffset);
                 HOperatorSet.Intersection(offsetWorkpieceRegion, validRegion, out HObject inspectionRegionObj);
                 inspectionRegion = new HRegion(inspectionRegionObj);
@@ -186,18 +222,20 @@ namespace Plugin.LidWeldDetection.ViewModels
                     Logger.GetExceptionMsg(new Exception("轮廓偏移后没有有效检测区域"));
                     return false;
                 }
-
                 _inspectionRegion = new HRegion(inspectionRegion);
 
+                // ===== 步骤6：构建工件轮廓线（仅用于显示，黄色边界）=====
                 workpieceContourRegion = BuildWorkpieceContourRegion(offsetWorkpieceRegion);
                 _workpieceContourRegion = workpieceContourRegion != null && workpieceContourRegion.IsInitialized() && workpieceContourRegion.Area > 0
                     ? new HRegion(workpieceContourRegion)
                     : null;
 
-                // 按检测连通域分别生成拟合面，避免背景和不同工件段互相影响。
+                // ===== 步骤7：按连通域分别构建光滑参考面 =====
+                // 对有效区域中的每个独立连通域，先降采样(去噪)→再上采样(回原尺寸)，通过图像缩放插值构造光滑参考面
+                // 降采样用 "constant" 避免无效值扩散（最近邻），上采样用用户选择的插值方式
                 string componentInterpDown = "constant";
                 string componentInterpUp = GetHalconInterpolationMode();
-                fittedImage = BuildComponentFittedImage(realImage, inspectionRegion, srcW, srcH, componentInterpDown, componentInterpUp);
+                fittedImage = BuildComponentFittedImage(realImage, validRegion, srcW, srcH, componentInterpDown, componentInterpUp);
                 if (fittedImage == null || !fittedImage.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -206,10 +244,12 @@ namespace Plugin.LidWeldDetection.ViewModels
                 }
                 _fittedImage = new HImage(fittedImage);
 
-                // === 差值图 = 原始 - 拟合（只在检测区域计算）===
-                HOperatorSet.ReduceDomain(realImage, inspectionRegion, out HObject validRealObj);
+                // ===== 步骤8：计算残差图 =====
+                // 残差 = 原始高度 - 光滑参考面
+                // 正值 → 实际高于参考面（凸起），负值 → 实际低于参考面（凹陷）
+                HOperatorSet.ReduceDomain(realImage, validRegion, out HObject validRealObj);
                 HImage validRealImage = new HImage(validRealObj);
-                HOperatorSet.ReduceDomain(fittedImage, inspectionRegion, out HObject validFittedObj);
+                HOperatorSet.ReduceDomain(fittedImage, validRegion, out HObject validFittedObj);
                 HImage validFittedImage = new HImage(validFittedObj);
                 HOperatorSet.SubImage(validRealImage, validFittedImage, out diffObj, 1.0, 0.0);
                 validRealImage.Dispose();
@@ -217,14 +257,18 @@ namespace Plugin.LidWeldDetection.ViewModels
                 diffImage = new HImage(diffObj);
                 _diffImage = new HImage(diffObj);
 
-                // === 缺陷检测 ===
+                // ===== 步骤9：缺陷检测（凹/凸/双检）=====
+                // 在残差图上按阈值分割，凹缺陷取负值区域，凸缺陷取正值区域
+                // 检测区域限定在 inspectionRegion（排除工件边缘干扰）
                 bool hasConcave = false;
                 bool hasConvex = false;
 
                 if (DefectType == eDefectType.Concave || DefectType == eDefectType.Both)
                 {
-                    // 凹缺陷：差值 < -凹陷阈值，且必须在检测区域内
+                    // 凹缺陷检测：残差 < -ConcaveThreshold（高度低于参考面的区域）
+                    // 差值越小凹陷越深，min 设为极负值确保不漏检，实际由阈值控制深度
                     HOperatorSet.Threshold(diffImage, out HObject concaveObj, -999999.0, -ConcaveThreshold);
+                    // 取与检测区域的交集，排除工件边缘及轮廓偏移区域
                     HOperatorSet.Intersection(new HRegion(concaveObj), inspectionRegion, out HObject concaveValidObj);
                     concaveObj.Dispose();
                     HRegion rawConcaveRegion = new HRegion(concaveValidObj);
@@ -237,7 +281,7 @@ namespace Plugin.LidWeldDetection.ViewModels
 
                 if (DefectType == eDefectType.Convex || DefectType == eDefectType.Both)
                 {
-                    // 凸缺陷：差值 > 凸起阈值，且必须在检测区域内
+                    // 凸缺陷检测：残差 > ConvexThreshold（高度高于参考面的区域）
                     HOperatorSet.Threshold(diffImage, out HObject convexObj, ConvexThreshold, 999999.0);
                     HOperatorSet.Intersection(new HRegion(convexObj), inspectionRegion, out HObject convexValidObj);
                     convexObj.Dispose();
@@ -249,7 +293,8 @@ namespace Plugin.LidWeldDetection.ViewModels
                         hasConvex = true;
                 }
 
-                // 合并缺陷区域
+                // ===== 步骤10：合并缺陷区域 =====
+                // 支持单选凹、单选凸、或凹+凸合并
                 if (DefectType == eDefectType.Both && hasConcave && hasConvex)
                 {
                     HOperatorSet.Union2(concaveRegion, convexRegion, out HObject unionObj);
@@ -269,18 +314,20 @@ namespace Plugin.LidWeldDetection.ViewModels
                     defectRegion = new HRegion();
                 }
 
+                // 保存到运行时缓存（用于后续显示模式切换和 ROI 叠加）
                 _defectRegion = defectRegion != null && defectRegion.IsInitialized() ? new HRegion(defectRegion) : null;
                 _concaveRegion = concaveRegion != null && concaveRegion.IsInitialized() ? new HRegion(concaveRegion) : null;
                 _convexRegion = convexRegion != null && convexRegion.IsInitialized() ? new HRegion(convexRegion) : null;
 
-                // === 统计缺陷信息 ===
+                // ===== 步骤11：统计缺陷信息 =====
+                // 缺陷数量（连通域个数）、总面积、最大凹陷深度/凸起高度
                 CalculateDefectStats(diffImage, concaveRegion, convexRegion);
                 HasDefect = DefectCount > 0;
 
-                // === 根据显示模式更新 DispImage ===
+                // ===== 步骤12：根据显示模式更新主窗口图像 =====
                 UpdateDisplayImage();
 
-                // === 显示工件轮廓 ===
+                // ===== 步骤13：叠加显示工件轮廓（黄色边界线）=====
                 if (ShowWorkpieceContour && _workpieceContourRegion != null && _workpieceContourRegion.IsInitialized() && _workpieceContourRegion.Area > 0)
                 {
                     ShowHRoi(new HRoi(
@@ -293,7 +340,7 @@ namespace Plugin.LidWeldDetection.ViewModels
                     ));
                 }
 
-                // === 显示缺陷区域 ===
+                // ===== 步骤14：叠加显示缺陷区域（凹=蓝色，凸=红色）=====
                 if (ShowDefectRegion)
                 {
                     if (_concaveRegion != null && _concaveRegion.IsInitialized() && _concaveRegion.Area > 0)
@@ -348,6 +395,13 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 对有效区域做轮廓偏移
+        /// 内缩(ContourOffset &lt; 0)：ErosionCircle 腐蚀，缩小检测区域，排除边缘毛刺
+        /// 外扩(ContourOffset &gt; 0)：DilationCircle 膨胀，扩大检测区域
+        /// 偏移结果为 0：直接复制原始区域
+        /// 内部先 FillUp 填充孔洞，避免空心区域影响形态学操作
+        /// </summary>
         private HRegion BuildOffsetWorkpieceRegion(HRegion validRegion, double contourOffset)
         {
             if (validRegion == null || !validRegion.IsInitialized() || validRegion.Area <= 0)
@@ -375,6 +429,11 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 生成工件轮廓线（有效区域边界），取 inner 边界
+        /// 先 FillUp 填充内部孔洞，避免内部无效点被当作工件外轮廓显示
+        /// 用于主窗口黄色高亮叠加显示
+        /// </summary>
         private HRegion BuildWorkpieceContourRegion(HRegion validRegion)
         {
             if (validRegion == null || !validRegion.IsInitialized() || validRegion.Area <= 0)
@@ -384,7 +443,6 @@ namespace Plugin.LidWeldDetection.ViewModels
             HObject boundaryObj = null;
             try
             {
-                // 先填充有效区域内部小孔，避免内部无效点被显示成工件外轮廓。
                 HOperatorSet.FillUp(validRegion, out filledObj);
                 HOperatorSet.Boundary(filledObj, out boundaryObj, "inner");
                 return new HRegion(boundaryObj);
@@ -396,6 +454,13 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 统计缺陷信息
+        /// 对凹/凸区域分别执行：
+        /// 1. Connection 连通域分割 + CountObj 计数 → 缺陷数量
+        /// 2. AreaCenter 求和面积 → 总缺陷面积
+        /// 3. MinMaxGray 取残差极值 → 凹取 min(最大凹陷深度)、凸取 max(最大凸起高度)
+        /// </summary>
         private void CalculateDefectStats(HImage diffImage, HRegion concaveRegion, HRegion convexRegion)
         {
             DefectCount = 0;
@@ -435,6 +500,21 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 按连通域构建光滑参考面（降采样→上采样，空间低通滤波）
+        ///
+        /// 原理：对每个独立工件区域，通过图像缩放过程中插值平滑去除局部缺陷信号
+        /// 1. 取连通域的外接矩形，裁剪出局部图像
+        /// 2. 矩形内但不在连通域内的无效像素，用该连通域的平均高度填充
+        /// 3. 按 SampleRateX/Y 降采样 → 缩小图像，局部高频信息（缺陷、噪声）被平滑掉
+        /// 4. 再上采样回原始尺寸 → 插值得到光滑参考面
+        /// 5. 仅提取连通域内像素的值，写入画布（SetGrayval）
+        /// 6. 最终用 ChangeDomain 限制画布 domain 到所有连通域的并集
+        ///
+        /// 注意：这不是多项式/高斯曲面拟合，本质是图像缩放插值的低通滤波效果
+        /// interpDown: 降采样插值方式（固定 "constant" 最近邻，避免无效值扩散）
+        /// interpUp: 上采样插值方式（用户可选 Bilinear/Bicubic 等）
+        /// </summary>
         private HImage BuildComponentFittedImage(
             HImage realImage,
             HRegion validRegion,
@@ -443,8 +523,11 @@ namespace Plugin.LidWeldDetection.ViewModels
             string interpDown,
             string interpUp)
         {
+            // 拟合画布：与原图等大的全零 real 图像
             HObject fittedCanvasObj = null;
+            // 有效区域按连通域分割后的各个独立区域
             HObject connectedObj = null;
+            // 所有已拟合连通域的并集（最终用作画布 domain）
             HRegion fittedRegion = null;
 
             try
@@ -453,6 +536,7 @@ namespace Plugin.LidWeldDetection.ViewModels
                 HOperatorSet.Connection(validRegion, out connectedObj);
                 HOperatorSet.CountObj(connectedObj, out HTuple componentCount);
 
+                // 逐个连通域拟合
                 for (int i = 1; i <= componentCount.I; i++)
                 {
                     HObject componentObj = null;
@@ -472,12 +556,14 @@ namespace Plugin.LidWeldDetection.ViewModels
 
                     try
                     {
+                        // 选出第 i 个连通域
                         HOperatorSet.SelectObj(connectedObj, out componentObj, i);
                         componentRegion = new HRegion(componentObj);
 
                         if (!componentRegion.IsInitialized() || componentRegion.Area <= 0)
                             continue;
 
+                        // --- 获取外接矩形，裁剪出局部图像 ---
                         HOperatorSet.SmallestRectangle1(componentRegion,
                             out HTuple row1, out HTuple col1, out HTuple row2, out HTuple col2);
 
@@ -491,17 +577,22 @@ namespace Plugin.LidWeldDetection.ViewModels
                         HOperatorSet.GenRectangle1(out rectObj, r1, c1, r2, c2);
                         rectRegion = new HRegion(rectObj);
 
+                        // 裁剪：ReduceDomain 限制到矩形区域 + CropPart 裁出独立图像
                         HOperatorSet.ReduceDomain(realImage, rectRegion, out localRealObj);
                         HOperatorSet.CropPart(localRealObj, out localCropObj, r1, c1, localW, localH);
                         localCropImage = new HImage(localCropObj);
 
+                        // --- 填充无效像素：矩形内但不在连通域内的区域，填入该连通域的平均高度 ---
+                        // 避免无效值（如0或极负值）在降采样时扩散到有效区域
                         HOperatorSet.Intensity(componentRegion, realImage, out HTuple meanHeight, out _);
                         HOperatorSet.Difference(rectRegion, componentRegion, out localInvalidObj);
                         localInvalidRegion = new HRegion(localInvalidObj);
                         if (localInvalidRegion.IsInitialized() && localInvalidRegion.Area > 0)
                         {
+                            // MoveRegion 将无效区域平移到局部坐标系（原点 = r1, c1）
                             HOperatorSet.MoveRegion(localInvalidRegion, out movedInvalidObj, -r1, -c1);
                             movedInvalidRegion = new HRegion(movedInvalidObj);
+                            // PaintRegion：将无效像素填充为平均高度值
                             HOperatorSet.PaintRegion(movedInvalidRegion, localCropImage, out localFilledObj, meanHeight, "fill");
                             movedInvalidRegion.Dispose();
                             movedInvalidRegion = null;
@@ -518,13 +609,19 @@ namespace Plugin.LidWeldDetection.ViewModels
                             localCropImage = null;
                         }
 
+                        // --- 降采样 → 上采样：构建光滑拟合曲面 ---
+                        // 降采样比例 = 1/SampleRateX, 1/SampleRateY
                         int intervalX = Math.Max(1, SampleRateX);
                         int intervalY = Math.Max(1, SampleRateY);
                         int targetW = Math.Max(2, (int)Math.Ceiling((double)localW / intervalX));
                         int targetH = Math.Max(2, (int)Math.Ceiling((double)localH / intervalY));
 
+                        // 降采样：原尺寸 → 小尺寸，去除局部高频信息（缺陷、噪声）
                         HOperatorSet.ZoomImageSize(localFilledObj, out sampledObj, targetW, targetH, interpDown);
+                        // 上采样：小尺寸 → 原尺寸，插值得到光滑曲面
                         HOperatorSet.ZoomImageSize(sampledObj, out fittedLocalObj, localW, localH, interpUp);
+
+                        // --- 仅提取连通域内像素的拟合值，写入画布 ---
                         HOperatorSet.GetRegionPoints(componentRegion, out HTuple componentRows, out HTuple componentCols);
                         HOperatorSet.TupleSub(componentRows, r1, out HTuple localRows);
                         HOperatorSet.TupleSub(componentCols, c1, out HTuple localCols);
@@ -585,6 +682,11 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 按面积过滤缺陷区域
+        /// 对输入 region 做 Connection 连通域分割，再 SelectShape 按面积筛选
+        /// 保留 MinDefectArea ≤ 面积 ≤ MaxDefectArea 的连通域，过滤掉过小噪点和过大连片
+        /// </summary>
         private HRegion FilterDefectRegionByArea(HRegion region)
         {
             if (region == null || !region.IsInitialized() || region.Area <= 0)
@@ -607,6 +709,13 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 根据当前 DisplayMode 更新主窗口显示的图像
+        /// Original → 原始深度图
+        /// Fitted → 光滑参考面伪彩色（real → byte 映射）
+        /// Difference → 残差图伪彩色
+        /// Detection → 残差图伪彩色（缺陷区域由 ShowHRoi 叠加标记）
+        /// </summary>
         private void UpdateDisplayImage()
         {
             try
@@ -675,6 +784,10 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>
+        /// 将用户选择的 eInterpolationMethod 枚举映射为 Halcon 插值字符串
+        /// 当前 CatmullRom 和 NaturalCubic 暂用 "bicubic" 替代，后续可通过 Halcon 自定义插值实现
+        /// </summary>
         private string GetHalconInterpolationMode()
         {
             switch (InterpolationMethod)
@@ -688,6 +801,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>注册模块输出参数，供下游流程通过变量链接获取</summary>
         public override void AddOutputParams()
         {
             AddOutputParam("工件轮廓", "HRegion", _workpieceContourRegion);
@@ -702,7 +816,9 @@ namespace Plugin.LidWeldDetection.ViewModels
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
 
-        #region Properties
+
+        #region Properties - 输入/输出参数，与 Halcon 脚本面板绑定
+        /// <summary>输入图像链接文本，格式如 &amp;模块名.变量名</summary>
         private string _InputImageLinkText;
         public string InputImageLinkText
         {
@@ -710,7 +826,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _InputImageLinkText, value); }
         }
 
-        // 保留旧属性名 ResolutionZ，避免破坏已保存方案；界面显示为“Z像素单位”。
+        /// <summary>Z 分辨率/像素单位换算系数，原始高度值 × ResolutionZ → 实际物理高度</summary>
         private double _ResolutionZ = 1.0;
         public double ResolutionZ
         {
@@ -718,6 +834,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ResolutionZ, value); }
         }
 
+        /// <summary>有效高度下限，低于此值视为无效点（如传感器哨兵值）</summary>
         private double _MinValidHeight = 0.0;
         public double MinValidHeight
         {
@@ -725,6 +842,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _MinValidHeight, value); }
         }
 
+        /// <summary>有效高度上限，高于此值视为无效点</summary>
         private double _MaxValidHeight = 999999.0;
         public double MaxValidHeight
         {
@@ -732,6 +850,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _MaxValidHeight, value); }
         }
 
+        /// <summary>X 方向降采样间隔（列方向），值越大平滑越强，最小为 2</summary>
         private int _SampleRateX = 10;
         public int SampleRateX
         {
@@ -739,6 +858,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _SampleRateX, Math.Max(2, value)); }
         }
 
+        /// <summary>Y 方向降采样间隔（行方向），值越大平滑越强，最小为 2</summary>
         private int _SampleRateY = 80;
         public int SampleRateY
         {
@@ -746,6 +866,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _SampleRateY, Math.Max(2, value)); }
         }
 
+        /// <summary>上采样插值方式，影响拟合曲面的光滑度</summary>
         private eInterpolationMethod _InterpolationMethod = eInterpolationMethod.Bilinear;
         public eInterpolationMethod InterpolationMethod
         {
@@ -753,6 +874,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _InterpolationMethod, value); }
         }
 
+        /// <summary>缺陷检测类型：仅凹、仅凸、或凹凸都检</summary>
         private eDefectType _DefectType = eDefectType.Concave;
         public eDefectType DefectType
         {
@@ -760,6 +882,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _DefectType, value); }
         }
 
+        /// <summary>凹缺陷深度阈值，残差 &lt; -阈值 的区域判定为凹陷</summary>
         private double _ConcaveThreshold = 0.20;
         public double ConcaveThreshold
         {
@@ -767,6 +890,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ConcaveThreshold, value); }
         }
 
+        /// <summary>凸缺陷高度阈值，残差 &gt; 阈值 的区域判定为凸起</summary>
         private double _ConvexThreshold = 0.20;
         public double ConvexThreshold
         {
@@ -774,6 +898,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ConvexThreshold, value); }
         }
 
+        /// <summary>缺陷最小面积，低于此值的连通域被过滤</summary>
         private double _MinDefectArea = 10.0;
         public double MinDefectArea
         {
@@ -781,6 +906,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _MinDefectArea, Math.Max(0, value)); }
         }
 
+        /// <summary>缺陷最大面积，高于此值的连通域被过滤（排除大面积误检）</summary>
         private double _MaxDefectArea = 999999999.0;
         public double MaxDefectArea
         {
@@ -788,6 +914,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _MaxDefectArea, Math.Max(0, value)); }
         }
 
+        /// <summary>是否在主窗口叠加显示缺陷区域（凹=蓝色，凸=红色）</summary>
         private bool _ShowDefectRegion = true;
         public bool ShowDefectRegion
         {
@@ -795,6 +922,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ShowDefectRegion, value); }
         }
 
+        /// <summary>是否在主窗口叠加显示工件轮廓线（黄色边界）</summary>
         private bool _ShowWorkpieceContour = true;
         public bool ShowWorkpieceContour
         {
@@ -802,6 +930,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ShowWorkpieceContour, value); }
         }
 
+        /// <summary>轮廓偏移量，正=外扩，负=内缩，用于排除工件边缘不可靠数据</summary>
         private double _ContourOffset = 0.0;
         public double ContourOffset
         {
@@ -809,6 +938,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _ContourOffset, value); }
         }
 
+        /// <summary>主窗口显示模式，切换时自动刷新显示图像</summary>
         private eDisplayMode _DisplayMode = eDisplayMode.Original;
         public eDisplayMode DisplayMode
         {
@@ -820,7 +950,8 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
-        // 输出结果
+        // ---- 输出结果（由 ExeModule 填充，供 AddOutputParams 注册）----
+        /// <summary>是否存在缺陷（输出）</summary>
         private bool _HasDefect;
         public bool HasDefect
         {
@@ -828,6 +959,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _HasDefect, value); }
         }
 
+        /// <summary>缺陷数量（输出），各连通域按面积过滤后的计数</summary>
         private int _DefectCount;
         public int DefectCount
         {
@@ -835,6 +967,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _DefectCount, value); }
         }
 
+        /// <summary>缺陷总面积（输出），各连通域面积之和</summary>
         private double _DefectArea;
         public double DefectArea
         {
@@ -842,6 +975,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _DefectArea, value); }
         }
 
+        /// <summary>最大凹陷深度（输出），取自残差图凹区域最小值，取绝对值后为正</summary>
         private double _MaxConcaveDepth;
         public double MaxConcaveDepth
         {
@@ -849,6 +983,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             set { Set(ref _MaxConcaveDepth, value); }
         }
 
+        /// <summary>最大凸起高度（输出），取自残差图凸区域最大值</summary>
         private double _MaxConvexHeight;
         public double MaxConvexHeight
         {
@@ -857,7 +992,8 @@ namespace Plugin.LidWeldDetection.ViewModels
         }
         #endregion
 
-        #region Commands
+        #region Commands - UI 交互命令绑定
+        /// <summary>模块窗口加载完成回调，初始化 Halcon 图像控件并尝试自动链接输入</summary>
         public override void Loaded()
         {
             base.Loaded();
@@ -879,6 +1015,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>变量链接变更回调，根据 SendName 尾部的命令类型更新对应属性</summary>
         private void OnVarChanged(VarChangedEventParamModel obj)
         {
             eLinkCommand linkCommand = (eLinkCommand)Enum.Parse(typeof(eLinkCommand), obj.SendName.Split(',')[1]);
@@ -890,6 +1027,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>链接命令：弹出变量链接窗口，选择输入图像来源</summary>
         [NonSerialized]
         private CommandBase _LinkCommand;
         public CommandBase LinkCommand
@@ -918,6 +1056,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>执行命令：触发 ExeModule 完整检测流程</summary>
         [NonSerialized]
         private CommandBase _ExecuteCommand;
         public CommandBase ExecuteCommand
@@ -930,6 +1069,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>确认命令：关闭模块视图窗口</summary>
         [NonSerialized]
         private CommandBase _ConfirmCommand;
         public CommandBase ConfirmCommand
@@ -948,6 +1088,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             }
         }
 
+        /// <summary>切换显示模式命令：在原始/拟合/差值/检测四种模式间切换</summary>
         [NonSerialized]
         private CommandBase _SwitchDisplayCommand;
         public CommandBase SwitchDisplayCommand
@@ -967,7 +1108,8 @@ namespace Plugin.LidWeldDetection.ViewModels
         }
         #endregion
 
-        #region Serialization
+        #region Serialization - 方案保存/加载
+        /// <summary>序列化模块参数到 JSON，保存方案时调用</summary>
         public override string HVSerialize()
         {
             JObject obj = JObject.Parse(base.HVSerialize());
@@ -990,6 +1132,7 @@ namespace Plugin.LidWeldDetection.ViewModels
             return obj.ToString();
         }
 
+        /// <summary>从 JSON 反序列化模块参数，加载方案时调用</summary>
         public override void HVDeserialize(string json)
         {
             if (string.IsNullOrEmpty(json)) return;
