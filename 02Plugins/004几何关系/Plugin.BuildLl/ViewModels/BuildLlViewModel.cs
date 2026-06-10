@@ -77,6 +77,7 @@ namespace Plugin.BuildLl.ViewModels
                     Dis.IntersectionLl(Line1, Line2, out double row, out double col, out double deg, out int isParallel);
                     CrossPointX = Math.Round(row, 3);
                     CrossPointY = Math.Round(col, 3);
+                    DegAngle = Math.Round(deg, 3);
                     deg = deg / 180 * Math.PI;
                     Deg = Math.Round(deg, 3);
                     IsParallel = (isParallel == 1);
@@ -123,7 +124,8 @@ namespace Plugin.BuildLl.ViewModels
         {
             AddOutputParam("交点X", "double",CrossPointY );
             AddOutputParam("交点Y", "double", CrossPointX);
-            AddOutputParam("角度", "double", Deg);
+            AddOutputParam("弧度", "double", Deg);
+            AddOutputParam("角度", "double", DegAngle);
             AddOutputParam("平行", "bool", IsParallel);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK ? true : false);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
@@ -144,11 +146,19 @@ namespace Plugin.BuildLl.ViewModels
             set { Set(ref _CrossPointY, value); }
         }
         private double _Deg;
-        /// <summary>角度</summary>
+        /// <summary>角度(弧度)</summary>
         public double Deg
         {
             get { return _Deg; }
             set { Set(ref _Deg, value); }
+        }
+
+        private double _DegAngle;
+        /// <summary>角度(度)</summary>
+        public double DegAngle
+        {
+            get { return _DegAngle; }
+            set { Set(ref _DegAngle, value); }
         }
 
         private bool _IsParallel = false;
