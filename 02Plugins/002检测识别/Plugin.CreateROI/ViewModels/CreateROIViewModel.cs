@@ -86,21 +86,54 @@ namespace Plugin.CreateROI.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
+                GetHomMat2D();
                 switch (SelectedROIType)
                 {
                     case eDrawShape.矩形:
-                        OutRegion.GenRectangle2(
-                            Convert.ToDouble(GetLinkValue(Rect2MidR)),
-                            Convert.ToDouble(GetLinkValue(Rect2MidC)),
-                            (double)((HTuple)(Convert.ToDouble(GetLinkValue(Rect2Deg)))).TupleRad(),
-                            Convert.ToDouble(GetLinkValue(Rect2Len1)),
-                            Convert.ToDouble(GetLinkValue(Rect2Len2)));
+                        {
+                            double rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
+                            double rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
+                            double rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
+                            double rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
+                            double rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
+
+                            OutRegion.GenRectangle2(rectRow, rectCol, rectPhi, rectLen1, rectLen2);
+
+                            if (HomMat2D != null && HomMat2D.Length > 0)
+                            {
+                                ROIRectangle2 src = new ROIRectangle2(rectRow, rectCol, rectPhi, rectLen1, rectLen2);
+                                Aff.Affine2d(HomMat2D, src, TranRect2);
+                            }
+                            else
+                            {
+                                TranRect2.MidR = rectRow;
+                                TranRect2.MidC = rectCol;
+                                TranRect2.Phi = rectPhi;
+                                TranRect2.Length1 = rectLen1;
+                                TranRect2.Length2 = rectLen2;
+                            }
+                        }
                         break;
                     case eDrawShape.圆形:
-                        OutRegion.GenCircle(
-                            Convert.ToDouble(GetLinkValue(CircleY)),
-                            Convert.ToDouble(GetLinkValue(CircleX)),
-                            Convert.ToDouble(GetLinkValue(CircleRadius)));
+                        {
+                            double circleY = Convert.ToDouble(GetLinkValue(CircleY));
+                            double circleX = Convert.ToDouble(GetLinkValue(CircleX));
+                            double circleRadius = Convert.ToDouble(GetLinkValue(CircleRadius));
+
+                            OutRegion.GenCircle(circleY, circleX, circleRadius);
+
+                            if (HomMat2D != null && HomMat2D.Length > 0)
+                            {
+                                ROICircle src = new ROICircle(circleY, circleX, circleRadius);
+                                Aff.Affine2d(HomMat2D, src, TranCircle);
+                            }
+                            else
+                            {
+                                TranCircle.CenterY = circleY;
+                                TranCircle.CenterX = circleX;
+                                TranCircle.Radius = circleRadius;
+                            }
+                        }
                         break;
                 }
                 if (OutRegion == null || !OutRegion.IsInitialized() || OutRegion.Area <= 0)
@@ -108,7 +141,6 @@ namespace Plugin.CreateROI.ViewModels
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
-                GetHomMat2D();
                 if (HomMat2D != null && HomMat2D.Length > 0)
                 {
                     OutRegion = OutRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
@@ -126,15 +158,13 @@ namespace Plugin.CreateROI.ViewModels
                 if (finalRegion_Temp != null && finalRegion_Temp.IsInitialized())
                     OutRegion = OutRegion.Difference(finalRegion_Temp);
 
-                var view = ModuleView as CreateROIView;
-                VMHWindowControl mWindowH;
-                if (view == null || view.IsClosed)
-                    mWindowH = ViewDic.GetView(DispImage.DispViewID);
-                else
-                    mWindowH = view.mWindowH;
-
                 if (ShowResultContour && OutRegion != null && OutRegion.IsInitialized())
-                    mWindowH.WindowH.DispHobject(OutRegion, "green", false);
+                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "green", new HObject(OutRegion)));
+
+                if (finalRegion_Temp != null && finalRegion_Temp.IsInitialized())
+                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.屏蔽范围, "green", new HObject(finalRegion_Temp)));
+
+                ShowHRoi();
 
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
@@ -164,12 +194,20 @@ namespace Plugin.CreateROI.ViewModels
                     AddOutputParam("矩形半长1", "double", Convert.ToDouble(GetLinkValue(Rect2Len1)));
                     AddOutputParam("矩形半长2", "double", Convert.ToDouble(GetLinkValue(Rect2Len2)));
                     AddOutputParam("ROI类型", "string", "矩形");
+                    AddOutputParam("变换后长度1", "double", Math.Round(TranRect2.Length1, 3));
+                    AddOutputParam("变换后长度2", "double", Math.Round(TranRect2.Length2, 3));
+                    AddOutputParam("变换后中心点X", "double", Math.Round(TranRect2.MidC, 3));
+                    AddOutputParam("变换后中心点Y", "double", Math.Round(TranRect2.MidR, 3));
+                    AddOutputParam("变换后角度", "double", Math.Round(TranRect2.Deg, 3));
                     break;
                 case eDrawShape.圆形:
                     AddOutputParam("圆形中心行", "double", Convert.ToDouble(GetLinkValue(CircleX)));
                     AddOutputParam("圆形中心列", "double", Convert.ToDouble(GetLinkValue(CircleY)));
                     AddOutputParam("圆形半径", "double", Convert.ToDouble(GetLinkValue(CircleRadius)));
                     AddOutputParam("ROI类型", "string", "圆形");
+                    AddOutputParam("变换后圆心点X", "double", Math.Round(TranCircle.CenterX, 3));
+                    AddOutputParam("变换后圆心点Y", "double", Math.Round(TranCircle.CenterY, 3));
+                    AddOutputParam("变换后半径", "double", Math.Round(TranCircle.Radius, 3));
                     break;
             }
 
@@ -252,7 +290,7 @@ namespace Plugin.CreateROI.ViewModels
                 RaisePropertyChanged();
                 GetDispImage(InputImageLinkText);
                 if (DispImage != null && DispImage.IsInitialized())
-                    ShowHRoi();
+                    InitROI();
             }
         }
 
@@ -260,7 +298,7 @@ namespace Plugin.CreateROI.ViewModels
         public eDrawShape SelectedROIType
         {
             get => _SelectedROIType;
-            set => Set(ref _SelectedROIType, value, () => ShowHRoi());
+            set => Set(ref _SelectedROIType, value, () => InitROI());
         }
 
         private ROIRectangle2 _Rect2;
@@ -284,6 +322,11 @@ namespace Plugin.CreateROI.ViewModels
             }
             set => _Circle = value;
         }
+
+        /// <summary>显示位置的矩形（经HomMat2D前向变换后的屏幕坐标）</summary>
+        public ROIRectangle2 TranRect2 { get; set; } = new ROIRectangle2();
+        /// <summary>显示位置的圆形（经HomMat2D前向变换后的屏幕坐标）</summary>
+        public ROICircle TranCircle { get; set; } = new ROICircle();
 
         private LinkVarModel _Rect2Len1 = new LinkVarModel() { Text = "30" };
         public LinkVarModel Rect2Len1 { get => _Rect2Len1; set { _Rect2Len1 = value; RaisePropertyChanged(); } }
@@ -366,9 +409,9 @@ namespace Plugin.CreateROI.ViewModels
             // ========== 关键修改：始终注册鼠标事件并显示ROI（即使无图像） ==========
             view.mWindowH.hControl.MouseUp += HControl_MouseUp;
             IsLoaded_Flag = true;
-            // 关键修改：仅当 DispImage 有效时才调用 ShowHRoi()
+            // 关键修改：仅当 DispImage 有效时才调用 InitROI()
             if (DispImage != null && DispImage.IsInitialized())
-                ShowHRoi();
+                InitROI();
 
             IsLoaded_Flag = false;
 
@@ -388,6 +431,8 @@ namespace Plugin.CreateROI.ViewModels
                 if (e.PropertyName == nameof(SelectedROIType))
                 {
                     RoiList.Clear();
+                    TranRect2 = new ROIRectangle2();
+                    TranCircle = new ROICircle();
                     RoiChanged();
                 }
             };
@@ -476,7 +521,7 @@ namespace Plugin.CreateROI.ViewModels
                     _ClearPaintCommand = new CommandBase(obj =>
                     {
                         finalRegion.Dispose();
-                        ShowHRoi();
+                        InitROI();
                     });
                 return _ClearPaintCommand;
             }
@@ -492,9 +537,56 @@ namespace Plugin.CreateROI.ViewModels
             IsLoaded_Flag = true;
             try
             {
-                RoiList.Remove(ModuleParam.ModuleName + ROIDefine.Rectangle2);
-                RoiList.Remove(ModuleParam.ModuleName + ROIDefine.Circle);
-                ShowHRoi();
+                GetHomMat2D();
+                if (HomMat2D != null && HomMat2D.Length > 0)
+                {
+                    switch (SelectedROIType)
+                    {
+                        case eDrawShape.矩形:
+                            {
+                                double rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
+                                double rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
+                                double rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
+                                double rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
+                                double rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
+                                ROIRectangle2 src = new ROIRectangle2(rectRow, rectCol, rectPhi, rectLen1, rectLen2);
+                                Aff.Affine2d(HomMat2D, src, TranRect2);
+                            }
+                            break;
+                        case eDrawShape.圆形:
+                            {
+                                double circleY = Convert.ToDouble(GetLinkValue(CircleY));
+                                double circleX = Convert.ToDouble(GetLinkValue(CircleX));
+                                double circleRadius = Convert.ToDouble(GetLinkValue(CircleRadius));
+                                ROICircle src = new ROICircle(circleY, circleX, circleRadius);
+                                Aff.Affine2d(HomMat2D, src, TranCircle);
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (SelectedROIType)
+                    {
+                        case eDrawShape.矩形:
+                            {
+                                TranRect2.MidR = Convert.ToDouble(GetLinkValue(Rect2MidR));
+                                TranRect2.MidC = Convert.ToDouble(GetLinkValue(Rect2MidC));
+                                TranRect2.Phi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
+                                TranRect2.Length1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
+                                TranRect2.Length2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
+                            }
+                            break;
+                        case eDrawShape.圆形:
+                            {
+                                TranCircle.CenterY = Convert.ToDouble(GetLinkValue(CircleY));
+                                TranCircle.CenterX = Convert.ToDouble(GetLinkValue(CircleX));
+                                TranCircle.Radius = Convert.ToDouble(GetLinkValue(CircleRadius));
+                            }
+                            break;
+                    }
+                }
+                InitROI();
             }
             finally
             {
@@ -506,44 +598,63 @@ namespace Plugin.CreateROI.ViewModels
         #region ROI区域交互
         private void HControl_MouseUp(object sender, MouseEventArgs e)
         {
-            if (IsDrawing) return;
-            var view = ModuleView as CreateROIView;
-            if (view == null) return;
-
-            ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
-            if (string.IsNullOrEmpty(index)) return;
-
-            switch (SelectedROIType)
+            try
             {
-                case eDrawShape.矩形:
-                    ROIRectangle2 rectangle2 = (ROIRectangle2)roi;
-                    if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
-                    {
-                        HHomMat2D homInv = new HHomMat2D(HomMat2D_Inverse);
-                        double originalRow = homInv.AffineTransPoint2d(rectangle2.MidR, rectangle2.MidC, out double originalCol);
-                        double _Phi1 = ((HTuple)homInv[0]).TupleAcos().D;
-                        double _Phi2 = ((HTuple)homInv[1]).TupleAsin().D;
-                        double _Phi3 = ((HTuple)homInv[4]).TupleAcos().D;
-                        double _Phi = _Phi2 <= 0 ? _Phi1 : -_Phi3;
-                        UpdateRect2Parameters(originalRow, originalCol, rectangle2.Phi - _Phi, rectangle2.Length1, rectangle2.Length2);
-                    }
-                    else
-                        UpdateRect2Parameters(rectangle2.MidR, rectangle2.MidC, rectangle2.Phi, rectangle2.Length1, rectangle2.Length2);
-                    break;
+                if (IsDrawing) return;
+                var view = ModuleView as CreateROIView;
+                if (view == null) return;
 
-                case eDrawShape.圆形:
-                    ROICircle circle = (ROICircle)roi;
-                    if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
-                    {
-                        ROICircle originalCircle = new ROICircle();
-                        Aff.Affine2d(HomMat2D_Inverse, circle, originalCircle);
-                        UpdateCircleParameters(originalCircle.CenterY, originalCircle.CenterX, originalCircle.Radius);
-                    }
-                    else
-                        UpdateCircleParameters(circle.CenterY, circle.CenterX, circle.Radius);
-                    break;
+                ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
+                if (string.IsNullOrEmpty(index)) return;
+
+                switch (SelectedROIType)
+                {
+                    case eDrawShape.矩形:
+                        ROIRectangle2 rectangle2 = roi as ROIRectangle2;
+                        if (rectangle2 != null)
+                        {
+                            TranRect2.MidR = Math.Round(rectangle2.MidR, 3);
+                            TranRect2.MidC = Math.Round(rectangle2.MidC, 3);
+                            TranRect2.Phi = Math.Round(rectangle2.Phi, 3);
+                            TranRect2.Length1 = Math.Round(rectangle2.Length1, 3);
+                            TranRect2.Length2 = Math.Round(rectangle2.Length2, 3);
+
+                            if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                            {
+                                ROIRectangle2 originalRect2 = new ROIRectangle2();
+                                Aff.Affine2d(HomMat2D_Inverse, rectangle2, originalRect2);
+                                UpdateRect2Parameters(originalRect2.MidR, originalRect2.MidC, originalRect2.Phi, originalRect2.Length1, originalRect2.Length2);
+                            }
+                            else
+                                UpdateRect2Parameters(rectangle2.MidR, rectangle2.MidC, rectangle2.Phi, rectangle2.Length1, rectangle2.Length2);
+                        }
+                        break;
+
+                    case eDrawShape.圆形:
+                        ROICircle circle = roi as ROICircle;
+                        if (circle != null)
+                        {
+                            TranCircle.CenterY = Math.Round(circle.CenterY, 3);
+                            TranCircle.CenterX = Math.Round(circle.CenterX, 3);
+                            TranCircle.Radius = Math.Round(circle.Radius, 3);
+
+                            if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                            {
+                                ROICircle originalCircle = new ROICircle();
+                                Aff.Affine2d(HomMat2D_Inverse, circle, originalCircle);
+                                UpdateCircleParameters(originalCircle.CenterY, originalCircle.CenterX, originalCircle.Radius);
+                            }
+                            else
+                                UpdateCircleParameters(circle.CenterY, circle.CenterX, circle.Radius);
+                        }
+                        break;
+                }
+                //ExeModule();
+                InitROI();
             }
-            RoiChanged();
+            catch (Exception ex)
+            {
+            }
         }
 
         // 修改：支持断开链接并更新数值
@@ -609,108 +720,91 @@ namespace Plugin.CreateROI.ViewModels
             UpdateOrBreak(ref _CircleRadius, CircleRadius, Circle.Radius);
         }
 
-        public override void ShowHRoi()
+        public void InitROI()
         {
             var view = ModuleView as CreateROIView;
             if (view == null) return;
 
-            // 防呆：无有效图像时提示用户并返回，避免后续Halcon操作导致崩溃
-            if (DispImage == null || !DispImage.IsInitialized())
+            switch (SelectedROIType)
             {
-                if (!IsLoaded_Flag)
-                {
-                    MessageView.Ins.MessageBoxShow("请先链接并选择输入图像后再绘制ROI！", eMsgType.Warn);
-                }
-                return;
-            }
-
-            int viewId = DispImage.DispViewID;
-            VMHWindowControl mWindowH = (view == null || view.IsClosed) ? ViewDic.GetView(viewId) : view.mWindowH;
-            if (mWindowH == null) return;
-
-            ClearRoiAndText();
-            mWindowH.ClearROI();
-
-            try
-            {
-                switch (SelectedROIType)
-                {
-                    case eDrawShape.矩形:
-                        try
+                case eDrawShape.矩形:
+                    if (TranRect2.FlagLineStyle != null)
+                    {
+                        view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, TranRect2.MidR, TranRect2.MidC, TranRect2.Phi, TranRect2.Length1, TranRect2.Length2, ref RoiList);
+                    }
+                    else if (DispImage != null && !RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
+                    {
+                        view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 0, 30, 30, ref RoiList);
+                        TranRect2.MidC = view.mWindowH.hv_imageWidth / 4;
+                        TranRect2.MidR = view.mWindowH.hv_imageHeight / 4;
+                        TranRect2.Length1 = 30;
+                        TranRect2.Length2 = 30;
+                        TranRect2.Phi = 0;
+                        Rect2.MidC = view.mWindowH.hv_imageWidth / 4;
+                        Rect2.MidR = view.mWindowH.hv_imageHeight / 4;
+                        Rect2.Length1 = 30;
+                        Rect2.Length2 = 30;
+                        Rect2.Phi = 0;
+                    }
+                    else if (DispImage != null && RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
+                    {
+                        if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                        {
+                            view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, TranRect2.MidR, TranRect2.MidC, TranRect2.Phi, TranRect2.Length1, TranRect2.Length2, ref RoiList);
+                            ROIRectangle2 temp = new ROIRectangle2();
+                            Aff.Affine2d(HomMat2D_Inverse, TranRect2, temp);
+                            Rect2.MidR = Math.Round(temp.MidR, 3);
+                            Rect2.MidC = Math.Round(temp.MidC, 3);
+                            Rect2.Phi = Math.Round(temp.Phi, 3);
+                            Rect2.Length1 = Math.Round(temp.Length1, 3);
+                            Rect2.Length2 = Math.Round(temp.Length2, 3);
+                        }
+                        else
                         {
                             double rectRow = Convert.ToDouble(GetLinkValue(Rect2MidR));
                             double rectCol = Convert.ToDouble(GetLinkValue(Rect2MidC));
                             double rectPhi = (double)((HTuple)Convert.ToDouble(GetLinkValue(Rect2Deg))).TupleRad();
                             double rectLen1 = Convert.ToDouble(GetLinkValue(Rect2Len1));
                             double rectLen2 = Convert.ToDouble(GetLinkValue(Rect2Len2));
-
-                            if (HomMat2D != null && HomMat2D.Length > 0)
-                            {
-                                HHomMat2D homMat = new HHomMat2D(HomMat2D);
-                                rectRow = homMat.AffineTransPoint2d(rectRow, rectCol, out rectCol);
-                                double _Phi1 = ((HTuple)homMat[0]).TupleAcos().D;
-                                double _Phi2 = ((HTuple)homMat[1]).TupleAsin().D;
-                                double _Phi3 = ((HTuple)homMat[4]).TupleAcos().D;
-                                double _Phi = _Phi2 <= 0 ? _Phi1 : -_Phi3;
-                                rectPhi = rectPhi - _Phi;
-                            }
-                            mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rectRow, rectCol, -rectPhi, rectLen1, rectLen2, ref RoiList);
+                            view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rectRow, rectCol, -rectPhi, rectLen1, rectLen2, ref RoiList);
                         }
-                        catch
-                        {
-                            mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, 200, 200, 0, 30, 30, ref RoiList);
-                        }
-                        break;
-
-                    case eDrawShape.圆形:
-                        try
-                        {
-                            ROICircle circle = new ROICircle(
-                                Convert.ToDouble(GetLinkValue(CircleY)),
-                                Convert.ToDouble(GetLinkValue(CircleX)),
-                                Convert.ToDouble(GetLinkValue(CircleRadius)));
-
-                            if (HomMat2D != null && HomMat2D.Length > 0)
-                            {
-                                ROICircle tranCircle = new ROICircle();
-                                Aff.Affine2d(HomMat2D, circle, tranCircle);
-                                circle = tranCircle;
-                            }
-                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, circle.CenterY, circle.CenterX, circle.Radius, ref RoiList);
-                        }
-                        catch
-                        {
-                            mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, 100, 100, 30, ref RoiList);
-                        }
-                        break;
-                }
-
-                // 涂抹区域显示
-                if (finalRegion != null && finalRegion.IsInitialized())
-                {
-                    if (HomMat2D != null && HomMat2D.Length > 0)
-                        finalRegion_Temp = finalRegion.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                    else
-                        finalRegion_Temp = new HRegion(finalRegion);
-                    ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.屏蔽范围, "green", new HObject(finalRegion_Temp)));
-                }
-
-                // 文字等其他ROI
-                foreach (HRoi roi in mHRoi.Where(c => c.ModuleName == ModuleParam.ModuleName))
-                {
-                    if (roi.roiType == HRoiType.文字显示)
-                    {
-                        HText roiText = (HText)roi;
-                        ShowTool.SetFont(mWindowH.hControl.HalconWindow, roiText.size, "false", "false");
-                        ShowTool.SetMsg(mWindowH.hControl.HalconWindow, roiText.text, "image", roiText.row, roiText.col, roiText.drawColor, "false");
                     }
-                    else
-                        mWindowH.WindowH.DispHobject(roi.hobject, roi.drawColor, roi.IsFillDisp);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.GetExceptionMsg(ex);
+                    break;
+                case eDrawShape.圆形:
+                    if (TranCircle.FlagLineStyle != null)
+                    {
+                        view.mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, TranCircle.CenterY, TranCircle.CenterX, TranCircle.Radius, ref RoiList);
+                    }
+                    else if (DispImage != null && !RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Circle))
+                    {
+                        view.mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, view.mWindowH.hv_imageHeight / 4, view.mWindowH.hv_imageWidth / 4, 30, ref RoiList);
+                        TranCircle.CenterY = view.mWindowH.hv_imageWidth / 4;
+                        TranCircle.CenterX = view.mWindowH.hv_imageHeight / 4;
+                        TranCircle.Radius = 30;
+                        Circle.CenterY = view.mWindowH.hv_imageWidth / 4;
+                        Circle.CenterX = view.mWindowH.hv_imageHeight / 4;
+                        Circle.Radius = 30;
+                    }
+                    else if (DispImage != null && RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Circle))
+                    {
+                        if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                        {
+                            view.mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, TranCircle.CenterY, TranCircle.CenterX, TranCircle.Radius, ref RoiList);
+                            ROICircle temp = new ROICircle();
+                            Aff.Affine2d(HomMat2D_Inverse, TranCircle, temp);
+                            Circle.CenterY = Math.Round(temp.CenterY, 3);
+                            Circle.CenterX = Math.Round(temp.CenterX, 3);
+                            Circle.Radius = Math.Round(temp.Radius, 3);
+                        }
+                        else
+                        {
+                            double circleY = Convert.ToDouble(GetLinkValue(CircleY));
+                            double circleX = Convert.ToDouble(GetLinkValue(CircleX));
+                            double circleRadius = Convert.ToDouble(GetLinkValue(CircleRadius));
+                            view.mWindowH.WindowH.genCircle(ModuleParam.ModuleName + ROIDefine.Circle, circleY, circleX, circleRadius, ref RoiList);
+                        }
+                    }
+                    break;
             }
         }
         #endregion
@@ -774,7 +868,7 @@ namespace Plugin.CreateROI.ViewModels
 
                     HOperatorSet.SetSystem("flush_graphic", "false");
                     HOperatorSet.DispObj(ho_Image, view.mWindowH.hv_window);
-                    ShowHRoi();
+                    InitROI();
 
                     if (finalRegion != null && finalRegion.IsInitialized())
                     {
@@ -833,7 +927,7 @@ namespace Plugin.CreateROI.ViewModels
                 else if (finalRegion_Temp?.IsInitialized() == true)
                     finalRegion = new HRegion(finalRegion_Temp);
 
-                ShowHRoi();
+                InitROI();
                 if (finalRegion_Temp?.IsInitialized() == true)
                     view.mWindowH.DispObj(finalRegion_Temp, "blue");
                 view.mWindowH.DrawModel = false;
