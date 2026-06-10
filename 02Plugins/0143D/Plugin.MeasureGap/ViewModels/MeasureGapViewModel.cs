@@ -35,10 +35,11 @@ namespace Plugin.MeasureGap.ViewModels
     public enum eLinkCommand
     {
         InputImageLink,
-        Rect1X1,
-        Rect1Y1,
-        Rect1X2,
-        Rect1Y2
+        Rect2Length1,
+        Rect2Length2,
+        Rect2CenterX,
+        Rect2CenterY,
+        Rect2Phi
     }
 
     #endregion
@@ -84,11 +85,13 @@ namespace Plugin.MeasureGap.ViewModels
                     return false;
                 }
 
-                OutRegion.GenRectangle1(
-                           Convert.ToDouble(GetLinkValue(Rect1Y1)),
-                           Convert.ToDouble(GetLinkValue(Rect1X1)),
-                           Convert.ToDouble(GetLinkValue(Rect1Y2)),
-                           Convert.ToDouble(GetLinkValue(Rect1X2)));
+                double rect2CenterY = Convert.ToDouble(GetLinkValue(Rect2CenterY));
+                double rect2CenterX = Convert.ToDouble(GetLinkValue(Rect2CenterX));
+                double rect2PhiDeg = Convert.ToDouble(GetLinkValue(Rect2Phi));
+                double rect2PhiRad = rect2PhiDeg * Math.PI / 180.0;
+                double rect2Length1 = Convert.ToDouble(GetLinkValue(Rect2Length1));
+                double rect2Length2 = Convert.ToDouble(GetLinkValue(Rect2Length2));
+                OutRegion.GenRectangle2(rect2CenterY, rect2CenterX, rect2PhiRad, rect2Length1, rect2Length2);
                 GetHomMat2D();
                 if (HomMat2D != null && HomMat2D.Length > 0)
                 {
@@ -130,7 +133,7 @@ namespace Plugin.MeasureGap.ViewModels
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测范围, "red", new HObject(Contours)));
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测结果, "red", new HObject(Line)));
                     ShowHRoi();
-                    InitRect1Method(true);
+                    InitRect2Method(true);
 
                 }
                 else
@@ -286,42 +289,48 @@ namespace Plugin.MeasureGap.ViewModels
         /// <summary>
         /// 变换前-Rect
         /// </summary>
-        private LinkVarModel _Rect1X1 = new LinkVarModel() { Text = "10" };
-        public LinkVarModel Rect1X1
+        private LinkVarModel _Rect2Length1 = new LinkVarModel() { Text = "30" };
+        public LinkVarModel Rect2Length1
         {
-            get { return _Rect1X1; }
-            set { _Rect1X1 = value; RaisePropertyChanged(); }
+            get { return _Rect2Length1; }
+            set { _Rect2Length1 = value; RaisePropertyChanged(); }
         }
-        private LinkVarModel _Rect1Y1 = new LinkVarModel() { Text = "10" };
-        public LinkVarModel Rect1Y1
+        private LinkVarModel _Rect2Length2 = new LinkVarModel() { Text = "30" };
+        public LinkVarModel Rect2Length2
         {
-            get { return _Rect1Y1; }
-            set { _Rect1Y1 = value; RaisePropertyChanged(); }
+            get { return _Rect2Length2; }
+            set { _Rect2Length2 = value; RaisePropertyChanged(); }
         }
-        private LinkVarModel _Rect1X2 = new LinkVarModel() { Text = "10" };
-        public LinkVarModel Rect1X2
+        private LinkVarModel _Rect2CenterX = new LinkVarModel() { Text = "200" };
+        public LinkVarModel Rect2CenterX
         {
-            get { return _Rect1X2; }
-            set { _Rect1X2 = value; RaisePropertyChanged(); }
+            get { return _Rect2CenterX; }
+            set { _Rect2CenterX = value; RaisePropertyChanged(); }
         }
-        private LinkVarModel _Rect1Y2 = new LinkVarModel() { Text = "10" };
-        public LinkVarModel Rect1Y2
+        private LinkVarModel _Rect2CenterY = new LinkVarModel() { Text = "200" };
+        public LinkVarModel Rect2CenterY
         {
-            get { return _Rect1Y2; }
-            set { _Rect1Y2 = value; RaisePropertyChanged(); }
+            get { return _Rect2CenterY; }
+            set { _Rect2CenterY = value; RaisePropertyChanged(); }
+        }
+        private LinkVarModel _Rect2Phi = new LinkVarModel() { Text = "0" };
+        public LinkVarModel Rect2Phi
+        {
+            get { return _Rect2Phi; }
+            set { _Rect2Phi = value; RaisePropertyChanged(); }
         }
         /// <summary>
         /// 变换前-直线信息
         /// </summary>
-        public ROIRectangle1 InitRectangle1 { get; set; } = new ROIRectangle1();
+        public ROIRectangle2 InitRectangle2 { get; set; } = new ROIRectangle2();
         /// <summary>
-        /// 直线信息
+        /// 矩形信息
         /// </summary>
-        public ROIRectangle1 TempRectangle1 { get; set; } = new ROIRectangle1();
+        public ROIRectangle2 TempRectangle2 { get; set; } = new ROIRectangle2();
         /// <summary>
-        /// 变换后-直线信息
+        /// 变换后-矩形信息
         /// </summary>
-        public ROIRectangle1 TranRectangle1 { get; set; } = new ROIRectangle1();
+        public ROIRectangle2 TranRectangle2 { get; set; } = new ROIRectangle2();
         private eShieldRegion _ShieldRegion = eShieldRegion.手绘区域;
         /// <summary>
         /// 屏蔽区域
@@ -347,7 +356,7 @@ namespace Plugin.MeasureGap.ViewModels
                 {
                     ShowHRoi();
                     if(!IsLoad)
-                        InitRect1Method(true);
+                        InitRect2Method(true);
                 }
             }
         }
@@ -378,12 +387,13 @@ namespace Plugin.MeasureGap.ViewModels
                     view.mWindowH.HobjectToHimage(DispImage);
                     view.mWindowH.hControl.MouseUp += HControl_MouseUp;
                     ShowHRoi();
-                    InitRect1Method();
+                    InitRect2Method();
                 }
-                Rect1X1.TextChanged = new Action(() => { InitRect1Changed(); });
-                Rect1X2.TextChanged = new Action(() => { InitRect1Changed(); });
-                Rect1Y1.TextChanged = new Action(() => { InitRect1Changed(); });
-                Rect1Y2.TextChanged = new Action(() => { InitRect1Changed(); });
+                Rect2Length1.TextChanged = new Action(() => { InitRect2Changed(); });
+                Rect2Length2.TextChanged = new Action(() => { InitRect2Changed(); });
+                Rect2CenterX.TextChanged = new Action(() => { InitRect2Changed(); });
+                Rect2CenterY.TextChanged = new Action(() => { InitRect2Changed(); });
+                Rect2Phi.TextChanged = new Action(() => { InitRect2Changed(); });
             }
             IsLoad = false;
         }
@@ -395,17 +405,20 @@ namespace Plugin.MeasureGap.ViewModels
                 case eLinkCommand.InputImageLink:
                     InputImageLinkText = obj.LinkName;
                     break;
-                case eLinkCommand.Rect1X1:
-                    Rect1X1.Text = obj.LinkName;
+                case eLinkCommand.Rect2Length1:
+                    Rect2Length1.Text = obj.LinkName;
                     break;
-                case eLinkCommand.Rect1Y1:
-                    Rect1Y1.Text = obj.LinkName;
+                case eLinkCommand.Rect2Length2:
+                    Rect2Length2.Text = obj.LinkName;
                     break;
-                case eLinkCommand.Rect1X2:
-                    Rect1X2.Text = obj.LinkName;
+                case eLinkCommand.Rect2CenterX:
+                    Rect2CenterX.Text = obj.LinkName;
                     break;
-                case eLinkCommand.Rect1Y2:
-                    Rect1Y2.Text = obj.LinkName;
+                case eLinkCommand.Rect2CenterY:
+                    Rect2CenterY.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.Rect2Phi:
+                    Rect2Phi.Text = obj.LinkName;
                     break;
                 default:
                     break;
@@ -430,21 +443,25 @@ namespace Plugin.MeasureGap.ViewModels
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "HImage");
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},InputImageLink");
                                 break;
-                            case eLinkCommand.Rect1X1:
+                            case eLinkCommand.Rect2Length1:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect1X1");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect2Length1");
                                 break;
-                            case eLinkCommand.Rect1Y1:
+                            case eLinkCommand.Rect2Length2:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect1Y1");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect2Length2");
                                 break;
-                            case eLinkCommand.Rect1X2:
+                            case eLinkCommand.Rect2CenterX:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect1X2");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect2CenterX");
                                 break;
-                            case eLinkCommand.Rect1Y2:
+                            case eLinkCommand.Rect2CenterY:
                                 CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
-                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect1Y2");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect2CenterY");
+                                break;
+                            case eLinkCommand.Rect2Phi:
+                                CommonMethods.GetModuleList(ModuleParam, VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>().Publish($"{ModuleGuid},Rect2Phi");
                                 break;
                             default:
                                 break;
@@ -498,14 +515,16 @@ namespace Plugin.MeasureGap.ViewModels
         #endregion
 
         #region Method
-        private void InitRect1Changed()
+        private void InitRect2Changed()
         {
             if (InitLineChanged_Flag == true) return;
-            InitRectangle1.row1 = Convert.ToDouble(GetLinkValue(Rect1Y1));
-            InitRectangle1.col1 = Convert.ToDouble(GetLinkValue(Rect1X1));
-            InitRectangle1.row2 = Convert.ToDouble(GetLinkValue(Rect1Y2));
-            InitRectangle1.col2 = Convert.ToDouble(GetLinkValue(Rect1X2));
+            InitRectangle2.MidR = Convert.ToDouble(GetLinkValue(Rect2CenterY));
+            InitRectangle2.MidC = Convert.ToDouble(GetLinkValue(Rect2CenterX));
+            InitRectangle2.Length1 = Convert.ToDouble(GetLinkValue(Rect2Length1));
+            InitRectangle2.Length2 = Convert.ToDouble(GetLinkValue(Rect2Length2));
+            InitRectangle2.Deg = Convert.ToDouble(GetLinkValue(Rect2Phi));
             ShowHRoi();
+            InitRect2Method(true);
             //DisenableAffine2d = true;
             //if (roiLine != null)
             //{
@@ -544,48 +563,54 @@ namespace Plugin.MeasureGap.ViewModels
                 if (view == null) return;
                 ROI roi = view.mWindowH.WindowH.smallestActiveROI(out string info, out string index);
                 if (index.Length < 1) return;
-                ROIRectangle1 Rect1 = new ROIRectangle1();
+                ROIRectangle2 Rect2 = new ROIRectangle2();
                 RoiList[index] = roi;
                 
-                    ROIRectangle1 rectangle1 = (ROIRectangle1)roi;
+                    ROIRectangle2 rectangle2 = (ROIRectangle2)roi;
                     if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                     {
-                        HRegion region = rectangle1.GetRegion();
+                        HRegion region = rectangle2.GetRegion();
                         region = region.AffineTransRegion(new HHomMat2D(HomMat2D_Inverse), "nearest_neighbor");
-                        region.SmallestRectangle1(out HTuple row1, out HTuple column1, out HTuple row2, out HTuple column2);
-                        Rect1.row1 = Math.Round((double)row1, 3);
-                        Rect1.col1 = Math.Round((double)column1, 3);
-                        Rect1.row2 = Math.Round((double)row2, 3);
-                        Rect1.col2 = Math.Round((double)column2, 3);
+                        region.SmallestRectangle2(out double midR, out double midC, out double phi, out double length1, out double length2);
+                        Rect2.MidR = Math.Round(midR, 3);
+                        Rect2.MidC = Math.Round(midC, 3);
+                        Rect2.Length1 = Math.Round(length1, 3);
+                        Rect2.Length2 = Math.Round(length2, 3);
+                        Rect2.Phi = Math.Round(phi, 3);
                     
                     }
                     else
                     {
-                        Rect1.row1 = Math.Round(rectangle1.row1, 3);
-                        Rect1.col1 = Math.Round(rectangle1.col1, 3);
-                        Rect1.row2 = Math.Round(rectangle1.row2, 3);
-                        Rect1.col2 = Math.Round(rectangle1.col2, 3);
+                        Rect2.MidR = Math.Round(rectangle2.MidR, 3);
+                        Rect2.MidC = Math.Round(rectangle2.MidC, 3);
+                        Rect2.Length1 = Math.Round(rectangle2.Length1, 3);
+                        Rect2.Length2 = Math.Round(rectangle2.Length2, 3);
+                        Rect2.Phi = Math.Round(rectangle2.Phi, 3);
                         
                     }
-                    if (!Rect1X1.Text.StartsWith("&"))
+                    if (!Rect2Length1.Text.StartsWith("&"))
                     {
-                        Rect1X1.Text = Rect1.col1.ToString();
+                        Rect2Length1.Text = Rect2.Length1.ToString();
                     }
-                    if (!Rect1Y1.Text.StartsWith("&"))
+                    if (!Rect2Length2.Text.StartsWith("&"))
                     {
-                    Rect1Y1.Text = Rect1.row1.ToString();
+                        Rect2Length2.Text = Rect2.Length2.ToString();
                     }
-                    if (!Rect1X2.Text.StartsWith("&"))
+                    if (!Rect2CenterX.Text.StartsWith("&"))
                     {
-                    Rect1X2.Text = Rect1.col2.ToString();
+                        Rect2CenterX.Text = Rect2.MidC.ToString();
                     }
-                    if (!Rect1Y2.Text.StartsWith("&"))
+                    if (!Rect2CenterY.Text.StartsWith("&"))
                     {
-                    Rect1Y2.Text = Rect1.row2.ToString();
+                        Rect2CenterY.Text = Rect2.MidR.ToString();
+                    }
+                    if (!Rect2Phi.Text.StartsWith("&"))
+                    {
+                        Rect2Phi.Text = Math.Round(Rect2.Deg, 3).ToString();
                     }
 
 
-                    view.mWindowH.WindowH.genRect1(ModuleParam.ModuleName + ROIDefine.Rectangle1, rectangle1.row1, rectangle1.col1, rectangle1.row2, rectangle1.col2, ref RoiList);
+                    view.mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rectangle2.MidR, rectangle2.MidC, rectangle2.Phi, rectangle2.Length1, rectangle2.Length2, ref RoiList);
 
                 IsManMual = true;
                 ExeModule();
@@ -609,7 +634,7 @@ namespace Plugin.MeasureGap.ViewModels
             {
             }
         }
-        public void InitRect1Method(bool isDisp = false)
+        public void InitRect2Method(bool isDisp = false)
         {
             var view = ModuleView as MeasureGapView;
             if (view == null) return;
@@ -625,26 +650,29 @@ namespace Plugin.MeasureGap.ViewModels
             ClearRoiAndText();
             if(!isDisp)
                 mWindowH.ClearROI();
-            if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle1))
+            double rect2CenterY = Convert.ToDouble(GetLinkValue(Rect2CenterY));
+            double rect2CenterX = Convert.ToDouble(GetLinkValue(Rect2CenterX));
+            double rect2PhiDeg = Convert.ToDouble(GetLinkValue(Rect2Phi));
+            double rect2PhiRad = rect2PhiDeg * Math.PI / 180.0;
+            double rect2Length1 = Convert.ToDouble(GetLinkValue(Rect2Length1));
+            double rect2Length2 = Convert.ToDouble(GetLinkValue(Rect2Length2));
+            if (RoiList.ContainsKey(ModuleParam.ModuleName + ROIDefine.Rectangle2))
             {
-                ROIRectangle1 ROIRect1 = (ROIRectangle1)RoiList[ModuleParam.ModuleName + ROIDefine.Rectangle1];
+                ROIRectangle2 ROIRect2 = (ROIRectangle2)RoiList[ModuleParam.ModuleName + ROIDefine.Rectangle2];
                 if ( HomMat2D != null && HomMat2D.Length > 0)
                 {
                     HRegion region = new HRegion();
-                    region.GenRectangle1(
-                        Convert.ToDouble(GetLinkValue(Rect1Y1)),
-                        Convert.ToDouble(GetLinkValue(Rect1X1)),
-                        Convert.ToDouble(GetLinkValue(Rect1X2)),
-                        Convert.ToDouble(GetLinkValue(Rect1Y2)));
+                    region.GenRectangle2(rect2CenterY, rect2CenterX, rect2PhiRad, rect2Length1, rect2Length2);
                     region = region.AffineTransRegion(new HHomMat2D(HomMat2D), "nearest_neighbor");
-                    region.SmallestRectangle1(out HTuple row1, out HTuple column1, out HTuple row2, out HTuple column2);
+                    region.SmallestRectangle2(out double midR, out double midC, out double phi, out double length1, out double length2);
                     if (region.Area.I != 0)
                     {
-                        mWindowH.WindowH.genRect1(ModuleParam.ModuleName + ROIDefine.Rectangle1,
-                            row1,
-                            column1,
-                            row2,
-                            column2,
+                        mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2,
+                            midR,
+                            midC,
+                            phi,
+                            length1,
+                            length2,
                             ref RoiList);
                     }
                     else
@@ -654,12 +682,12 @@ namespace Plugin.MeasureGap.ViewModels
                 }
                 else
                 {
-                    mWindowH.WindowH.genRect1(ModuleParam.ModuleName + ROIDefine.Rectangle1, Convert.ToDouble(GetLinkValue(Rect1Y1)), Convert.ToDouble(GetLinkValue(Rect1X1)), Convert.ToDouble(GetLinkValue(Rect1Y2)), Convert.ToDouble(GetLinkValue(Rect1X2)), ref RoiList);
+                    mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, rect2CenterY, rect2CenterX, rect2PhiRad, rect2Length1, rect2Length2, ref RoiList);
                 }
             }
             else
             {
-                mWindowH.WindowH.genRect1(ModuleParam.ModuleName + ROIDefine.Rectangle1, 200, 200, 230, 230, ref RoiList);
+                mWindowH.WindowH.genRect2(ModuleParam.ModuleName + ROIDefine.Rectangle2, 200, 200, 0, 30, 30, ref RoiList);
             }
 
             //if (TranLine.FlagLineStyle != null)
@@ -716,10 +744,11 @@ namespace Plugin.MeasureGap.ViewModels
             obj["GapValue"] = GapValue;
             obj["ShieldRegion"] = (int)ShieldRegion;
             obj["InputImageLinkText"] = InputImageLinkText ?? "";
-            obj["Rect1X1"] = Rect1X1?.Text ?? "";
-            obj["Rect1Y1"] = Rect1Y1?.Text ?? "";
-            obj["Rect1X2"] = Rect1X2?.Text ?? "";
-            obj["Rect1Y2"] = Rect1Y2?.Text ?? "";
+            obj["Rect2Length1"] = Rect2Length1?.Text ?? "";
+            obj["Rect2Length2"] = Rect2Length2?.Text ?? "";
+            obj["Rect2CenterX"] = Rect2CenterX?.Text ?? "";
+            obj["Rect2CenterY"] = Rect2CenterY?.Text ?? "";
+            obj["Rect2Phi"] = Rect2Phi?.Text ?? "";
             return obj.ToString();
         }
 
@@ -737,10 +766,11 @@ namespace Plugin.MeasureGap.ViewModels
                 if (obj["GapValue"] != null) GapValue = obj["GapValue"].Value<double>();
                 if (obj["ShieldRegion"] != null) ShieldRegion = (eShieldRegion)obj["ShieldRegion"].Value<int>();
                 if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
-                if (obj["Rect1X1"] != null && Rect1X1 != null) Rect1X1.Text = obj["Rect1X1"].ToString();
-                if (obj["Rect1Y1"] != null && Rect1Y1 != null) Rect1Y1.Text = obj["Rect1Y1"].ToString();
-                if (obj["Rect1X2"] != null && Rect1X2 != null) Rect1X2.Text = obj["Rect1X2"].ToString();
-                if (obj["Rect1Y2"] != null && Rect1Y2 != null) Rect1Y2.Text = obj["Rect1Y2"].ToString();
+                if (obj["Rect2Length1"] != null && Rect2Length1 != null) Rect2Length1.Text = obj["Rect2Length1"].ToString();
+                if (obj["Rect2Length2"] != null && Rect2Length2 != null) Rect2Length2.Text = obj["Rect2Length2"].ToString();
+                if (obj["Rect2CenterX"] != null && Rect2CenterX != null) Rect2CenterX.Text = obj["Rect2CenterX"].ToString();
+                if (obj["Rect2CenterY"] != null && Rect2CenterY != null) Rect2CenterY.Text = obj["Rect2CenterY"].ToString();
+                if (obj["Rect2Phi"] != null && Rect2Phi != null) Rect2Phi.Text = obj["Rect2Phi"].ToString();
             }
             catch (Exception ex)
 

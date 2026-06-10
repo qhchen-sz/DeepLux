@@ -70,40 +70,49 @@
                             <GroupBox Header="ROI信息">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
-                                        <TextBlock Text="起点X1:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBlock Text="长度1:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                 Text="{Binding Rect1X1.Text}" 
-                                                 IsReadOnly="{Binding Rect1X1.IsReadOnly}"
-                                                 mah:TextBoxHelper.Value="{Binding Rect1X1.Value}"
+                                                 Text="{Binding Rect2Length1.Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                 IsReadOnly="{Binding Rect2Length1.IsReadOnly}"
+                                                 mah:TextBoxHelper.Value="{Binding Rect2Length1.Value}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1X1}"/>
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Length1}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
-                                        <TextBlock Text="起点Y1:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBlock Text="长度2:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                 Text="{Binding Rect1Y1.Text}" 
-                                                 IsReadOnly="{Binding Rect1Y1.IsReadOnly}"
-                                                 mah:TextBoxHelper.Value="{Binding Rect1Y1.Value}"
+                                                 Text="{Binding Rect2Length2.Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                 IsReadOnly="{Binding Rect2Length2.IsReadOnly}"
+                                                 mah:TextBoxHelper.Value="{Binding Rect2Length2.Value}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Y1}"/>
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Length2}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
-                                        <TextBlock Text="终点X2:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBlock Text="中心X:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                 Text="{Binding Rect1X2.Text}" 
-                                                 IsReadOnly="{Binding Rect1X2.IsReadOnly}"
-                                                 mah:TextBoxHelper.Value="{Binding Rect1X2.Value}"
+                                                 Text="{Binding Rect2CenterX.Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                 IsReadOnly="{Binding Rect2CenterX.IsReadOnly}"
+                                                 mah:TextBoxHelper.Value="{Binding Rect2CenterX.Value}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1X2}"/>
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2CenterX}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
-                                        <TextBlock Text="终点Y2:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBlock Text="中心Y:" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
-                                                 Text="{Binding Rect1Y2.Text}" 
-                                                 IsReadOnly="{Binding Rect1Y2.IsReadOnly}"
-                                                 mah:TextBoxHelper.Value="{Binding Rect1Y2.Value}"
+                                                 Text="{Binding Rect2CenterY.Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                 IsReadOnly="{Binding Rect2CenterY.IsReadOnly}"
+                                                 mah:TextBoxHelper.Value="{Binding Rect2CenterY.Value}"
                                                  mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
-                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect1Y2}"/>
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2CenterY}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="角度:" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Style="{StaticResource LinkTextBox}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"
+                                                 Text="{Binding Rect2Phi.Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                 IsReadOnly="{Binding Rect2Phi.IsReadOnly}"
+                                                 mah:TextBoxHelper.Value="{Binding Rect2Phi.Value}"
+                                                 mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                 mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.Rect2Phi}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
                                         <CheckBox Content="世界mm坐标"/>
