@@ -290,6 +290,7 @@ namespace Plugin.ShowShape.ViewModels
                 if (!string.IsNullOrEmpty(InputImageLinkText))
                 {
                     GetDispImage(InputImageLinkText, true);
+                    RefreshInputImagePreview(false);
                 }
                 else
                 {
@@ -543,7 +544,7 @@ namespace Plugin.ShowShape.ViewModels
                 _InputImageLinkText = value;
                 RaisePropertyChanged();
                 if (!string.IsNullOrEmpty(value))
-                    GetDispImage(value);
+                    RefreshInputImagePreview(true);
             }
         }
 
@@ -659,15 +660,27 @@ namespace Plugin.ShowShape.ViewModels
 
                 if (!string.IsNullOrEmpty(InputImageLinkText))
                 {
-                    GetDispImage(InputImageLinkText, true);
-                    view.mWindowH.HobjectToHimage(DispImage);
+                    RefreshInputImagePreview(true);
                 }
                 else if (DispImage == null || !DispImage.IsInitialized())
                 {
                     DispImage = new RImage(new HImage("byte", 500, 500));
-                    view.mWindowH.HobjectToHimage(DispImage);
+                    RefreshInputImagePreview(false);
                 }
             }
+        }
+
+        private void RefreshInputImagePreview(bool reloadImage)
+        {
+            if (reloadImage && !string.IsNullOrEmpty(InputImageLinkText))
+                GetDispImage(InputImageLinkText, true);
+
+            var view = ModuleView as ShowShapeView;
+            if (view == null || view.IsClosed || view.mWindowH == null || view.mWindowH.IsDisposed)
+                return;
+
+            if (DispImage != null && DispImage.IsInitialized())
+                view.mWindowH.HobjectToHimage(DispImage);
         }
 
         private void OnVarChanged(VarChangedEventParamModel obj)

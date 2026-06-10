@@ -102,6 +102,11 @@
                                                  Text="{Binding CrossPointX}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="5">
+                                        <TextBlock Text="夹角(度):" VerticalAlignment="Center" Width="60"/>
+                                        <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
+                                                 Text="{Binding DegAngle}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="5">
                                         <TextBlock Text="夹角(弧度):" VerticalAlignment="Center" Width="60"/>
                                         <TextBox Width="200" Margin="5 0" BorderThickness="0 0 0 1" IsReadOnly="True"
                                                  Text="{Binding Deg}"/>
@@ -157,7 +162,6 @@
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="btnCorrection" Content="补正" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}" CommandParameter="{x:Static vm:ExecuteCommandType.标定}"/>
                     <Button x:Name="btnExecute" Content="执行" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ExecuteCommand}" CommandParameter="{x:Static vm:ExecuteCommandType.执行}"/>
                     <Button x:Name="btnCancel" Content="取消" HorizontalAlignment="Right" Margin="10 0" Click="btnCancel_Click"/>
                     <Button x:Name="btnConfirm" Content="确认" HorizontalAlignment="Right" Margin="10 0" Command="{Binding ConfirmCommand}"
