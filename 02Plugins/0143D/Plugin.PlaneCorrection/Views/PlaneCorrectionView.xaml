@@ -67,6 +67,57 @@
                             <Border Grid.Row="1" Grid.ColumnSpan="2">
                                 <GroupBox Header="参数设置">
                                     <StackPanel>
+                                        <GroupBox Header="校正方式" Margin="5" Padding="5">
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton Content="快速校正" GroupName="CorrectionMode" Margin="0 2 8 2"
+                                                             IsChecked="{Binding CorrectionMode, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eCorrectionMode.Quick}}"/>
+                                                <RadioButton Content="投影校正" GroupName="CorrectionMode" Margin="0 2 8 2"
+                                                             IsChecked="{Binding CorrectionMode, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eCorrectionMode.Projection}}"/>
+                                                <RadioButton Content="点到面距离图" GroupName="CorrectionMode" Margin="0 2"
+                                                             IsChecked="{Binding CorrectionMode, Converter={StaticResource EnumConverter}, ConverterParameter={x:Static vm:eCorrectionMode.PointToPlaneDistance}}"/>
+                                            </StackPanel>
+                                        </GroupBox>
+                                        <GroupBox Header="分辨率设置" Margin="5" Padding="5">
+                                            <GroupBox.Style>
+                                                <Style TargetType="GroupBox">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CorrectionMode}" Value="{x:Static vm:eCorrectionMode.Projection}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </GroupBox.Style>
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0 2">
+                                                    <TextBlock Text="X分辨率:" VerticalAlignment="Center" Width="70"/>
+                                                    <TextBox Style="{StaticResource LinkTextBox}" Width="190" Margin="5 0" BorderThickness="0 0 0 1"
+                                                             Text="{Binding InitResolutionX.Text}"
+                                                             IsReadOnly="{Binding InitResolutionX.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitResolutionX.Value}"
+                                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitResolutionX}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0 2">
+                                                    <TextBlock Text="Y分辨率:" VerticalAlignment="Center" Width="70"/>
+                                                    <TextBox Style="{StaticResource LinkTextBox}" Width="190" Margin="5 0" BorderThickness="0 0 0 1"
+                                                             Text="{Binding InitResolutionY.Text}"
+                                                             IsReadOnly="{Binding InitResolutionY.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitResolutionY.Value}"
+                                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitResolutionY}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0 2">
+                                                    <TextBlock Text="Z分辨率:" VerticalAlignment="Center" Width="70"/>
+                                                    <TextBox Style="{StaticResource LinkTextBox}" Width="190" Margin="5 0" BorderThickness="0 0 0 1"
+                                                             Text="{Binding InitResolutionZ.Text}"
+                                                             IsReadOnly="{Binding InitResolutionZ.IsReadOnly}"
+                                                             mah:TextBoxHelper.Value="{Binding InitResolutionZ.Value}"
+                                                             mah:TextBoxHelper.LinkButtonCommand="{Binding LinkCommand,Mode=OneWay}"
+                                                             mah:TextBoxHelper.LinkButtonCommandParameter="{x:Static vm:eLinkCommand.InitResolutionZ}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </GroupBox>
                                         <GroupBox Header="基准平面参数" Margin="5" Padding="5">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="0 2">

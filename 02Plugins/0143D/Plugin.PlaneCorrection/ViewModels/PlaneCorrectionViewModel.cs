@@ -39,12 +39,22 @@ namespace Plugin.PlaneCorrection.ViewModels
         InitRoiLength2,
         InitRoiAngel,
         InitTranslateZ,
+        InitResolutionX,
+        InitResolutionY,
+        InitResolutionZ,
     }
 
     public enum ePlaneMode
     {
         PlaneImage,
         Manual,
+    }
+
+    public enum eCorrectionMode
+    {
+        Quick,
+        Projection,
+        PointToPlaneDistance,
     }
     #endregion
 
@@ -69,15 +79,44 @@ namespace Plugin.PlaneCorrection.ViewModels
         public override bool ExeModule()
         {
             Stopwatch.Restart();
+
+            // HALCON 图像/区域对象需要手动释放。这里统一在 finally 里释放，
+            // 但 zCorrectedObj 成功交给 CorrectedImage 后不能释放，否则输出图像句柄会失效。
             HRegion domain = null;
-            HTuple om3D = null;
-            HObject planeImageObj = null;
+            HRegion rawDomain = null;
+            HRegion imageRegion = null;
+            HImage linkedPlaneImg = null;
+            HObject chObj = null;
+            HObject chRealObj = null;
+            HObject currentPlaneObj = null;
+            HObject refPlaneObj = null;
+            HObject residualObj = null;
+            HObject refWithOffsetObj = null;
+            HObject zCorrectedObj = null;
+            HObject zDiffToRefObj = null;
+            HObject distanceObj = null;
+            HObject imageXObj = null;
+            HObject imageYObj = null;
+            HObject scaledXObj = null;
+            HObject scaledYObj = null;
+            HObject scaledZObj = null;
+            HObject xTransObj = null;
+            HObject yTransObj = null;
+            HObject zProjectionPhysicalObj = null;
+            HObject displayDomainObj = null;
+            HTuple sourceObjectModel3D = null;
+            HTuple transformedObjectModel3D = null;
+            bool correctedImageAssigned = false;
+            bool displayDomainAssigned = false;
 
             try
             {
+                // 清理上一次运行的显示结果，并获取平台当前的二维仿射变换矩阵。
+                // 如果流程前面做过定位/坐标变换，ROI 会通过 HomMat2D 映射到当前图像坐标。
                 ClearRoiAndText();
                 GetHomMat2D();
 
+                // 读取输入高度图。当前插件固定取第 1 通道作为 Z 高度通道。
                 if (InputImageLinkText == null)
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
@@ -94,64 +133,17 @@ namespace Plugin.PlaneCorrection.ViewModels
                     return false;
                 }
 
-                // 获取基准平面参数（标准平面方程 Nx*x + Ny*y + Nz*z = D）
-                double nxRef, nyRef, nzRef, dRef;
-                HImage linkedPlaneImg = null;
+                double refAlpha = 0.0;
+                double refBeta = 0.0;
+                double refGamma = 0.0;
+                double refCenterR = 0.0;
+                double refCenterC = 0.0;
+                double refNx = 0.0;
+                double refNy = 0.0;
+                double refNz = 1.0;
+                double refD = 0.0;
 
-                if (PlaneMode == ePlaneMode.Manual)
-                {
-                    nxRef = Convert.ToDouble(GetLinkValue(InitNx));
-                    nyRef = Convert.ToDouble(GetLinkValue(InitNy));
-                    nzRef = Convert.ToDouble(GetLinkValue(InitNz));
-                    dRef = Convert.ToDouble(GetLinkValue(InitD));
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(PlaneImageLinkText))
-                    {
-                        ChangeModuleRunStatus(eRunStatus.NG);
-                        return false;
-                    }
-
-                    var savedDisp = DispImage;
-                    GetDispImage(PlaneImageLinkText, true);
-                    if (DispImage == null || !DispImage.IsInitialized())
-                    {
-                        ChangeModuleRunStatus(eRunStatus.NG);
-                        return false;
-                    }
-                    linkedPlaneImg = new HImage(DispImage);
-                    DispImage = savedDisp;
-                    // 同步恢复窗口显示图像
-                    if (ModuleView != null && ModuleView.mWindowH != null)
-                        ModuleView.mWindowH.HobjectToHimage(DispImage);
-
-                    HOperatorSet.CountChannels(linkedPlaneImg, out HTuple pc);
-                    int pCh = pc.I >= 1 ? 1 : 1;
-                    HOperatorSet.AccessChannel(linkedPlaneImg, out HObject pChObj, pCh);
-                    HOperatorSet.ConvertImageType(pChObj, out HObject pRealObj, "real");
-                    HOperatorSet.FitSurfaceFirstOrder(
-                        linkedPlaneImg.GetDomain(),
-                        pRealObj,
-                        "regression",
-                        5,
-                        0.1,
-                        out HTuple pAlpha,
-                        out HTuple pBeta,
-                        out HTuple pGamma
-                    );
-                    // 转换为标准平面方程 Nx/Ny/Nz/D
-                    HOperatorSet.AreaCenter(linkedPlaneImg.GetDomain(), out _, out HTuple refR, out HTuple refC);
-                    double normRefCalc = Math.Sqrt(pAlpha.D * pAlpha.D + pBeta.D * pBeta.D + 1.0);
-                    nxRef = -pBeta.D / normRefCalc;
-                    nyRef = -pAlpha.D / normRefCalc;
-                    nzRef = 1.0 / normRefCalc;
-                    dRef = (pGamma.D - pBeta.D * refC.D - pAlpha.D * refR.D) / normRefCalc;
-                    pChObj.Dispose();
-                    pRealObj.Dispose();
-                }
-
-                // 逆变换 ROI
+                // 逆变换 ROI：当用户在显示窗口拖动 ROI 后，把显示坐标反算回原始 ROI 参数。
                 if (DisenableAffine2d && HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
                 {
                     DisenableAffine2d = false;
@@ -166,7 +158,7 @@ namespace Plugin.PlaneCorrection.ViewModels
                     }
                 }
 
-                // 正变换 ROI
+                // 正变换 ROI：把界面里的原始 ROI 参数转换到当前图像坐标。
                 if (HomMat2D != null && HomMat2D.Length > 0)
                 {
                     InitRoi.MidC = Convert.ToDouble(GetLinkValue(InitRoiCenterX));
@@ -204,21 +196,37 @@ namespace Plugin.PlaneCorrection.ViewModels
                         InitRoi.Deg = TranRoi.Deg = TempRoi.Deg = Convert.ToDouble(GetLinkValue(InitRoiAngel));
                 }
 
-                domain = GetRoiRegion();
-                if (domain == null || !domain.IsInitialized())
+                // 获取检测 ROI，并裁剪到图像有效范围内。
+                // 这样 ROI 画出图像边界时不会在后续拟合、取值、统计时抛 HALCON 越界异常。
+                rawDomain = GetRoiRegion();
+                if (rawDomain == null || !rawDomain.IsInitialized())
                 {
                     ChangeModuleRunStatus(eRunStatus.NG);
                     return false;
                 }
 
-                // 获取图像尺寸
+                // 构造整幅图像的有效区域，用于和 ROI 求交集。
                 DispImage.GetImageSize(out int width, out int height);
+                HOperatorSet.GenRectangle1(
+                    out HObject imageRegionObj,
+                    new HTuple(0),
+                    new HTuple(0),
+                    new HTuple(height - 1),
+                    new HTuple(width - 1));
+                imageRegion = new HRegion(imageRegionObj);
+                domain = ClipRegionToImage(rawDomain, imageRegion);
+                if (domain == null || !domain.IsInitialized() || domain.Area <= 0)
+                {
+                    Logger.AddLog("平面校正 ROI 超出图像范围或有效区域为空。", eMsgType.Warn);
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
 
-                // 获取通道数
+                // 检查输入图像是否至少有 1 个通道。
                 HOperatorSet.CountChannels(DispImage, out HTuple channelCount);
                 int nChannels = channelCount.I;
 
-                // 提取高度通道（Ch1）
+                // 提取高度通道并转为 real 类型，避免整型高度图参与平面运算时精度丢失。
                 int targetChannel = 1;
                 if (targetChannel > nChannels)
                 {
@@ -227,13 +235,23 @@ namespace Plugin.PlaneCorrection.ViewModels
                     return false;
                 }
 
-                HOperatorSet.AccessChannel(DispImage, out HObject chObj, targetChannel);
-                HOperatorSet.ConvertImageType(chObj, out HObject chRealObj, "real");
+                HOperatorSet.AccessChannel(DispImage, out chObj, targetChannel);
+                HOperatorSet.ConvertImageType(chObj, out chRealObj, "real");
+                HOperatorSet.AreaCenter(domain, out _, out HTuple roiR, out HTuple roiC);
+                double resolutionX = Convert.ToDouble(GetLinkValue(InitResolutionX));
+                double resolutionY = Convert.ToDouble(GetLinkValue(InitResolutionY));
+                double resolutionZ = Convert.ToDouble(GetLinkValue(InitResolutionZ));
+                if (resolutionX <= 0 || resolutionY <= 0 || resolutionZ <= 0)
+                {
+                    Logger.AddLog("X/Y/Z 分辨率必须大于 0。", eMsgType.Warn);
+                    ChangeModuleRunStatus(eRunStatus.NG);
+                    return false;
+                }
 
-                double cx = width / 2.0;
-                double cy = height / 2.0;
-
-                // 拟合输入 ROI 平面
+                // 拟合当前工件平面。
+                // HALCON 一阶面公式：
+                // z = Alpha * (row - row0) + Beta * (col - col0) + Gamma
+                // 这里 row0/col0 使用 ROI 中心，所以 Gamma 就是当前平面在 ROI 中心的高度。
                 HOperatorSet.FitSurfaceFirstOrder(
                     domain,
                     chRealObj,
@@ -244,145 +262,315 @@ namespace Plugin.PlaneCorrection.ViewModels
                     out HTuple inBetaT,
                     out HTuple inGammaT
                 );
-                double inAlpha = inAlphaT.D;
-                double inBeta = inBetaT.D;
                 double inGamma = inGammaT.D;
 
-                // 生成 X、Y 坐标图
-                HOperatorSet.GenImageSurfaceFirstOrder(out HObject xImage, "real", 0, 1, 0, cy, cx, width, height);
-                HOperatorSet.GenImageSurfaceFirstOrder(out HObject yImage, "real", 1, 0, 0, cy, cx, width, height);
+                // 生成“当前拟合平面图”，尺寸与输入高度图一致。
+                // 后面用 原始高度图 - 当前拟合平面图 得到局部残差/缺陷形貌。
+                HOperatorSet.GenImageSurfaceFirstOrder(
+                    out currentPlaneObj,
+                    "real",
+                    inAlphaT,
+                    inBetaT,
+                    inGammaT,
+                    roiR,
+                    roiC,
+                    width,
+                    height
+                );
 
-                // 输入面法向量: n_in = (-β_in, -α_in, 1) / norm_in
-                double normIn = Math.Sqrt(inAlpha * inAlpha + inBeta * inBeta + 1.0);
-                double nxIn = -inBeta / normIn;
-                double nyIn = -inAlpha / normIn;
-                double nzIn = 1.0 / normIn;
-
-                // 基准面中心高度（从标准方程 Nx*x + Ny*y + Nz*z = D 推导）
-                double zRefCenter = (dRef - nxRef * cx - nyRef * cy) / nzRef;
-
-                // 旋转轴: k = n_in × n_ref
-                double kx = nyIn * nzRef - nzIn * nyRef;
-                double ky = nzIn * nxRef - nxIn * nzRef;
-                double kz = nxIn * nyRef - nyIn * nxRef;
-                double kNorm = Math.Sqrt(kx * kx + ky * ky + kz * kz);
-
-                // 旋转角: θ = acos(n_in · n_ref)
-                double dotVal = nxIn * nxRef + nyIn * nyRef + nzIn * nzRef;
-                dotVal = Math.Max(-1.0, Math.Min(1.0, dotVal));
-                double rotAngle = Math.Acos(dotVal);
-
-                // 输入面中心高度（旋转中心 Z），基于 area_center 修正
-                HOperatorSet.AreaCenter(domain, out _, out HTuple roiR, out HTuple roiC);
-                double zInCenter = inAlpha * (cy - roiR.D) + inBeta * (cx - roiC.D) + inGamma;
-
-                // 转为 3D 对象模型
-                HOperatorSet.XyzToObjectModel3d(xImage, yImage, chRealObj, out om3D);
-
-                if (Math.Abs(rotAngle) > 1e-10 && kNorm > 1e-10)
+                if (PlaneMode == ePlaneMode.Manual)
                 {
-                    HOperatorSet.AxisAngleToQuat(kx / kNorm, ky / kNorm, kz / kNorm, rotAngle, out HTuple quat);
-                    HOperatorSet.QuatToHomMat3d(quat, out HTuple rotMat);
+                    // 手动基准平面使用标准平面方程：
+                    // Nx * x + Ny * y + Nz * z = D
+                    // 其中 x 对应 HALCON 的 column，y 对应 row，z 对应高度。
+                    double nxRef = Convert.ToDouble(GetLinkValue(InitNx));
+                    double nyRef = Convert.ToDouble(GetLinkValue(InitNy));
+                    double nzRef = Convert.ToDouble(GetLinkValue(InitNz));
+                    double dRef = Convert.ToDouble(GetLinkValue(InitD));
+                    double normalLen = Math.Sqrt(nxRef * nxRef + nyRef * nyRef + nzRef * nzRef);
+                    if (normalLen <= 1e-12 || Math.Abs(nzRef) <= 1e-12)
+                    {
+                        Logger.AddLog("基准平面参数无效，Nz 不能为 0，法向量长度不能为 0。", eMsgType.Warn);
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
 
-                    HOperatorSet.HomMat3dIdentity(out HTuple homMat3D);
-                    HOperatorSet.HomMat3dTranslate(homMat3D, 0, 0, -zInCenter, out HTuple toOrigin);
-                    HOperatorSet.HomMat3dCompose(rotMat, toOrigin, out HTuple afterRot);
-                    HOperatorSet.HomMat3dIdentity(out HTuple id2);
-                    HOperatorSet.HomMat3dTranslate(id2, 0, 0, zInCenter, out HTuple toCenter);
-                    HOperatorSet.HomMat3dCompose(toCenter, afterRot, out HTuple transform);
-
-                    HTuple originalOm3D = om3D;
-                    HOperatorSet.RigidTransObjectModel3d(om3D, transform, out HTuple transformedOM);
-                    HOperatorSet.ClearObjectModel3d(originalOm3D);
-                    om3D = transformedOM;
-                }
-
-                // 转回 XYZ 图像
-                HOperatorSet.ObjectModel3dToXyz(out HObject xTr, out HObject yTr, out HObject zTrans, om3D, "area", 0, -1);
-
-                // 高度距离 = 旋转后输入面中心 Z - 基准面中心 Z
-                HeightDistance = Math.Round(zInCenter - zRefCenter, 6);
-
-                // 基准平面图像（从标准方程 Nx*x + Ny*y + Nz*z = D 生成）
-                if (linkedPlaneImg != null && linkedPlaneImg.IsInitialized())
-                {
-                    planeImageObj = linkedPlaneImg;
+                    // 转成 HALCON 的一阶面参数：
+                    // z = (-Ny / Nz) * row + (-Nx / Nz) * col + D / Nz
+                    // 因为中心点使用 (0,0)，所以 Gamma = D / Nz。
+                    refAlpha = -nyRef * resolutionY / (nzRef * resolutionZ);
+                    refBeta = -nxRef * resolutionX / (nzRef * resolutionZ);
+                    refGamma = dRef / (nzRef * resolutionZ);
+                    refCenterR = 0.0;
+                    refCenterC = 0.0;
+                    refNx = nxRef / normalLen;
+                    refNy = nyRef / normalLen;
+                    refNz = nzRef / normalLen;
+                    refD = dRef / normalLen;
+                    EnsureNormalUp(ref refNx, ref refNy, ref refNz, ref refD);
                 }
                 else
                 {
-                    HOperatorSet.GenImageSurfaceFirstOrder(
-                        out planeImageObj,
-                        "real",
-                        -nyRef / nzRef,
-                        -nxRef / nzRef,
-                        dRef / nzRef,
-                        0,
-                        0,
-                        width,
-                        height
-                    );
+                    // 图像基准模式：读取一张基准平面高度图，并拟合它的整体平面姿态。
+                    // 后续只使用拟合出来的基准平面，不直接把整张基准图叠到结果里，
+                    // 这样可以避免基准图上的噪声、局部缺陷进入校正图。
+                    if (string.IsNullOrEmpty(PlaneImageLinkText))
+                    {
+                        ChangeModuleRunStatus(eRunStatus.NG);
+                        return false;
+                    }
+
+                    var savedDisp = DispImage;
+                    try
+                    {
+                        GetDispImage(PlaneImageLinkText, true);
+                        if (DispImage == null || !DispImage.IsInitialized())
+                        {
+                            ChangeModuleRunStatus(eRunStatus.NG);
+                            return false;
+                        }
+                        linkedPlaneImg = new HImage(DispImage);
+                    }
+                    finally
+                    {
+                        DispImage = savedDisp;
+                        if (ModuleView != null && ModuleView.mWindowH != null)
+                            ModuleView.mWindowH.HobjectToHimage(DispImage);
+                    }
+
+                    HObject pChObj = null;
+                    HObject pRealObj = null;
+                    HRegion linkedDomain = null;
+                    try
+                    {
+                        HOperatorSet.CountChannels(linkedPlaneImg, out HTuple pc);
+                        if (pc.I < 1)
+                        {
+                            ChangeModuleRunStatus(eRunStatus.NG);
+                            return false;
+                        }
+
+                        HOperatorSet.AccessChannel(linkedPlaneImg, out pChObj, 1);
+                        HOperatorSet.ConvertImageType(pChObj, out pRealObj, "real");
+                        linkedDomain = linkedPlaneImg.GetDomain();
+                        HOperatorSet.FitSurfaceFirstOrder(
+                            linkedDomain,
+                            pRealObj,
+                            "regression",
+                            5,
+                            0.1,
+                            out HTuple pAlpha,
+                            out HTuple pBeta,
+                            out HTuple pGamma
+                        );
+                        HOperatorSet.AreaCenter(linkedDomain, out _, out HTuple refR, out HTuple refC);
+
+                        // 保存基准平面的 HALCON 一阶面参数和拟合中心。
+                        // 后面用这些参数生成与当前输入图同尺寸的基准平面图。
+                        refAlpha = pAlpha.D;
+                        refBeta = pBeta.D;
+                        refGamma = pGamma.D;
+                        refCenterR = refR.D;
+                        refCenterC = refC.D;
+                        ConvertSurfaceToStandardPlane(
+                            refAlpha,
+                            refBeta,
+                            refGamma,
+                            refCenterR,
+                            refCenterC,
+                            resolutionX,
+                            resolutionY,
+                            resolutionZ,
+                            out refNx,
+                            out refNy,
+                            out refNz,
+                            out refD);
+                    }
+                    finally
+                    {
+                        linkedDomain?.Dispose();
+                        pChObj?.Dispose();
+                        pRealObj?.Dispose();
+                    }
                 }
 
-                // 可选平移
-                HObject zCorrected;
-                if (IsTranslateEnabled)
+                // 生成“基准平面图”，尺寸与当前输入高度图一致。
+                // 它代表校正后的目标姿态：当前工件面最终要与这个平面平行。
+                HOperatorSet.GenImageSurfaceFirstOrder(
+                    out refPlaneObj,
+                    "real",
+                    refAlpha,
+                    refBeta,
+                    refGamma,
+                    refCenterR,
+                    refCenterC,
+                    width,
+                    height
+                );
+
+                // 计算当前平面相对基准平面的高度差，参考点使用当前 ROI 中心。
+                // 因为当前平面的拟合中心就是 ROI 中心，所以当前面中心高度 = inGamma。
+                // 这个 heightOffset 会被加回校正图，保证距离/高度差不被抹掉。
+                double zInCenter = inGamma;
+                double zRefCenter = refAlpha * (roiR.D - refCenterR) +
+                                    refBeta * (roiC.D - refCenterC) +
+                                    refGamma;
+                double heightOffset = zInCenter - zRefCenter;
+                HeightDistance = Math.Round(heightOffset, 6);
+
+                // 三种校正方式共用当前残差图：
+                // residualObj = 原始高度图 - 当前拟合平面
+                // 它表示当前工件上的局部凸起、凹陷和缺陷形貌。
+                HOperatorSet.SubImage(chRealObj, currentPlaneObj, out residualObj, 1.0, 0.0);
+                // “启用平移”对应界面里的平移设置。
+                // 这里先只读取平移量，不马上参与各模式计算；
+                // 三种模式先生成不带平移的结果，后面再统一对结果做最终平移。
+                double translateZ = IsTranslateEnabled ? Convert.ToDouble(GetLinkValue(InitTranslateZ)) : 0.0;
+
+                if (CorrectionMode == eCorrectionMode.Quick)
                 {
-                    double translateZ = Convert.ToDouble(GetLinkValue(InitTranslateZ));
-                    HOperatorSet.ScaleImage(zTrans, out zCorrected, 1.0, translateZ);
-                    zTrans.Dispose();
+                    // 快速校正：只在高度图上做 Z 趋势补偿。
+                    // 结果姿态与基准平面平行，并保留当前相对基准的高度差。
+                    // 这里先只加 heightOffset，不加 translateZ；
+                    // translateZ 会在三种模式结果生成后统一作为最终平移处理。
+                    HOperatorSet.ScaleImage(refPlaneObj, out refWithOffsetObj, 1.0, heightOffset);
+                    HOperatorSet.AddImage(residualObj, refWithOffsetObj, out zCorrectedObj, 1.0, 0.0);
+                }
+                else if (CorrectionMode == eCorrectionMode.PointToPlaneDistance)
+                {
+                    // 点到面距离图：输出每个点到基准平面的法向距离。
+                    // 这不是一张“校正后姿态图”，而是最适合平面度、凸起/凹陷检测的距离图。
+                    // 这里先输出不带平移的基础距离图；
+                    // translateZ 会在后面按 refNz 折算成法向距离偏移。
+                    HOperatorSet.SubImage(chRealObj, refPlaneObj, out zDiffToRefObj, 1.0, 0.0);
+                    HOperatorSet.ScaleImage(zDiffToRefObj, out distanceObj, refNz, 0.0);
+                    zCorrectedObj = distanceObj;
                 }
                 else
                 {
-                    zCorrected = zTrans;
+                    // 投影校正：把高度图转成真实 XYZ 点云，按 3D 几何把当前平面法向旋到基准平面法向，
+                    // 再投影回高度图。该模式必须使用正确的 X/Y/Z 分辨率。
+                    ConvertSurfaceToStandardPlane(
+                        inAlphaT.D,
+                        inBetaT.D,
+                        inGammaT.D,
+                        roiR.D,
+                        roiC.D,
+                        resolutionX,
+                        resolutionY,
+                        resolutionZ,
+                        out double curNx,
+                        out double curNy,
+                        out double curNz,
+                        out _);
+
+                    HOperatorSet.GenImageSurfaceFirstOrder(out imageXObj, "real", 0, 1, 0, 0, 0, width, height);
+                    HOperatorSet.GenImageSurfaceFirstOrder(out imageYObj, "real", 1, 0, 0, 0, 0, width, height);
+                    HOperatorSet.ScaleImage(imageXObj, out scaledXObj, resolutionX, 0.0);
+                    HOperatorSet.ScaleImage(imageYObj, out scaledYObj, resolutionY, 0.0);
+                    HOperatorSet.ScaleImage(chRealObj, out scaledZObj, resolutionZ, 0.0);
+                    HOperatorSet.XyzToObjectModel3d(scaledXObj, scaledYObj, scaledZObj, out sourceObjectModel3D);
+
+                    double centerX = roiC.D * resolutionX;
+                    double centerY = roiR.D * resolutionY;
+                    double centerZ = zInCenter * resolutionZ;
+
+                    HTuple homMat3D = BuildPlaneAlignmentHomMat3D(
+                        curNx,
+                        curNy,
+                        curNz,
+                        refNx,
+                        refNy,
+                        refNz,
+                        centerX,
+                        centerY,
+                        centerZ);
+                    HOperatorSet.AffineTransObjectModel3d(sourceObjectModel3D, homMat3D, out transformedObjectModel3D);
+                    ObjectModel3dToXyzImage(
+                        transformedObjectModel3D,
+                        out xTransObj,
+                        out yTransObj,
+                        out zProjectionPhysicalObj);
+                    HOperatorSet.ScaleImage(
+                        zProjectionPhysicalObj,
+                        out zCorrectedObj,
+                        1.0 / resolutionZ,
+                        // 这里只做单位换算，不加平移；
+                        // translateZ 会在三种模式结果生成后统一作为最终平移处理。
+                        0.0);
                 }
 
-                var correctedImage = new HImage(zCorrected);
+                // 最终平移：先完成校正/距离图计算，再移动输出结果。
+                // 快速校正、投影校正输出的是高度图，所以直接加 translateZ。
+                // 点到面距离图输出的是到基准平面的法向距离；
+                // Z 方向平移 translateZ 对法向距离的影响是 translateZ * refNz。
+                double finalTranslate = CorrectionMode == eCorrectionMode.PointToPlaneDistance
+                    ? translateZ * refNz
+                    : translateZ;
+                if (Math.Abs(finalTranslate) > 1e-12)
+                {
+                    HObject unshiftedCorrectedObj = zCorrectedObj;
+                    HOperatorSet.ScaleImage(unshiftedCorrectedObj, out HObject shiftedCorrectedObj, 1.0, finalTranslate);
+                    zCorrectedObj = shiftedCorrectedObj;
+
+                    if (object.ReferenceEquals(distanceObj, unshiftedCorrectedObj))
+                        distanceObj = null;
+                    unshiftedCorrectedObj?.Dispose();
+                }
+
+                // 输出校正后的高度图，供后续 3D 测量插件继续使用。
+                var correctedImage = new HImage(zCorrectedObj);
                 CorrectedImage = new RImage(correctedImage);
+                correctedImageAssigned = true;
 
-                // 统计校正后的偏差
+                // 平面度/RMS 统计局部残差。
+                // 点到面距离图直接统计距离图；其他校正方式统计 residualObj，避免基准平面斜率污染结果。
+                HObject statsObj = CorrectionMode == eCorrectionMode.PointToPlaneDistance ? zCorrectedObj : residualObj;
                 HOperatorSet.MinMaxGray(
                     domain,
-                    correctedImage,
+                    statsObj,
                     0.0,
                     out HTuple minDev,
                     out HTuple maxDev,
-                    out HTuple range
+                    out _
                 );
 
                 MaxDeviation = Math.Round(maxDev.D, 6);
                 MinDeviation = Math.Round(minDev.D, 6);
                 Flatness = Math.Round(maxDev.D - minDev.D, 6);
 
-                // RMS 误差
                 HOperatorSet.Intensity(
                     domain,
-                    correctedImage,
+                    statsObj,
                     out HTuple meanDiff,
                     out HTuple deviation
                 );
                 RmsError = Math.Round(deviation.D, 6);
 
-                // 显示
+                // 显示校正后的高度图。这里只做 0~255 的可视化缩放，
+                // 不影响 CorrectedImage 输出的真实高度值。
                 if (ShowCorrectedImage)
                 {
-                    double rangeVal = range.D;
+                    HOperatorSet.MinMaxGray(
+                        domain,
+                        correctedImage,
+                        0.0,
+                        out HTuple dispMin,
+                        out _,
+                        out HTuple dispRange
+                    );
+                    double rangeVal = dispRange.D;
                     if (rangeVal > 0)
                     {
                         HImage dispScaled = correctedImage.ScaleImage(
                             255.0 / rangeVal,
-                            128.0 - 128.0 * maxDev.D / rangeVal
+                            -dispMin.D * 255.0 / rangeVal
                         );
                         DispImage = new RImage(dispScaled);
                     }
                 }
 
-                // 释放临时图像
-                xImage.Dispose();
-                yImage.Dispose();
-                xTr.Dispose();
-                yTr.Dispose();
-
-                // 显示结果文字
+                // 显示本次平面校正后的残差统计结果。
                 if (ShowResultPoint)
                 {
                     HOperatorSet.AreaCenter(
@@ -405,31 +593,23 @@ namespace Plugin.PlaneCorrection.ViewModels
                     ));
                 }
 
-                // 显示 ROI 区域
+                // 显示参与平面拟合的 ROI 区域。
                 if (ShowRegion && domain != null && domain.IsInitialized())
                 {
+                    HOperatorSet.CopyObj(domain, out displayDomainObj, 1, -1);
                     ShowHRoi(new HRoi(
                         ModuleParam.ModuleEncode,
                         ModuleParam.ModuleName,
                         ModuleParam.Remarks,
                         HRoiType.检测结果,
                         "green",
-                        new HObject(domain)
+                        displayDomainObj
                     ));
+                    displayDomainAssigned = true;
                 }
 
                 ShowHRoi();
                 InitRoiMethod();
-
-                // ClearROI 会导致 real 类型深度图丢失颜色映射，重新设置 LUT
-                if (ModuleView is PlaneCorrectionView view && view.mWindowH != null)
-                {
-                    HOperatorSet.SetLut(view.mWindowH.hControl.HalconWindow, "temperature");
-                    view.mWindowH.WindowH._hWndControl.Repaint();
-                }
-
-                chObj.Dispose();
-                chRealObj.Dispose();
 
                 ChangeModuleRunStatus(eRunStatus.OK);
                 return true;
@@ -442,21 +622,43 @@ namespace Plugin.PlaneCorrection.ViewModels
             }
             finally
             {
+                // 释放本次运行创建的临时 HALCON 对象。
+                // zCorrectedObj 成功交给 CorrectedImage 后不能释放，否则下游输出图像会失效。
                 domain?.Dispose();
-                if (om3D != null)
-                {
-                    HOperatorSet.ClearObjectModel3d(om3D);
-                }
-                if (planeImageObj != null)
-                {
-                    planeImageObj.Dispose();
-                }
+                rawDomain?.Dispose();
+                imageRegion?.Dispose();
+                linkedPlaneImg?.Dispose();
+                chObj?.Dispose();
+                chRealObj?.Dispose();
+                currentPlaneObj?.Dispose();
+                refPlaneObj?.Dispose();
+                residualObj?.Dispose();
+                refWithOffsetObj?.Dispose();
+                zDiffToRefObj?.Dispose();
+                if (!object.ReferenceEquals(distanceObj, zCorrectedObj))
+                    distanceObj?.Dispose();
+                imageXObj?.Dispose();
+                imageYObj?.Dispose();
+                scaledXObj?.Dispose();
+                scaledYObj?.Dispose();
+                scaledZObj?.Dispose();
+                xTransObj?.Dispose();
+                yTransObj?.Dispose();
+                zProjectionPhysicalObj?.Dispose();
+                if (!displayDomainAssigned)
+                    displayDomainObj?.Dispose();
+                if (sourceObjectModel3D != null)
+                    HOperatorSet.ClearObjectModel3d(sourceObjectModel3D);
+                if (transformedObjectModel3D != null)
+                    HOperatorSet.ClearObjectModel3d(transformedObjectModel3D);
+                if (!correctedImageAssigned)
+                    zCorrectedObj?.Dispose();
             }
         }
 
         public override void AddOutputParams()
         {
-            AddOutputParam("校正后图像", "object", CorrectedImage);
+            AddOutputParam("校正后图像", "HImage", CorrectedImage);
             AddOutputParam("平面度", "double", Flatness);
             AddOutputParam("最大偏差", "double", MaxDeviation);
             AddOutputParam("最小偏差", "double", MinDeviation);
@@ -475,6 +677,197 @@ namespace Plugin.PlaneCorrection.ViewModels
                 return roiRegion;
             }
             return DispImage.GetDomain();
+        }
+
+        private HRegion ClipRegionToImage(HRegion region, HRegion imageRegion)
+        {
+            if (region == null || !region.IsInitialized() ||
+                imageRegion == null || !imageRegion.IsInitialized())
+            {
+                return null;
+            }
+
+            HOperatorSet.Intersection(region, imageRegion, out HObject clippedObj);
+            return new HRegion(clippedObj);
+        }
+
+        private void ConvertSurfaceToStandardPlane(
+            double alpha,
+            double beta,
+            double gamma,
+            double centerR,
+            double centerC,
+            double resolutionX,
+            double resolutionY,
+            double resolutionZ,
+            out double nx,
+            out double ny,
+            out double nz,
+            out double d)
+        {
+            // HALCON 高度图一阶面：
+            // zPixel = alpha * (row - centerR) + beta * (col - centerC) + gamma
+            // 真实坐标：
+            // X = col * resolutionX, Y = row * resolutionY, Z = zPixel * resolutionZ
+            // 转成标准平面方程：nx * X + ny * Y + nz * Z = d
+            nx = -beta * resolutionZ / resolutionX;
+            ny = -alpha * resolutionZ / resolutionY;
+            nz = 1.0;
+            d = resolutionZ * (gamma - beta * centerC - alpha * centerR);
+
+            double len = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+            if (len <= 1e-12)
+            {
+                nx = 0.0;
+                ny = 0.0;
+                nz = 1.0;
+                d = 0.0;
+                return;
+            }
+
+            nx /= len;
+            ny /= len;
+            nz /= len;
+            d /= len;
+            EnsureNormalUp(ref nx, ref ny, ref nz, ref d);
+        }
+
+        private void ObjectModel3dToXyzImage(
+            HTuple objectModel3D,
+            out HObject xImage,
+            out HObject yImage,
+            out HObject zImage)
+        {
+            // XyzToObjectModel3d 生成的点云带有 xyz_map 映射。
+            // from_xyz_map 会把变换后的 XYZ 点写回原始高度图网格，CamParam/Pose 会被忽略。
+            HOperatorSet.ObjectModel3dToXyz(
+                out xImage,
+                out yImage,
+                out zImage,
+                objectModel3D,
+                "from_xyz_map",
+                new HTuple(),
+                new HTuple());
+        }
+
+        private void EnsureNormalUp(ref double nx, ref double ny, ref double nz, ref double d)
+        {
+            if (nz >= 0)
+                return;
+
+            nx = -nx;
+            ny = -ny;
+            nz = -nz;
+            d = -d;
+        }
+
+        private HTuple BuildPlaneAlignmentHomMat3D(
+            double curNx,
+            double curNy,
+            double curNz,
+            double refNx,
+            double refNy,
+            double refNz,
+            double centerX,
+            double centerY,
+            double centerZ)
+        {
+            NormalizeVector(ref curNx, ref curNy, ref curNz);
+            NormalizeVector(ref refNx, ref refNy, ref refNz);
+
+            double vx = curNy * refNz - curNz * refNy;
+            double vy = curNz * refNx - curNx * refNz;
+            double vz = curNx * refNy - curNy * refNx;
+            double s = Math.Sqrt(vx * vx + vy * vy + vz * vz);
+            double c = curNx * refNx + curNy * refNy + curNz * refNz;
+
+            double[,] r;
+            if (s < 1e-12)
+            {
+                if (c >= 0)
+                {
+                    r = new double[,]
+                    {
+                        { 1.0, 0.0, 0.0 },
+                        { 0.0, 1.0, 0.0 },
+                        { 0.0, 0.0, 1.0 }
+                    };
+                }
+                else
+                {
+                    GetPerpendicularAxis(curNx, curNy, curNz, out vx, out vy, out vz);
+                    r = BuildAxisAngleRotation(vx, vy, vz, Math.PI);
+                }
+            }
+            else
+            {
+                vx /= s;
+                vy /= s;
+                vz /= s;
+                double angle = Math.Atan2(s, c);
+                r = BuildAxisAngleRotation(vx, vy, vz, angle);
+            }
+
+            double tx = centerX - (r[0, 0] * centerX + r[0, 1] * centerY + r[0, 2] * centerZ);
+            double ty = centerY - (r[1, 0] * centerX + r[1, 1] * centerY + r[1, 2] * centerZ);
+            double tz = centerZ - (r[2, 0] * centerX + r[2, 1] * centerY + r[2, 2] * centerZ);
+
+            // HALCON HomMat3D 12 参数：3x3 旋转矩阵 + 平移列。
+            return new HTuple(new double[]
+            {
+                r[0, 0], r[0, 1], r[0, 2], tx,
+                r[1, 0], r[1, 1], r[1, 2], ty,
+                r[2, 0], r[2, 1], r[2, 2], tz
+            });
+        }
+
+        private void NormalizeVector(ref double x, ref double y, ref double z)
+        {
+            double len = Math.Sqrt(x * x + y * y + z * z);
+            if (len <= 1e-12)
+            {
+                x = 0.0;
+                y = 0.0;
+                z = 1.0;
+                return;
+            }
+
+            x /= len;
+            y /= len;
+            z /= len;
+        }
+
+        private void GetPerpendicularAxis(double x, double y, double z, out double ax, out double ay, out double az)
+        {
+            if (Math.Abs(x) < Math.Abs(y))
+            {
+                ax = 0.0;
+                ay = -z;
+                az = y;
+            }
+            else
+            {
+                ax = -z;
+                ay = 0.0;
+                az = x;
+            }
+
+            NormalizeVector(ref ax, ref ay, ref az);
+        }
+
+        private double[,] BuildAxisAngleRotation(double ax, double ay, double az, double angle)
+        {
+            NormalizeVector(ref ax, ref ay, ref az);
+            double c = Math.Cos(angle);
+            double s = Math.Sin(angle);
+            double t = 1.0 - c;
+
+            return new double[,]
+            {
+                { t * ax * ax + c, t * ax * ay - s * az, t * ax * az + s * ay },
+                { t * ax * ay + s * az, t * ay * ay + c, t * ay * az - s * ax },
+                { t * ax * az - s * ay, t * ay * az + s * ax, t * az * az + c }
+            };
         }
 
         public void InitRoiMethod()
@@ -564,6 +957,15 @@ namespace Plugin.PlaneCorrection.ViewModels
             set { Set(ref _PlaneMode, value); }
         }
 
+        private eCorrectionMode _CorrectionMode = eCorrectionMode.Quick;
+        public eCorrectionMode CorrectionMode
+        {
+            get { return _CorrectionMode; }
+            set { Set(ref _CorrectionMode, value); }
+        }
+
+        // 界面“启用平移”开关：只控制是否把 InitTranslateZ 加到最终输出结果，
+        // 不参与平面拟合、不改变 ROI、不改变当前平面到基准平面的旋转角度。
         private bool _IsTranslateEnabled = false;
         public bool IsTranslateEnabled
         {
@@ -655,7 +1057,11 @@ namespace Plugin.PlaneCorrection.ViewModels
         public LinkVarModel InitNy { get; set; } = new LinkVarModel() { Text = "0" };
         public LinkVarModel InitNz { get; set; } = new LinkVarModel() { Text = "1" };
         public LinkVarModel InitD { get; set; } = new LinkVarModel() { Text = "0" };
+        // 界面“平移Z”：按输入高度图单位填写。只有 IsTranslateEnabled 为 true 时才会生效。
         public LinkVarModel InitTranslateZ { get; set; } = new LinkVarModel() { Text = "0" };
+        public LinkVarModel InitResolutionX { get; set; } = new LinkVarModel() { Text = "1" };
+        public LinkVarModel InitResolutionY { get; set; } = new LinkVarModel() { Text = "1" };
+        public LinkVarModel InitResolutionZ { get; set; } = new LinkVarModel() { Text = "1" };
         public LinkVarModel InitRoiCenterX { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiCenterY { get; set; } = new LinkVarModel() { Text = "10" };
         public LinkVarModel InitRoiLength1 { get; set; } = new LinkVarModel() { Text = "10" };
@@ -663,15 +1069,14 @@ namespace Plugin.PlaneCorrection.ViewModels
         public LinkVarModel InitRoiAngel { get; set; } = new LinkVarModel() { Text = "0" };
 
         // 几何对象
-        [NonSerialized] public ROIRectangle2 InitRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TranRoi = new ROIRectangle2();
-        [NonSerialized] public ROIRectangle2 TempRoi = new ROIRectangle2();
+        public ROIRectangle2 InitRoi = new ROIRectangle2();
+        public ROIRectangle2 TranRoi = new ROIRectangle2();
+        public ROIRectangle2 TempRoi = new ROIRectangle2();
 
         // 标志位
-        [NonSerialized] bool DisenableAffine2d = false;
-        [NonSerialized] bool InitRoiChanged_Flag = false;
+        bool DisenableAffine2d = false;
+        bool InitRoiChanged_Flag = false;
 
-        [NonSerialized]
         private Dictionary<string, ROI> _RoiList;
         #endregion
 
@@ -698,6 +1103,9 @@ namespace Plugin.PlaneCorrection.ViewModels
             InitNz.TextChanged = new Action(() => { InitRoiChanged(); });
             InitD.TextChanged = new Action(() => { InitRoiChanged(); });
             InitTranslateZ.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitResolutionX.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitResolutionY.TextChanged = new Action(() => { InitRoiChanged(); });
+            InitResolutionZ.TextChanged = new Action(() => { InitRoiChanged(); });
 
             if (DispImage == null || !DispImage.IsInitialized())
             {
@@ -842,6 +1250,15 @@ namespace Plugin.PlaneCorrection.ViewModels
                 case eLinkCommand.InitTranslateZ:
                     InitTranslateZ.Text = obj.LinkName;
                     break;
+                case eLinkCommand.InitResolutionX:
+                    InitResolutionX.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitResolutionY:
+                    InitResolutionY.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.InitResolutionZ:
+                    InitResolutionZ.Text = obj.LinkName;
+                    break;
                 case eLinkCommand.InitRoiCenterX:
                     InitRoiCenterX.Text = obj.LinkName;
                     break;
@@ -917,6 +1334,24 @@ namespace Plugin.PlaneCorrection.ViewModels
                                 EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
                                     .Publish($"{ModuleGuid},InitTranslateZ");
                                 break;
+                            case eLinkCommand.InitResolutionX:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitResolutionX");
+                                break;
+                            case eLinkCommand.InitResolutionY:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitResolutionY");
+                                break;
+                            case eLinkCommand.InitResolutionZ:
+                                CommonMethods.GetModuleList(ModuleParam,
+                                    VarLinkViewModel.Ins.Modules, "double");
+                                EventMgr.Ins.GetEvent<OpenVarLinkViewEvent>()
+                                    .Publish($"{ModuleGuid},InitResolutionZ");
+                                break;
                             case eLinkCommand.InitRoiCenterX:
                                 CommonMethods.GetModuleList(ModuleParam,
                                     VarLinkViewModel.Ins.Modules, "double");
@@ -960,6 +1395,7 @@ namespace Plugin.PlaneCorrection.ViewModels
             obj["InputImageLinkText"] = InputImageLinkText ?? "";
             obj["PlaneImageLinkText"] = PlaneImageLinkText ?? "";
             obj["PlaneMode"] = (int)PlaneMode;
+            obj["CorrectionMode"] = (int)CorrectionMode;
             obj["IsTranslateEnabled"] = IsTranslateEnabled;
             obj["UseRoi"] = UseRoi;
             obj["ShowCorrectedImage"] = ShowCorrectedImage;
@@ -970,6 +1406,9 @@ namespace Plugin.PlaneCorrection.ViewModels
             obj["InitNz"] = InitNz?.Text ?? "";
             obj["InitD"] = InitD?.Text ?? "";
             obj["InitTranslateZ"] = InitTranslateZ?.Text ?? "";
+            obj["InitResolutionX"] = InitResolutionX?.Text ?? "";
+            obj["InitResolutionY"] = InitResolutionY?.Text ?? "";
+            obj["InitResolutionZ"] = InitResolutionZ?.Text ?? "";
             obj["InitRoiCenterX"] = InitRoiCenterX?.Text ?? "";
             obj["InitRoiCenterY"] = InitRoiCenterY?.Text ?? "";
             obj["InitRoiLength1"] = InitRoiLength1?.Text ?? "";
@@ -988,6 +1427,7 @@ namespace Plugin.PlaneCorrection.ViewModels
                 if (obj["InputImageLinkText"] != null) InputImageLinkText = obj["InputImageLinkText"].ToString();
                 if (obj["PlaneImageLinkText"] != null) PlaneImageLinkText = obj["PlaneImageLinkText"].ToString();
                 if (obj["PlaneMode"] != null) PlaneMode = (ePlaneMode)obj["PlaneMode"].Value<int>();
+                if (obj["CorrectionMode"] != null) CorrectionMode = (eCorrectionMode)obj["CorrectionMode"].Value<int>();
                 if (obj["IsTranslateEnabled"] != null) IsTranslateEnabled = obj["IsTranslateEnabled"].Value<bool>();
                 if (obj["UseRoi"] != null) UseRoi = obj["UseRoi"].Value<bool>();
                 if (obj["ShowCorrectedImage"] != null) ShowCorrectedImage = obj["ShowCorrectedImage"].Value<bool>();
@@ -998,6 +1438,9 @@ namespace Plugin.PlaneCorrection.ViewModels
                 if (obj["InitNz"] != null && InitNz != null) InitNz.Text = obj["InitNz"].ToString();
                 if (obj["InitD"] != null && InitD != null) InitD.Text = obj["InitD"].ToString();
                 if (obj["InitTranslateZ"] != null && InitTranslateZ != null) InitTranslateZ.Text = obj["InitTranslateZ"].ToString();
+                if (obj["InitResolutionX"] != null && InitResolutionX != null) InitResolutionX.Text = obj["InitResolutionX"].ToString();
+                if (obj["InitResolutionY"] != null && InitResolutionY != null) InitResolutionY.Text = obj["InitResolutionY"].ToString();
+                if (obj["InitResolutionZ"] != null && InitResolutionZ != null) InitResolutionZ.Text = obj["InitResolutionZ"].ToString();
                 if (obj["InitRoiCenterX"] != null && InitRoiCenterX != null) InitRoiCenterX.Text = obj["InitRoiCenterX"].ToString();
                 if (obj["InitRoiCenterY"] != null && InitRoiCenterY != null) InitRoiCenterY.Text = obj["InitRoiCenterY"].ToString();
                 if (obj["InitRoiLength1"] != null && InitRoiLength1 != null) InitRoiLength1.Text = obj["InitRoiLength1"].ToString();
