@@ -78,24 +78,47 @@ namespace Plugin.DataCheck.ViewModels
                     {
                         var value = GetLinkValue(Data.DataLinkText);
                         double valueD = 0;
-                        switch (Data.DataType)
+                        if (value != null)
                         {
-                            case "int":
-                            case "double":
-                            case "bool":
-                                valueD = Convert.ToDouble(value);
-                                break;
-                            default:
-                                break;
+                            switch (Data.DataType)
+                            {
+                                case "int":
+                                case "double":
+                                case "bool":
+                                    double.TryParse(value.ToString(), out valueD);
+                                    break;
+                                default:
+                                    double.TryParse(value.ToString(), out valueD);
+                                    break;
+                            }
                         }
+                        // 截取小数点
+                        if (IsTruncateDecimal && DecimalPlaces >= 0)
+                        {
+                            double factor = Math.Pow(10, DecimalPlaces);
+                            valueD = Math.Truncate(valueD * factor) / factor;
+                        }
+
                         Data.DataLinkValue = valueD.ToString();
-                        double.TryParse(GetLinkValue(Data.lowerLimitStr).ToString(), out double LimtLower);
-                        double.TryParse(GetLinkValue(Data.upperLimitStr).ToString(), out double LimtUpper);
-                        if (valueD > LimtLower && valueD < LimtUpper)
+                        string lowerStr = GetLinkValue(Data.lowerLimitStr)?.ToString() ?? Data.lowerLimit;
+                        string upperStr = GetLinkValue(Data.upperLimitStr)?.ToString() ?? Data.upperLimit;
+                        double.TryParse(lowerStr, out double LimtLower);
+                        double.TryParse(upperStr, out double LimtUpper);
+
+                        bool itemResult;
+                        if (IsReverseCheck)
+                        {
+                            itemResult = valueD < LimtLower || valueD > LimtUpper;
+                        }
+                        else
+                        {
+                            itemResult = valueD >= LimtLower && valueD <= LimtUpper;
+                        }
+
+                        if (itemResult)
                         {
                             Data.State = true;
                             CheckResult.Add(true);
-                            
                         }
                         else
                         {
@@ -177,6 +200,35 @@ namespace Plugin.DataCheck.ViewModels
             set { Set(ref _Result, value); }
         }
 
+        private bool _IsReverseCheck;
+        /// <summary>
+        /// 小于或大于（反向判定）
+        /// </summary>
+        public bool IsReverseCheck
+        {
+            get { return _IsReverseCheck; }
+            set { Set(ref _IsReverseCheck, value); }
+        }
+
+        private bool _IsTruncateDecimal;
+        /// <summary>
+        /// 截取小数点
+        /// </summary>
+        public bool IsTruncateDecimal
+        {
+            get { return _IsTruncateDecimal; }
+            set { Set(ref _IsTruncateDecimal, value); }
+        }
+
+        private int _DecimalPlaces = 3;
+        /// <summary>
+        /// 小数位数
+        /// </summary>
+        public int DecimalPlaces
+        {
+            get { return _DecimalPlaces; }
+            set { Set(ref _DecimalPlaces, value); }
+        }
 
         #endregion
         #region Command
@@ -233,14 +285,36 @@ namespace Plugin.DataCheck.ViewModels
             {
                 case "LinkData":
                     LinkDataName = obj.LinkName;
+                    var newItem = new DataCheckModel()
+                    {
+                        DataLinkText = LinkDataName,
+                        ID = DataChecks.Count + 1,
+                        DataType = obj.DataType,
+                        ModuleGuid = this.ModuleGuid,
+                        ModuleParam = this.ModuleParam
+                    };
                     if (obj.DataType == "bool")
                     {
-                        DataChecks.Add(new DataCheckModel() { DataLinkText = LinkDataName, ID = DataChecks.Count + 1, DataType = obj.DataType, upperLimit = "1.1", lowerLimit = "0.6" ,ModuleGuid = this.ModuleGuid,ModuleParam = this.ModuleParam});
+                        newItem.upperLimit = "1.1";
+                        newItem.lowerLimit = "0.6";
+                        newItem.upperLimitStr = "1.1";
+                        newItem.lowerLimitStr = "0.6";
                     }
                     else
                     {
-                        DataChecks.Add(new DataCheckModel() { DataLinkText = LinkDataName, ID = DataChecks.Count + 1, DataType = obj.DataType, ModuleGuid = this.ModuleGuid, ModuleParam = this.ModuleParam });
+                        newItem.upperLimit = "9999";
+                        newItem.lowerLimit = "-9999";
+                        newItem.upperLimitStr = "9999";
+                        newItem.lowerLimitStr = "-9999";
                     }
+                    // 添加时立即获取当前值显示
+                    var val = GetLinkValue(LinkDataName);
+                    if (val != null)
+                    {
+                        double.TryParse(val.ToString(), out double d);
+                        newItem.DataLinkValue = d.ToString();
+                    }
+                    DataChecks.Add(newItem);
                     break;
                 default:
                     break;
@@ -349,6 +423,9 @@ namespace Plugin.DataCheck.ViewModels
             JObject obj = JObject.Parse(base.HVSerialize());
             obj["LinkDataName"] = LinkDataName ?? "";
             obj["Result"] = Result;
+            obj["IsReverseCheck"] = IsReverseCheck;
+            obj["IsTruncateDecimal"] = IsTruncateDecimal;
+            obj["DecimalPlaces"] = DecimalPlaces;
             JArray arr = new JArray();
             if (DataChecks != null)
             {
@@ -381,6 +458,9 @@ namespace Plugin.DataCheck.ViewModels
                 JObject obj = JObject.Parse(json);
                 if (obj["LinkDataName"] != null) LinkDataName = obj["LinkDataName"].ToString();
                 if (obj["Result"] != null) Result = obj["Result"].Value<bool>();
+                if (obj["IsReverseCheck"] != null) IsReverseCheck = obj["IsReverseCheck"].Value<bool>();
+                if (obj["IsTruncateDecimal"] != null) IsTruncateDecimal = obj["IsTruncateDecimal"].Value<bool>();
+                if (obj["DecimalPlaces"] != null) DecimalPlaces = obj["DecimalPlaces"].Value<int>();
                 if (obj["DataChecks"] != null)
                 {
                     JArray arr = (JArray)obj["DataChecks"];

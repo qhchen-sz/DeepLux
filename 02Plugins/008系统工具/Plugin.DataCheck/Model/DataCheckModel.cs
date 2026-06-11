@@ -65,7 +65,7 @@ namespace Plugin.DataCheck.Model
             get { return _State; }
             set { Set(ref _State, value); }
         }
-        private string _lowerLimit="-999999";
+        private string _lowerLimit="-9999";
         private string _lowerLimitStr = "";
         /// <summary>
         /// 下限位
@@ -80,7 +80,7 @@ namespace Plugin.DataCheck.Model
             get { return _lowerLimitStr; }
             set { Set(ref _lowerLimitStr, value); }
         }
-        private string _upperLimit="99999";
+        private string _upperLimit="9999";
         private string _upperLimitStr = "";
         /// <summary>
         /// 上限位

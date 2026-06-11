@@ -106,7 +106,10 @@
                     <Button Content="删除" Margin="0,30" Command="{Binding DataOperateCommand}"  CommandParameter="Delete"/>
                     <Button Content="上移" Command="{Binding DataOperateCommand}" CommandParameter="UpMove"/>
                     <Button Content="下移" Margin="0,30" Command="{Binding DataOperateCommand}" CommandParameter="DownMove"/>
-                    <TextBlock Text="综合判定：" Margin="0,30,0,10" TextAlignment="Center" FontSize="22"></TextBlock>
+                    <CheckBox Content="小于或大于" IsChecked="{Binding IsReverseCheck}" Margin="0,20,0,5" HorizontalAlignment="Center" Foreground="White"/>
+                    <CheckBox Content="截取小数点" IsChecked="{Binding IsTruncateDecimal}" Margin="0,5" HorizontalAlignment="Center" Foreground="White"/>
+                    <mah:NumericUpDown Value="{Binding DecimalPlaces}" Minimum="0" Maximum="10" Interval="1" Width="80" Margin="0,5,0,0" HorizontalAlignment="Center" Foreground="White"/>
+                    <TextBlock Text="综合判定：" Margin="0,20,0,10" TextAlignment="Center" FontSize="22"></TextBlock>
                     <TextBlock Text="{Binding Result}" TextAlignment="Center" FontSize="22"></TextBlock>
                     
                 </StackPanel>
