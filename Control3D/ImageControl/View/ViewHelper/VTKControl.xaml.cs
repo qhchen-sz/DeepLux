@@ -2688,7 +2688,13 @@ namespace ImageControl
             HObject ho_Range1;
 
             if (min.D < -500.0)
+            {
                 HOperatorSet.Threshold(imgReal, out ho_Range1, min.D + 3.0, max.D);
+            }
+            else if (Math.Abs(min.D + 3.2768) < 1e-3)
+            {
+                HOperatorSet.Threshold(imgReal, out ho_Range1, min.D + 1e-3, max.D);
+            }
             else
                 HOperatorSet.Threshold(imgReal, out ho_Range1, min.D + eps, max.D);
 

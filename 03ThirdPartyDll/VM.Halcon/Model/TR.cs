@@ -263,21 +263,24 @@ namespace VM.Halcon.Model
             //只有高度图
             if (channels == 1)
             {
-                // 高度图归一化（sub_image操作）
-                HTuple min, max, range;
-                HOperatorSet.MinMaxGray(hImage, hImage, 0, out min, out max, out range);
-                HImage constImage = new HImage();
-                HOperatorSet.GenImageProto(hImage, out HObject constObj, min);
-                constImage.Dispose();
-                constImage = new HImage(constObj);
-                constObj.Dispose();
+                //// 高度图归一化（sub_image操作）—— 注释掉，保留原始值以支持DLL内部哨兵值(-3.2768)背景检测
+                //HTuple min, max, range;
+                //HOperatorSet.MinMaxGray(hImage, hImage, 0, out min, out max, out range);
+                //HImage constImage = new HImage();
+                //HOperatorSet.GenImageProto(hImage, out HObject constObj, min);
+                //constImage.Dispose();
+                //constImage = new HImage(constObj);
+                //constObj.Dispose();
 
-                HImage resultHeightImage = new HImage();
-                HOperatorSet.SubImage(hImage, constImage, out HObject resultHeightObj, 1.0, 0.0);
-                resultHeightImage.Dispose();
-                resultHeightImage = new HImage(resultHeightObj);
-                resultHeightObj.Dispose();
-                ImgParaWithHandle heightPara = ConvertSingleChannelHImageToImgParaFast(resultHeightImage);
+                //HImage resultHeightImage = new HImage();
+                //HOperatorSet.SubImage(hImage, constImage, out HObject resultHeightObj, 1.0, 0.0);
+                //resultHeightImage.Dispose();
+                //resultHeightImage = new HImage(resultHeightObj);
+                //resultHeightObj.Dispose();
+                //ImgParaWithHandle heightPara = ConvertSingleChannelHImageToImgParaFast(resultHeightImage);
+
+                // 直接传入原始高度图，不做归一化
+                ImgParaWithHandle heightPara = ConvertSingleChannelHImageToImgParaFast(hImage);
                 ImgParaWithHandle grayPara = new ImgParaWithHandle
                 {
                     Para = new ImgPara
@@ -307,23 +310,23 @@ namespace VM.Halcon.Model
                 HImage heightImage = new HImage(heightObj);
                 HImage grayImage = new HImage(grayObj);
 
-                // Step 2: 高度图归一化（sub_image操作）
-                HTuple min, max, range;
-                HOperatorSet.MinMaxGray(heightImage, heightImage, 0, out min, out max, out range);
-                HImage constImage = new HImage();
-                HOperatorSet.GenImageProto(heightImage, out HObject constObj, min);
-                constImage.Dispose();
-                constImage = new HImage(constObj);
-                constObj.Dispose();
+                //// Step 2: 高度图归一化（sub_image操作）—— 注释掉，保留原始值以支持DLL内部哨兵值(-3.2768)背景检测
+                //HTuple min, max, range;
+                //HOperatorSet.MinMaxGray(heightImage, heightImage, 0, out min, out max, out range);
+                //HImage constImage = new HImage();
+                //HOperatorSet.GenImageProto(heightImage, out HObject constObj, min);
+                //constImage.Dispose();
+                //constImage = new HImage(constObj);
+                //constObj.Dispose();
 
-                HImage resultHeightImage = new HImage();
-                HOperatorSet.SubImage(heightImage, constImage, out HObject resultHeightObj, 1.0, 0.0);
-                resultHeightImage.Dispose();
-                resultHeightImage = new HImage(resultHeightObj);
-                resultHeightObj.Dispose();
+                //HImage resultHeightImage = new HImage();
+                //HOperatorSet.SubImage(heightImage, constImage, out HObject resultHeightObj, 1.0, 0.0);
+                //resultHeightImage.Dispose();
+                //resultHeightImage = new HImage(resultHeightObj);
+                //resultHeightObj.Dispose();
 
-                // Step 3: 转换成 ImgPara
-                ImgParaWithHandle heightPara = ConvertSingleChannelHImageToImgParaFast(resultHeightImage);
+                // Step 3: 转换成 ImgPara（直接使用原始高度图，不做归一化）
+                ImgParaWithHandle heightPara = ConvertSingleChannelHImageToImgParaFast(heightImage);
                 ImgParaWithHandle grayPara = ConvertSingleChannelHImageToImgParaFast(grayImage);
 
                 return (heightPara, grayPara);
