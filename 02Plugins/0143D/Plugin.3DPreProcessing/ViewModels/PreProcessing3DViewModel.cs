@@ -107,6 +107,7 @@ namespace Plugin._3DPreProcessing.ViewModels
                         {
                             TempImage = new HImage(m_InImage);
                         }
+                        hImage = new HImage(TempImage);
 
                         switch (item.m_name)
                         {
@@ -161,8 +162,49 @@ namespace Plugin._3DPreProcessing.ViewModels
                                 if (item.m_enable)
                                     m_PretreatHelp.FillDepth(TempImage, out hImage, item.m_FillWidth, item.m_FillHeight);
                                 break;
+                            case eOperatorType.无效高度过滤:
+                                if (item.m_enable)
+                                    m_PretreatHelp.FilterInvalidDepth(TempImage, out hImage, item.m_InvalidMinZ, item.m_InvalidMaxZ, item.m_InvalidPaintEnable, item.m_InvalidFillValue);
+                                break;
+                            case eOperatorType.矩形屏蔽:
+                                if (item.m_enable)
+                                    m_PretreatHelp.MaskRectangle(TempImage, out hImage, item.m_MaskRow1, item.m_MaskCol1, item.m_MaskRow2, item.m_MaskCol2, item.m_MaskPaintEnable, item.m_MaskFillValue);
+                                break;
+                            case eOperatorType.飞点去除:
+                                if (item.m_enable)
+                                    m_PretreatHelp.RemoveSpike(TempImage, out hImage, item.m_SpikeMedianSize, item.m_SpikeThreshold);
+                                break;
+                            case eOperatorType.小孔填补:
+                                if (item.m_enable)
+                                    m_PretreatHelp.FillSmallHoles(TempImage, out hImage, item.m_HoleMinZ, item.m_HoleMaxZ, item.m_HoleMaxArea, item.m_HoleFillWidth, item.m_HoleFillHeight);
+                                break;
+                            case eOperatorType.保边滤波:
+                                if (item.m_enable)
+                                    m_PretreatHelp.EdgePreserveSmooth(TempImage, out hImage, item.m_EdgeSmoothWidth, item.m_EdgeSmoothHeight, item.m_EdgeThreshold);
+                                break;
+                            case eOperatorType.行条纹校正:
+                                if (item.m_enable)
+                                    m_PretreatHelp.CorrectRowStripe(TempImage, out hImage, item.m_RowStripeWidth, item.m_RowStripeStrength);
+                                break;
+                            case eOperatorType.列条纹校正:
+                                if (item.m_enable)
+                                    m_PretreatHelp.CorrectColumnStripe(TempImage, out hImage, item.m_ColumnStripeHeight, item.m_ColumnStripeStrength);
+                                break;
+                            case eOperatorType.连通域筛选:
+                                if (item.m_enable)
+                                    m_PretreatHelp.FilterComponents(TempImage, out hImage, item.m_ComponentMinZ, item.m_ComponentMaxZ, item.m_ComponentMinArea, item.m_ComponentMaxArea, item.m_ComponentKeepMax);
+                                break;
+                            case eOperatorType.平面去趋势:
+                                if (item.m_enable)
+                                    m_PretreatHelp.RemovePlaneTrend(TempImage, out hImage, item.m_PlaneMinZ, item.m_PlaneMaxZ, item.m_PlaneKeepHeight);
+                                break;
+                            case eOperatorType.高度归一化:
+                                if (item.m_enable)
+                                    m_PretreatHelp.NormalizeHeight(TempImage, out hImage, item.m_NormalizeScale, item.m_NormalizeOffset);
+                                break;
                         }
                         m_outImage = new RImage(hImage);
+                        TempImage?.Dispose();
                         i++;
                     }
 
@@ -495,6 +537,40 @@ namespace Plugin._3DPreProcessing.ViewModels
                     itemObj["m_ClipMax"] = item.m_ClipMax;
                     itemObj["m_FillWidth"] = item.m_FillWidth;
                     itemObj["m_FillHeight"] = item.m_FillHeight;
+                    itemObj["m_InvalidMinZ"] = item.m_InvalidMinZ;
+                    itemObj["m_InvalidMaxZ"] = item.m_InvalidMaxZ;
+                    itemObj["m_InvalidPaintEnable"] = item.m_InvalidPaintEnable;
+                    itemObj["m_InvalidFillValue"] = item.m_InvalidFillValue;
+                    itemObj["m_MaskRow1"] = item.m_MaskRow1;
+                    itemObj["m_MaskCol1"] = item.m_MaskCol1;
+                    itemObj["m_MaskRow2"] = item.m_MaskRow2;
+                    itemObj["m_MaskCol2"] = item.m_MaskCol2;
+                    itemObj["m_MaskPaintEnable"] = item.m_MaskPaintEnable;
+                    itemObj["m_MaskFillValue"] = item.m_MaskFillValue;
+                    itemObj["m_SpikeMedianSize"] = item.m_SpikeMedianSize;
+                    itemObj["m_SpikeThreshold"] = item.m_SpikeThreshold;
+                    itemObj["m_HoleMinZ"] = item.m_HoleMinZ;
+                    itemObj["m_HoleMaxZ"] = item.m_HoleMaxZ;
+                    itemObj["m_HoleMaxArea"] = item.m_HoleMaxArea;
+                    itemObj["m_HoleFillWidth"] = item.m_HoleFillWidth;
+                    itemObj["m_HoleFillHeight"] = item.m_HoleFillHeight;
+                    itemObj["m_EdgeSmoothWidth"] = item.m_EdgeSmoothWidth;
+                    itemObj["m_EdgeSmoothHeight"] = item.m_EdgeSmoothHeight;
+                    itemObj["m_EdgeThreshold"] = item.m_EdgeThreshold;
+                    itemObj["m_RowStripeWidth"] = item.m_RowStripeWidth;
+                    itemObj["m_RowStripeStrength"] = item.m_RowStripeStrength;
+                    itemObj["m_ColumnStripeHeight"] = item.m_ColumnStripeHeight;
+                    itemObj["m_ColumnStripeStrength"] = item.m_ColumnStripeStrength;
+                    itemObj["m_ComponentMinZ"] = item.m_ComponentMinZ;
+                    itemObj["m_ComponentMaxZ"] = item.m_ComponentMaxZ;
+                    itemObj["m_ComponentMinArea"] = item.m_ComponentMinArea;
+                    itemObj["m_ComponentMaxArea"] = item.m_ComponentMaxArea;
+                    itemObj["m_ComponentKeepMax"] = item.m_ComponentKeepMax;
+                    itemObj["m_PlaneMinZ"] = item.m_PlaneMinZ;
+                    itemObj["m_PlaneMaxZ"] = item.m_PlaneMaxZ;
+                    itemObj["m_PlaneKeepHeight"] = item.m_PlaneKeepHeight;
+                    itemObj["m_NormalizeScale"] = item.m_NormalizeScale;
+                    itemObj["m_NormalizeOffset"] = item.m_NormalizeOffset;
                     arr.Add(itemObj);
                 }
             }
@@ -540,6 +616,40 @@ namespace Plugin._3DPreProcessing.ViewModels
                         if (item["m_ClipMax"] != null) md.m_ClipMax = item["m_ClipMax"].Value<double>();
                         if (item["m_FillWidth"] != null) md.m_FillWidth = item["m_FillWidth"].Value<int>();
                         if (item["m_FillHeight"] != null) md.m_FillHeight = item["m_FillHeight"].Value<int>();
+                        if (item["m_InvalidMinZ"] != null) md.m_InvalidMinZ = item["m_InvalidMinZ"].Value<double>();
+                        if (item["m_InvalidMaxZ"] != null) md.m_InvalidMaxZ = item["m_InvalidMaxZ"].Value<double>();
+                        if (item["m_InvalidPaintEnable"] != null) md.m_InvalidPaintEnable = item["m_InvalidPaintEnable"].Value<bool>();
+                        if (item["m_InvalidFillValue"] != null) md.m_InvalidFillValue = item["m_InvalidFillValue"].Value<double>();
+                        if (item["m_MaskRow1"] != null) md.m_MaskRow1 = item["m_MaskRow1"].Value<double>();
+                        if (item["m_MaskCol1"] != null) md.m_MaskCol1 = item["m_MaskCol1"].Value<double>();
+                        if (item["m_MaskRow2"] != null) md.m_MaskRow2 = item["m_MaskRow2"].Value<double>();
+                        if (item["m_MaskCol2"] != null) md.m_MaskCol2 = item["m_MaskCol2"].Value<double>();
+                        if (item["m_MaskPaintEnable"] != null) md.m_MaskPaintEnable = item["m_MaskPaintEnable"].Value<bool>();
+                        if (item["m_MaskFillValue"] != null) md.m_MaskFillValue = item["m_MaskFillValue"].Value<double>();
+                        if (item["m_SpikeMedianSize"] != null) md.m_SpikeMedianSize = item["m_SpikeMedianSize"].Value<int>();
+                        if (item["m_SpikeThreshold"] != null) md.m_SpikeThreshold = item["m_SpikeThreshold"].Value<double>();
+                        if (item["m_HoleMinZ"] != null) md.m_HoleMinZ = item["m_HoleMinZ"].Value<double>();
+                        if (item["m_HoleMaxZ"] != null) md.m_HoleMaxZ = item["m_HoleMaxZ"].Value<double>();
+                        if (item["m_HoleMaxArea"] != null) md.m_HoleMaxArea = item["m_HoleMaxArea"].Value<double>();
+                        if (item["m_HoleFillWidth"] != null) md.m_HoleFillWidth = item["m_HoleFillWidth"].Value<int>();
+                        if (item["m_HoleFillHeight"] != null) md.m_HoleFillHeight = item["m_HoleFillHeight"].Value<int>();
+                        if (item["m_EdgeSmoothWidth"] != null) md.m_EdgeSmoothWidth = item["m_EdgeSmoothWidth"].Value<int>();
+                        if (item["m_EdgeSmoothHeight"] != null) md.m_EdgeSmoothHeight = item["m_EdgeSmoothHeight"].Value<int>();
+                        if (item["m_EdgeThreshold"] != null) md.m_EdgeThreshold = item["m_EdgeThreshold"].Value<double>();
+                        if (item["m_RowStripeWidth"] != null) md.m_RowStripeWidth = item["m_RowStripeWidth"].Value<int>();
+                        if (item["m_RowStripeStrength"] != null) md.m_RowStripeStrength = item["m_RowStripeStrength"].Value<double>();
+                        if (item["m_ColumnStripeHeight"] != null) md.m_ColumnStripeHeight = item["m_ColumnStripeHeight"].Value<int>();
+                        if (item["m_ColumnStripeStrength"] != null) md.m_ColumnStripeStrength = item["m_ColumnStripeStrength"].Value<double>();
+                        if (item["m_ComponentMinZ"] != null) md.m_ComponentMinZ = item["m_ComponentMinZ"].Value<double>();
+                        if (item["m_ComponentMaxZ"] != null) md.m_ComponentMaxZ = item["m_ComponentMaxZ"].Value<double>();
+                        if (item["m_ComponentMinArea"] != null) md.m_ComponentMinArea = item["m_ComponentMinArea"].Value<double>();
+                        if (item["m_ComponentMaxArea"] != null) md.m_ComponentMaxArea = item["m_ComponentMaxArea"].Value<double>();
+                        if (item["m_ComponentKeepMax"] != null) md.m_ComponentKeepMax = item["m_ComponentKeepMax"].Value<bool>();
+                        if (item["m_PlaneMinZ"] != null) md.m_PlaneMinZ = item["m_PlaneMinZ"].Value<double>();
+                        if (item["m_PlaneMaxZ"] != null) md.m_PlaneMaxZ = item["m_PlaneMaxZ"].Value<double>();
+                        if (item["m_PlaneKeepHeight"] != null) md.m_PlaneKeepHeight = item["m_PlaneKeepHeight"].Value<bool>();
+                        if (item["m_NormalizeScale"] != null) md.m_NormalizeScale = item["m_NormalizeScale"].Value<double>();
+                        if (item["m_NormalizeOffset"] != null) md.m_NormalizeOffset = item["m_NormalizeOffset"].Value<double>();
                         m_ToolList.Add(md);
                     }
                 }

@@ -32,6 +32,11 @@ namespace Plugin.VolumeMeasurement.ViewModels
         ResolutionX,
         ResolutionY,
         ResolutionZ,
+        MeasureRoiCenterX,
+        MeasureRoiCenterY,
+        MeasureRoiLength1,
+        MeasureRoiLength2,
+        MeasureRoiAngle,
     }
 
     public enum eVolumeCalcMode
@@ -141,6 +146,30 @@ namespace Plugin.VolumeMeasurement.ViewModels
                     new HTuple(height.I - 1),
                     new HTuple(width.I - 1));
                 imageRegion = new HRegion(imageRegionObj);
+
+                // 读取手动ROI链接参数并计算显示坐标（TranMeasureRoi = 前向变换后的屏幕坐标）
+                GetHomMat2D();
+                if (MeasureRegionSource == eMeasureRegionSource.Manual)
+                {
+                    MeasureRoi.MidC = ResolveLinkValue(MeasureRoiCenterX);
+                    MeasureRoi.MidR = ResolveLinkValue(MeasureRoiCenterY);
+                    MeasureRoi.Length1 = ResolveLinkValue(MeasureRoiLength1);
+                    MeasureRoi.Length2 = ResolveLinkValue(MeasureRoiLength2);
+                    MeasureRoi.Deg = ResolveLinkValue(MeasureRoiAngle);
+
+                    if (HomMat2D != null && HomMat2D.Length > 0)
+                    {
+                        Aff.Affine2d(HomMat2D, MeasureRoi, TranMeasureRoi);
+                    }
+                    else
+                    {
+                        TranMeasureRoi.MidC = MeasureRoi.MidC;
+                        TranMeasureRoi.MidR = MeasureRoi.MidR;
+                        TranMeasureRoi.Length1 = MeasureRoi.Length1;
+                        TranMeasureRoi.Length2 = MeasureRoi.Length2;
+                        TranMeasureRoi.Deg = MeasureRoi.Deg;
+                    }
+                }
 
                 // 获取用户设置的测量区域：整图、手动绘制 ROI 或链接的 HRegion。
                 // 再与整图区域求交集，保证后续图像统计只在有效图像坐标内进行。
@@ -423,7 +452,11 @@ namespace Plugin.VolumeMeasurement.ViewModels
             if (_RoiList == null)
                 _RoiList = new Dictionary<string, ROI>();
 
-            if (DispImage != null && !_RoiList.ContainsKey(roiName))
+            if (TranMeasureRoi.FlagLineStyle != null)
+            {
+                view.mWindowH.WindowH.genRect2(roiName, TranMeasureRoi.MidR, TranMeasureRoi.MidC, TranMeasureRoi.Phi, TranMeasureRoi.Length1, TranMeasureRoi.Length2, ref _RoiList);
+            }
+            else if (DispImage != null && !_RoiList.ContainsKey(roiName))
             {
                 DispImage.GetImageSize(out int w, out int h);
                 view.mWindowH.WindowH.genRect2(roiName, h / 2.0, w / 2.0, 0, w / 8.0, h / 8.0, ref _RoiList);
@@ -432,17 +465,29 @@ namespace Plugin.VolumeMeasurement.ViewModels
                 TranMeasureRoi.Length1 = w / 8.0;
                 TranMeasureRoi.Length2 = h / 8.0;
                 TranMeasureRoi.Deg = 0;
+                MeasureRoi.MidC = w / 2.0;
+                MeasureRoi.MidR = h / 2.0;
+                MeasureRoi.Length1 = w / 8.0;
+                MeasureRoi.Length2 = h / 8.0;
+                MeasureRoi.Deg = 0;
             }
-            else if (DispImage != null)
+            else if (DispImage != null && _RoiList.ContainsKey(roiName))
             {
-                view.mWindowH.WindowH.genRect2(
-                    roiName,
-                    TranMeasureRoi.MidR,
-                    TranMeasureRoi.MidC,
-                    TranMeasureRoi.Phi,
-                    TranMeasureRoi.Length1,
-                    TranMeasureRoi.Length2,
-                    ref _RoiList);
+                if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                {
+                    view.mWindowH.WindowH.genRect2(roiName, TranMeasureRoi.MidR, TranMeasureRoi.MidC, TranMeasureRoi.Phi, TranMeasureRoi.Length1, TranMeasureRoi.Length2, ref _RoiList);
+                    ROIRectangle2 temp = new ROIRectangle2();
+                    Aff.Affine2d(HomMat2D_Inverse, TranMeasureRoi, temp);
+                    MeasureRoi.MidR = Math.Round(temp.MidR, 3);
+                    MeasureRoi.MidC = Math.Round(temp.MidC, 3);
+                    MeasureRoi.Length1 = Math.Round(temp.Length1, 3);
+                    MeasureRoi.Length2 = Math.Round(temp.Length2, 3);
+                    MeasureRoi.Deg = Math.Round(temp.Deg, 3);
+                }
+                else
+                {
+                    view.mWindowH.WindowH.genRect2(roiName, MeasureRoi.MidR, MeasureRoi.MidC, MeasureRoi.Phi, MeasureRoi.Length1, MeasureRoi.Length2, ref _RoiList);
+                }
             }
         }
 
@@ -465,13 +510,32 @@ namespace Plugin.VolumeMeasurement.ViewModels
 
             view.mWindowH.HobjectToHimage(DispImage);
             ClearRoiAndText();
-            _RoiList?.Clear();
             view.mWindowH.ClearROI();
 
             if (MeasureRegionSource == eMeasureRegionSource.LinkRegion)
             {
                 ShowLinkedMeasureRegion();
                 return;
+            }
+
+            if (MeasureRegionSource == eMeasureRegionSource.Manual)
+            {
+                MeasureRoi.MidC = ResolveLinkValue(MeasureRoiCenterX);
+                MeasureRoi.MidR = ResolveLinkValue(MeasureRoiCenterY);
+                MeasureRoi.Length1 = ResolveLinkValue(MeasureRoiLength1);
+                MeasureRoi.Length2 = ResolveLinkValue(MeasureRoiLength2);
+                MeasureRoi.Deg = ResolveLinkValue(MeasureRoiAngle);
+                GetHomMat2D();
+                if (HomMat2D != null && HomMat2D.Length > 0)
+                    Aff.Affine2d(HomMat2D, MeasureRoi, TranMeasureRoi);
+                else
+                {
+                    TranMeasureRoi.MidC = MeasureRoi.MidC;
+                    TranMeasureRoi.MidR = MeasureRoi.MidR;
+                    TranMeasureRoi.Length1 = MeasureRoi.Length1;
+                    TranMeasureRoi.Length2 = MeasureRoi.Length2;
+                    TranMeasureRoi.Deg = MeasureRoi.Deg;
+                }
             }
 
             InitMeasureRoiMethod();
@@ -511,8 +575,83 @@ namespace Plugin.VolumeMeasurement.ViewModels
                 TranMeasureRoi.Length1 = Math.Round(rect2.Length1, 3);
                 TranMeasureRoi.Length2 = Math.Round(rect2.Length2, 3);
                 TranMeasureRoi.Deg = Math.Round(rect2.Deg, 3);
+
+                if (HomMat2D_Inverse != null && HomMat2D_Inverse.Length > 0)
+                {
+                    ROIRectangle2 originalRoi = new ROIRectangle2();
+                    Aff.Affine2d(HomMat2D_Inverse, rect2, originalRoi);
+                    UpdateMeasureRoiParams(originalRoi.MidR, originalRoi.MidC, originalRoi.Deg, originalRoi.Length1, originalRoi.Length2);
+                }
+                else
+                    UpdateMeasureRoiParams(rect2.MidR, rect2.MidC, rect2.Deg, rect2.Length1, rect2.Length2);
+
                 ExeModule();
                 InitMeasureRoiMethod();
+            }
+        }
+
+        private void UpdateMeasureRoiParams(double midR, double midC, double deg, double len1, double len2)
+        {
+            MeasureRoi.MidR = Math.Round(midR, 3);
+            MeasureRoi.MidC = Math.Round(midC, 3);
+            MeasureRoi.Deg = Math.Round(deg, 3);
+            MeasureRoi.Length1 = Math.Round(len1, 3);
+            MeasureRoi.Length2 = Math.Round(len2, 3);
+
+            void UpdateOrBreak(ref LinkVarModel fieldRef, LinkVarModel current, double newValue, string fmt = "0.000")
+            {
+                var cb = current.TextChanged;
+                fieldRef = new LinkVarModel { Text = newValue.ToString(fmt) };
+                fieldRef.TextChanged = cb;
+                RaisePropertyChanged(GetParamName(current));
+            }
+
+            string GetParamName(LinkVarModel p)
+            {
+                if (p == MeasureRoiCenterX) return nameof(MeasureRoiCenterX);
+                if (p == MeasureRoiCenterY) return nameof(MeasureRoiCenterY);
+                if (p == MeasureRoiLength1) return nameof(MeasureRoiLength1);
+                if (p == MeasureRoiLength2) return nameof(MeasureRoiLength2);
+                if (p == MeasureRoiAngle) return nameof(MeasureRoiAngle);
+                return "";
+            }
+
+            UpdateOrBreak(ref _MeasureRoiCenterX, MeasureRoiCenterX, MeasureRoi.MidC);
+            UpdateOrBreak(ref _MeasureRoiCenterY, MeasureRoiCenterY, MeasureRoi.MidR);
+            UpdateOrBreak(ref _MeasureRoiLength1, MeasureRoiLength1, MeasureRoi.Length1);
+            UpdateOrBreak(ref _MeasureRoiLength2, MeasureRoiLength2, MeasureRoi.Length2);
+            UpdateOrBreak(ref _MeasureRoiAngle, MeasureRoiAngle, MeasureRoi.Deg);
+        }
+
+        [NonSerialized] private bool MeasureRoiChanged_Flag = false;
+        private void MeasureRoiChanged()
+        {
+            if (MeasureRoiChanged_Flag) return;
+            MeasureRoiChanged_Flag = true;
+            try
+            {
+                GetHomMat2D();
+                MeasureRoi.MidC = ResolveLinkValue(MeasureRoiCenterX);
+                MeasureRoi.MidR = ResolveLinkValue(MeasureRoiCenterY);
+                MeasureRoi.Length1 = ResolveLinkValue(MeasureRoiLength1);
+                MeasureRoi.Length2 = ResolveLinkValue(MeasureRoiLength2);
+                MeasureRoi.Deg = ResolveLinkValue(MeasureRoiAngle);
+
+                if (HomMat2D != null && HomMat2D.Length > 0)
+                    Aff.Affine2d(HomMat2D, MeasureRoi, TranMeasureRoi);
+                else
+                {
+                    TranMeasureRoi.MidC = MeasureRoi.MidC;
+                    TranMeasureRoi.MidR = MeasureRoi.MidR;
+                    TranMeasureRoi.Length1 = MeasureRoi.Length1;
+                    TranMeasureRoi.Length2 = MeasureRoi.Length2;
+                    TranMeasureRoi.Deg = MeasureRoi.Deg;
+                }
+                InitMeasureRoiMethod();
+            }
+            finally
+            {
+                MeasureRoiChanged_Flag = false;
             }
         }
 
@@ -589,6 +728,18 @@ namespace Plugin.VolumeMeasurement.ViewModels
         }
 
         public ROIRectangle2 TranMeasureRoi = new ROIRectangle2();
+        public ROIRectangle2 MeasureRoi { get; set; } = new ROIRectangle2();
+
+        public LinkVarModel MeasureRoiCenterX { get => _MeasureRoiCenterX; set { _MeasureRoiCenterX = value; RaisePropertyChanged(); } }
+        private LinkVarModel _MeasureRoiCenterX = new LinkVarModel() { Text = "200" };
+        public LinkVarModel MeasureRoiCenterY { get => _MeasureRoiCenterY; set { _MeasureRoiCenterY = value; RaisePropertyChanged(); } }
+        private LinkVarModel _MeasureRoiCenterY = new LinkVarModel() { Text = "200" };
+        public LinkVarModel MeasureRoiLength1 { get => _MeasureRoiLength1; set { _MeasureRoiLength1 = value; RaisePropertyChanged(); } }
+        private LinkVarModel _MeasureRoiLength1 = new LinkVarModel() { Text = "100" };
+        public LinkVarModel MeasureRoiLength2 { get => _MeasureRoiLength2; set { _MeasureRoiLength2 = value; RaisePropertyChanged(); } }
+        private LinkVarModel _MeasureRoiLength2 = new LinkVarModel() { Text = "100" };
+        public LinkVarModel MeasureRoiAngle    { get => _MeasureRoiAngle; set { _MeasureRoiAngle = value; RaisePropertyChanged(); } }
+        private LinkVarModel _MeasureRoiAngle = new LinkVarModel() { Text = "0" };
 
         [NonSerialized]
         private Dictionary<string, ROI> _RoiList;
@@ -627,6 +778,12 @@ namespace Plugin.VolumeMeasurement.ViewModels
 
             view.mWindowH.hControl.MouseUp -= HControl_MouseUp;
             view.mWindowH.hControl.MouseUp += HControl_MouseUp;
+
+            MeasureRoiCenterX.TextChanged = () => MeasureRoiChanged();
+            MeasureRoiCenterY.TextChanged = () => MeasureRoiChanged();
+            MeasureRoiLength1.TextChanged = () => MeasureRoiChanged();
+            MeasureRoiLength2.TextChanged = () => MeasureRoiChanged();
+            MeasureRoiAngle.TextChanged = () => MeasureRoiChanged();
 
             if (DispImage == null || !DispImage.IsInitialized())
             {
@@ -698,6 +855,21 @@ namespace Plugin.VolumeMeasurement.ViewModels
                 case eLinkCommand.ResolutionZ:
                     ResolutionZ.Text = obj.LinkName;
                     break;
+                case eLinkCommand.MeasureRoiCenterX:
+                    MeasureRoiCenterX.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.MeasureRoiCenterY:
+                    MeasureRoiCenterY.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.MeasureRoiLength1:
+                    MeasureRoiLength1.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.MeasureRoiLength2:
+                    MeasureRoiLength2.Text = obj.LinkName;
+                    break;
+                case eLinkCommand.MeasureRoiAngle:
+                    MeasureRoiAngle.Text = obj.LinkName;
+                    break;
             }
         }
 
@@ -750,11 +922,28 @@ namespace Plugin.VolumeMeasurement.ViewModels
             obj["ResolutionZ"] = ResolutionZ?.Text ?? "";
             obj["VolumeUnit"] = VolumeUnit ?? "";
             obj["ShowRegion"] = ShowRegion;
-            obj["RoiMidC"] = TranMeasureRoi.MidC;
-            obj["RoiMidR"] = TranMeasureRoi.MidR;
-            obj["RoiLength1"] = TranMeasureRoi.Length1;
-            obj["RoiLength2"] = TranMeasureRoi.Length2;
-            obj["RoiDeg"] = TranMeasureRoi.Deg;
+            obj["MeasureRoiCenterX"] = MeasureRoiCenterX?.Text ?? "200";
+            obj["MeasureRoiCenterY"] = MeasureRoiCenterY?.Text ?? "200";
+            obj["MeasureRoiLength1"] = MeasureRoiLength1?.Text ?? "100";
+            obj["MeasureRoiLength2"] = MeasureRoiLength2?.Text ?? "100";
+            obj["MeasureRoiAngle"] = MeasureRoiAngle?.Text ?? "0";
+            JArray roiArray = new JArray();
+            if (_RoiList != null)
+            {
+                foreach (var kvp in _RoiList)
+                {
+                    HTuple data = kvp.Value.GetModelData();
+                    JObject roiObj = new JObject
+                    {
+                        ["Key"] = kvp.Key,
+                        ["Type"] = kvp.Value.Type.ToString(),
+                        ["Color"] = kvp.Value.Color,
+                        ["ModelData"] = new JArray(data.ToDArr().Select(d => d))
+                    };
+                    roiArray.Add(roiObj);
+                }
+            }
+            obj["RoiList"] = roiArray;
             return obj.ToString();
         }
 
@@ -778,16 +967,74 @@ namespace Plugin.VolumeMeasurement.ViewModels
                 if (obj["ResolutionZ"] != null && ResolutionZ != null) ResolutionZ.Text = obj["ResolutionZ"].ToString();
                 if (obj["VolumeUnit"] != null) VolumeUnit = obj["VolumeUnit"].ToString();
                 if (obj["ShowRegion"] != null) ShowRegion = obj["ShowRegion"].Value<bool>();
-                if (obj["RoiMidC"] != null) TranMeasureRoi.MidC = obj["RoiMidC"].Value<double>();
-                if (obj["RoiMidR"] != null) TranMeasureRoi.MidR = obj["RoiMidR"].Value<double>();
-                if (obj["RoiLength1"] != null) TranMeasureRoi.Length1 = obj["RoiLength1"].Value<double>();
-                if (obj["RoiLength2"] != null) TranMeasureRoi.Length2 = obj["RoiLength2"].Value<double>();
-                if (obj["RoiDeg"] != null) TranMeasureRoi.Deg = obj["RoiDeg"].Value<double>();
+                if (obj["MeasureRoiCenterX"] != null && MeasureRoiCenterX != null)
+                    MeasureRoiCenterX.Text = obj["MeasureRoiCenterX"].ToString();
+                else if (obj["RoiMidC"] != null && MeasureRoiCenterX != null)
+                    MeasureRoiCenterX.Text = obj["RoiMidC"].Value<double>().ToString("0.000");
+                if (obj["MeasureRoiCenterY"] != null && MeasureRoiCenterY != null)
+                    MeasureRoiCenterY.Text = obj["MeasureRoiCenterY"].ToString();
+                else if (obj["RoiMidR"] != null && MeasureRoiCenterY != null)
+                    MeasureRoiCenterY.Text = obj["RoiMidR"].Value<double>().ToString("0.000");
+                if (obj["MeasureRoiLength1"] != null && MeasureRoiLength1 != null)
+                    MeasureRoiLength1.Text = obj["MeasureRoiLength1"].ToString();
+                else if (obj["RoiLength1"] != null && MeasureRoiLength1 != null)
+                    MeasureRoiLength1.Text = obj["RoiLength1"].Value<double>().ToString("0.000");
+                if (obj["MeasureRoiLength2"] != null && MeasureRoiLength2 != null)
+                    MeasureRoiLength2.Text = obj["MeasureRoiLength2"].ToString();
+                else if (obj["RoiLength2"] != null && MeasureRoiLength2 != null)
+                    MeasureRoiLength2.Text = obj["RoiLength2"].Value<double>().ToString("0.000");
+                if (obj["MeasureRoiAngle"] != null && MeasureRoiAngle != null)
+                    MeasureRoiAngle.Text = obj["MeasureRoiAngle"].ToString();
+                else if (obj["RoiDeg"] != null && MeasureRoiAngle != null)
+                    MeasureRoiAngle.Text = obj["RoiDeg"].Value<double>().ToString("0.000");
+                if (obj["RoiList"] != null)
+                {
+                    if (_RoiList == null)
+                        _RoiList = new Dictionary<string, ROI>();
+                    else
+                        _RoiList.Clear();
+                    foreach (JToken token in (JArray)obj["RoiList"])
+                    {
+                        string key = token["Key"]?.ToString();
+                        string type = token["Type"]?.ToString();
+                        string color = token["Color"]?.ToString() ?? "yellow";
+                        JArray dataArr = (JArray)token["ModelData"];
+                        if (string.IsNullOrEmpty(key) || dataArr == null)
+                            continue;
+                        double[] data = dataArr.Select(d => d.Value<double>()).ToArray();
+                        ROI roi = CreateROIFromData(type, data);
+                        if (roi != null)
+                        {
+                            roi.Color = color;
+                            _RoiList[key] = roi;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 Logger.AddLog($"VolumeMeasurementViewModel.HVDeserialize 异常: {ex.Message}", eMsgType.Error);
             }
+        }
+
+        private ROI CreateROIFromData(string type, double[] data)
+        {
+            switch (type)
+            {
+                case "Circle":
+                    if (data.Length >= 3) return new ROICircle(data[0], data[1], data[2]);
+                    break;
+                case "Line":
+                    if (data.Length >= 4) return new ROILine(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle1":
+                    if (data.Length >= 4) return new ROIRectangle1(data[0], data[1], data[2], data[3]);
+                    break;
+                case "Rectangle2":
+                    if (data.Length >= 5) return new ROIRectangle2(data[0], data[1], data[2], data[3], data[4]);
+                    break;
+            }
+            return null;
         }
     }
 }

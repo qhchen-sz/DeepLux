@@ -111,6 +111,16 @@
                                     <MenuItem Header="深度处理" HorizontalAlignment="Center" VerticalContentAlignment="Center" >
                                         <MenuItem Header="深度阈值裁剪" Command="{Binding DataOperateCommand}" CommandParameter="add_深度阈值裁剪"/>
                                         <MenuItem Header="深度填充" Command="{Binding DataOperateCommand}" CommandParameter="add_深度填充"/>
+                                        <MenuItem Header="无效高度过滤" Command="{Binding DataOperateCommand}" CommandParameter="add_无效高度过滤"/>
+                                        <MenuItem Header="矩形屏蔽" Command="{Binding DataOperateCommand}" CommandParameter="add_矩形屏蔽"/>
+                                        <MenuItem Header="飞点去除" Command="{Binding DataOperateCommand}" CommandParameter="add_飞点去除"/>
+                                        <MenuItem Header="小孔填补" Command="{Binding DataOperateCommand}" CommandParameter="add_小孔填补"/>
+                                        <MenuItem Header="保边滤波" Command="{Binding DataOperateCommand}" CommandParameter="add_保边滤波"/>
+                                        <MenuItem Header="行条纹校正" Command="{Binding DataOperateCommand}" CommandParameter="add_行条纹校正"/>
+                                        <MenuItem Header="列条纹校正" Command="{Binding DataOperateCommand}" CommandParameter="add_列条纹校正"/>
+                                        <MenuItem Header="连通域筛选" Command="{Binding DataOperateCommand}" CommandParameter="add_连通域筛选"/>
+                                        <MenuItem Header="平面去趋势" Command="{Binding DataOperateCommand}" CommandParameter="add_平面去趋势"/>
+                                        <MenuItem Header="高度归一化" Command="{Binding DataOperateCommand}" CommandParameter="add_高度归一化"/>
                                     </MenuItem>
                                 </MenuItem>
                             </Menu>
@@ -263,6 +273,160 @@
                                     <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
                                         <TextBlock Text="高度:" VerticalAlignment="Center" Width="60"/>
                                         <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_FillHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--无效高度过滤-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.无效高度过滤}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最小Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_InvalidMinZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_InvalidMaxZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <CheckBox Content="无效区域填充值（否则裁剪Domain）" IsChecked="{Binding SelectedText.m_InvalidPaintEnable}" Margin="20,10,10,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="填充值:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_InvalidFillValue}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--矩形屏蔽-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.矩形屏蔽}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="Row1:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_MaskRow1}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="Col1:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_MaskCol1}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="Row2:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_MaskRow2}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="Col2:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_MaskCol2}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                    <CheckBox Content="屏蔽区域填充值（否则从Domain排除）" IsChecked="{Binding SelectedText.m_MaskPaintEnable}" Margin="20,10,10,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="填充值:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_MaskFillValue}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--飞点去除-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.飞点去除}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="中值核:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="3" Value="{Binding SelectedText.m_SpikeMedianSize}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度阈值:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_SpikeThreshold}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--小孔填补-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.小孔填补}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="有效最小Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_HoleMinZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="有效最大Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_HoleMaxZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大面积:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_HoleMaxArea}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="填补宽:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_HoleFillWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="填补高:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_HoleFillHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--保边滤波-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.保边滤波}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="宽度:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_EdgeSmoothWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="高度:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_EdgeSmoothHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="边缘阈值:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Value="{Binding SelectedText.m_EdgeThreshold}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--行条纹校正-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.行条纹校正}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="纵向窗口:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="3" Value="{Binding SelectedText.m_RowStripeWidth}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="强度:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Maximum="1" Interval="0.1" Value="{Binding SelectedText.m_RowStripeStrength}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--列条纹校正-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.列条纹校正}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="横向窗口:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="3" Value="{Binding SelectedText.m_ColumnStripeHeight}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="强度:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="0" Maximum="1" Interval="0.1" Value="{Binding SelectedText.m_ColumnStripeStrength}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.###"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--连通域筛选-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.连通域筛选}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最小Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_ComponentMinZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_ComponentMaxZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <CheckBox Content="只保留最大区域" IsChecked="{Binding SelectedText.m_ComponentKeepMax}" Margin="20,10,10,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最小面积:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ComponentMinArea}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大面积:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="1" Value="{Binding SelectedText.m_ComponentMaxArea}" Width="200" Margin="5 0" BorderThickness="0 0 0 1"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!--平面去趋势-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.平面去趋势}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最小Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_PlaneMinZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="最大Z:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_PlaneMaxZ}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <CheckBox Content="保留中心高度" IsChecked="{Binding SelectedText.m_PlaneKeepHeight}" Margin="20,10,10,0"/>
+                                </StackPanel>
+                                <!--高度归一化-->
+                                <StackPanel Orientation="Vertical" Visibility="{Binding SelectedText.m_name,Converter={StaticResource EnumToVisibilityConverter},ConverterParameter={x:Static m:eOperatorType.高度归一化}}">
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="比例:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_NormalizeScale}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="20,10,10,10">
+                                        <TextBlock Text="偏移:" VerticalAlignment="Center" Width="80"/>
+                                        <mah:NumericUpDown Minimum="-99999999" Value="{Binding SelectedText.m_NormalizeOffset}" Width="200" Margin="5 0" BorderThickness="0 0 0 1" StringFormat="0.######"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Grid>
