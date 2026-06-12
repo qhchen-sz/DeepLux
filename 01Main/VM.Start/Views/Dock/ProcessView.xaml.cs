@@ -47,11 +47,9 @@ namespace HV.Views.Dock
         {
             InitializeComponent();
             this.DataContext = ProcessViewModel.Ins;
-            //m_CurProjectID = Solution.Ins.CreateProject();
-            //Solution.Ins.CurrentProject = Solution.Ins.GetProjectById(m_CurProjectID);
         }
         private ObservableCollection<ModuleBase> modules = new ObservableCollection<ModuleBase>();
-        private List<string> Types = new List<string>();
+
 
         public static ProcessView Ins
         {
@@ -162,7 +160,6 @@ namespace HV.Views.Dock
 
             if (e.AllowedEffects == DragDropEffects.Copy) //表示从工具栏拖动 需要创建新的模块
             {
-                //TimeTool.Start("创建模块计时");
                 string pluginName = model.Name;
 
                 if (SelectedNode != null && Solution.Ins.CurrentProject.ModuleList.Count != 0)
@@ -223,10 +220,6 @@ namespace HV.Views.Dock
         {
             if (!PluginService.PluginDic_Module.Keys.Contains(pluginName))
                 return;
-            //ModuleBase module = (ModuleBase)PluginService.PluginDic_Module[pluginName].ModuleType.Assembly.CreateInstance(PluginService.PluginDic_Module[pluginName].ModuleType.FullName);
-            //ModuleViewBase moduleFormBase = (ModuleViewBase)PluginService.PluginDic_Module[pluginName].ModuleType.Assembly.CreateInstance(PluginService.PluginDic_Module[pluginName].ModuleViewType.FullName);
-            //module.ModuleView = moduleFormBase;
-            //moduleFormBase.ModuleBase = module;
             ModuleBase module = (ModuleBase)
                 Activator.CreateInstance(PluginService.PluginDic_Module[pluginName].ModuleType);
             module.ModuleParam = new ModuleParam();
@@ -334,9 +327,6 @@ namespace HV.Views.Dock
                     PluginService.PluginDic_Module[pluginName].ModuleType.Assembly.CreateInstance(
                         PluginService.PluginDic_Module[pluginName].ModuleType.FullName
                     );
-                //ModuleViewBase module2FormBase = (ModuleViewBase)PluginService.PluginDic_Module[pluginName].ModuleType.Assembly.CreateInstance(PluginService.PluginDic_Module[pluginName].ModuleViewType.FullName);
-                //module2.ModuleView = module2FormBase;
-                //module2FormBase.ModuleBase = module2;
                 module2.ModuleParam = new ModuleParam();
                 module2.ModuleParam.ProjectID = Solution.Ins.CurrentProjectID;
                 module2.ModuleParam.PluginName = pluginName;
@@ -718,16 +708,7 @@ namespace HV.Views.Dock
         {
             if (e.KeyboardDevice.Modifiers == ModifierKeys.Shift)
             {
-                //只按下了shift 则开始记录是从那里开始连续选中
-                if (
-                    SelectedNode != null
-                    && !SelectedModuleNameList.Contains(
-                        SelectedNode.ModuleInfo.ModuleParam.ModuleName
-                    )
-                )
-                {
-                    SelectedModuleNameList.Add(SelectedNode.ModuleInfo.ModuleParam.ModuleName);
-                }
+                MultiSelect();
             }
             else if (e.KeyboardDevice.Modifiers == ModifierKeys.Control && e.Key == Key.A)
             {
@@ -735,6 +716,14 @@ namespace HV.Views.Dock
                 {
                     moduleNode.IsMultiSelected = true;
                 }
+            }
+            else if (e.KeyboardDevice.Modifiers == ModifierKeys.Control && e.Key == Key.C)
+            {
+                miCopy_Click(sender, null);
+            }
+            else if (e.KeyboardDevice.Modifiers == ModifierKeys.Control && e.Key == Key.V)
+            {
+                miPaste_Click(sender, null);
             }
         }
 
@@ -787,22 +776,8 @@ namespace HV.Views.Dock
                 {
                     CancelMultiSelect();
                     selectedItem.IsSelected = true;
-                    //// 【新增】确保当前节点也被添加到 SelectedModuleNameList
-                    //if (SelectedNode != null && !SelectedModuleNameList.Contains(SelectedNode.ModuleInfo.ModuleParam.ModuleName))
-                    //{
-                    //    SelectedModuleNameList.Add(SelectedNode.ModuleInfo.ModuleParam.ModuleName);
-                    //    // 更新 MultiSelectedStart 和 MultiSelectedEnd
-                    //    MultiSelectedStart = SelectedNode.ModuleInfo.ModuleParam.ModuleName;
-                    //    MultiSelectedEnd = SelectedNode.ModuleInfo.ModuleParam.ModuleName;
-                    //    MultiSelectedCount = 1;
-                    //}
                 }
             }
-            // if (selectedItem != null)
-            // {
-            //     SelectedNode = selectedItem.DataContext as ModuleNode;
-            //     seletedItem.IsSelectedc = true;
-            // }
 
             //靠近滚轮则不执行拖动
             if (moduleTree.ActualWidth - pt.X > 80)
@@ -820,14 +795,10 @@ namespace HV.Views.Dock
         //鼠标左键弹起
         private void ModuleTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift && Keyboard.Modifiers != ModifierKeys.Control) //鼠标弹起 多选模式 取消显示  <- 【修改】
+            if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift && Keyboard.Modifiers != ModifierKeys.Control)
             {
                 CancelMultiSelect();
             }
-            // if (IsMultiSelectedModel() == true && Keyboard.Modifiers != ModifierKeys.Shift) //鼠标弹起 多选模式 取消显示
-            // {
-            //     CancelMultiSelect();
-            // }
         }
 
         //多选
@@ -1095,15 +1066,15 @@ namespace HV.Views.Dock
                 MultiSelectedCount = 0;
             }
         }
-        //取消多选样式
         public void CancelMultiSelect()
         {
-            //点击的时候取消 多重选择效果
             foreach (ModuleNode item in ModuleNodeList)
             {
                 item.IsMultiSelected = false;
             }
             SelectedModuleNameList.Clear();
+            MultiSelectedStart = null;
+            MultiSelectedEnd = null;
             MultiSelectedCount = 0;
         }
 
@@ -1152,15 +1123,6 @@ namespace HV.Views.Dock
 
         public void ClearStatus()
         {
-            //if (TreeSoureList == null || TreeSoureList.Count == 0)
-            //    return;
-            //foreach (var node in TreeSoureList)
-            //{
-            //    node.CostTime = "0";
-            //    node.StatusImage = null;
-            //    node.StatusColor = Brushes.Transparent;
-            //    node.IsRunning = false;
-            //}
         }
 
         public void UpdateStatus(ModuleParam moduleParam)
@@ -1208,6 +1170,9 @@ namespace HV.Views.Dock
 
         public void UpdateTree(string selectedNoteName = "")
         {
+            MultiSelectedStart = null;
+            MultiSelectedEnd = null;
+            SelectedModuleNameList.Clear();
             ModuleNodeList.Clear();
             NodesStatusDic.Clear();
             GetTreeNodesStatus(moduleTree); //保存展开节点信息
@@ -1293,6 +1258,7 @@ namespace HV.Views.Dock
             }
             SelectNode(selectedNoteName);
             SaveTempSolution();
+            Dispatcher.BeginInvoke(new Action(() => moduleTree.Focus()), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>
@@ -1558,11 +1524,8 @@ namespace HV.Views.Dock
                 }
 
                 ModuleBase moduleObj = Solution.Ins.CurrentProject.GetModuleByName(moduleName);
-                //var obja= CloneObject.DeepCopy(moduleObj);
                 if (moduleObj == null)
                     return;
-                //获取对应的ModuleViewBase
-                //ModuleViewBase moduleFormBase = (ModuleViewBase)PluginService.PluginDic_Module[moduleObj.ModuleParam.PluginName].ModuleType.Assembly.CreateInstance(PluginService.PluginDic_Module[moduleObj.ModuleParam.PluginName].ModuleViewType.FullName);
                 if(moduleObj.ModuleParam.PluginName == "PLC读取"|| moduleObj.ModuleParam.PluginName == "PLC写入")
                     moduleObj.ModuleView = null;
                 if (moduleObj.ModuleView == null || true)
@@ -1574,14 +1537,10 @@ namespace HV.Views.Dock
                             ].ModuleViewType
                         );
                     moduleObj.ModuleView = moduleFormBase;
-                    
-                    //moduleObj.ModuleView = CloneObject.DeepCopy(moduleFormBase);
                     moduleObj.IsOpenWindows = true;
                     moduleFormBase.ModuleBase = moduleObj;
-                    //moduleFormBase.ModuleBase = obja;
                 }
                 moduleObj.ModuleView.ShowDialog();
-                //moduleObj = obja;
                 moduleObj.IsOpenWindows = false;
                 SaveTempSolution();
             }
@@ -1748,16 +1707,6 @@ namespace HV.Views.Dock
                 else if (item.ModuleParam.ModuleName.StartsWith("循环开始"))
                 {
                     item.ModuleParam.Status = status;
-                    //string endModuleName = item.ModuleParam.ModuleName.Replace("循环开始", "循环结束");
-                    //int index = Solution.Ins.CurrentProject.ModuleList.IndexOf(item);
-                    //while (
-                    //    Solution.Ins.CurrentProject.ModuleList[index].ModuleParam.ModuleName
-                    //    != endModuleName
-                    //)
-                    //{
-                    //    Solution.Ins.CurrentProject.ModuleList.RemoveAt(index);
-                    //}
-                    //Solution.Ins.CurrentProject.ModuleList.RemoveAt(index);
                 }
                 else if (item.ModuleParam.ModuleName.StartsWith("循环结束"))
                 {
@@ -1774,16 +1723,6 @@ namespace HV.Views.Dock
                 else if (item.ModuleParam.ModuleName.StartsWith("坐标补正开始"))
                 {
                     item.ModuleParam.Status = status;
-                    //string endModuleName = item.ModuleParam.ModuleName.Replace("坐标补正开始", "坐标补正结束");
-                    //int index = Solution.Ins.CurrentProject.ModuleList.IndexOf(item);
-                    //while (
-                    //    Solution.Ins.CurrentProject.ModuleList[index].ModuleParam.ModuleName
-                    //    != endModuleName
-                    //)
-                    //{
-                    //    Solution.Ins.CurrentProject.ModuleList.RemoveAt(index);
-                    //}
-                    //Solution.Ins.CurrentProject.ModuleList.RemoveAt(index);
                 }
                 else if (item.ModuleParam.ModuleName.StartsWith("坐标补正结束"))
                 {
@@ -1792,7 +1731,6 @@ namespace HV.Views.Dock
                 else
                 {
                     item.ModuleParam.Status = status;
-                    //Solution.Ins.CurrentProject.ModuleList.Remove(item);
                 }
             }
             UpdateTree();
@@ -1800,53 +1738,22 @@ namespace HV.Views.Dock
 
         private void miCopy_Click(object sender, RoutedEventArgs e)
         {
-            //var Temp = SelectedNode;
-            //var Temp1 = ModuleNodeList;
-            //var Temp2 = SelectedModuleNameList;
             List<string> modulenameList = Solution.Ins.CurrentProject.ModuleList
             .Select(c => c.ModuleParam.ModuleName)
             .ToList();
             modules = new ObservableCollection<ModuleBase>();
-            Types = new List<string>();
-            string pattern = @"^(.*?)\d+$"; // 匹配末尾数字前的所有字符
-            // 定义不可复制的模块类型
-            // HashSet<string> forbiddenTypes = new HashSet<string>
-            // {
-            //     "如果", "循环开始", "并行处理开始", "坐标补正开始", "点云补正开始",
-            //     "结束", "循环结束", "并行处理结束", "坐标补正结束", "点云补正结束",
-
-            // };
-            HashSet<string> forbiddenTypes = new HashSet<string>
-            {
-                //"如果", "循环开始", "并行处理开始", "点云补正开始",
-                //"结束", "循环结束", "并行处理结束", "点云补正结束",
-            };
-            if (IsMultiSelectedModel() == true)//是否多选
+            if (IsMultiSelectedModel() == true)
             {
                 int startIndex = modulenameList.IndexOf(MultiSelectedStart);
                 int endIndex = modulenameList.IndexOf(MultiSelectedEnd);
-                // 检查索引有效性
                 if (startIndex == -1 || endIndex == -1 || startIndex > endIndex)
                 {
                     return;
                 }
 
-                // bool State = false;
                 for (int i = startIndex; i <= endIndex; i++)
                 {
                     ModuleBase sourceModule = Solution.Ins.CurrentProject.ModuleList[i];
-                    string moduleName = sourceModule.ModuleParam.ModuleName;
-                    
-                    // 提取模块类型（去掉末尾数字）
-                    Match match = Regex.Match(moduleName, pattern);
-                    string type = match.Success ? match.Groups[1].Value : moduleName;
-                    
-                    // 跳过不可复制的模块类型
-                    if (forbiddenTypes.Contains(type))
-                    {
-                        Logger.AddLog($"跳过不可复制的模块: {moduleName}", eMsgType.Warn);
-                        continue;
-                    }
                     ModuleBase temp = CloneObject.DeepCopy(sourceModule);
                     modules.Add(temp);
                 }
@@ -1856,90 +1763,11 @@ namespace HV.Views.Dock
                     Logger.AddLog("没有可复制的模块！", eMsgType.Warn);
                     return;
                 }
-
-                //for (int i = startIndex; i < endIndex+1; i++)
-                //{
-                //    ModuleBase temp = CloneObject.DeepCopy(Solution.Ins.CurrentProject.ModuleList[i]);
-                //    var ee = temp.ModuleParam.ModuleName;
-                //    modules.Add(temp);
-
-                //    Match match = Regex.Match(modulenameList[i], pattern);
-                //    string type = modulenameList[i];
-                //    if (match.Success)
-                //    {
-                //        type = match.Groups[1].Value;
-                //    }
-                //    Types.Add(type);
-                //    if (type =="如果"|| type == "循环开始" || type == "坐标补正开始" || type == "点云补正开始")
-                //        State = true;
-                //     else if(type == "结束" || type == "循环结束" || type == "坐标补正结束" || type == "点云补正结束")
-                //    {
-                //        if(State)
-                //            State = false;
-                //        else
-                //        {
-                //            for (int j = i - startIndex; j >= 0; j--)
-                //            {
-                //                if (j > Types.Count)
-                //                    break;
-                //                if (Types[j]== "如果" || Types[j] == "循环开始" || Types[j] == "坐标补正开始" || Types[j] == "点云补正开始")
-                //                {
-                //                    Types.RemoveAt(j);
-                //                    modules.RemoveAt(j);
-                //                    break;
-                //                }
-                //                Types.RemoveAt(j);
-                //                modules.RemoveAt(j);
-                //            }
-                //        }
-                //    }
-                        
-                    
-                //}
-                //if (State)//选中如果
-                //{
-                //    for (int i = endIndex + 1; i < modulenameList.Count; i++)
-                //    {
-                //        ModuleBase temp = CloneObject.DeepCopy(Solution.Ins.CurrentProject.ModuleList[i]);
-                //        modules.Add(temp);
-                //        Match match = Regex.Match(modulenameList[i], pattern);
-                //        string type = modulenameList[i];
-                //        if (match.Success)
-                //        {
-                //            type = match.Groups[1].Value;
-                //        }
-                //        Types.Add(type);
-                //        if (type == "结束" || type == "循环结束" || type == "坐标补正结束" || type == "点云补正结束")
-                //            break;
-                //    }
-                //}
             }
             else
             {
                 int startIndex = modulenameList.IndexOf(SelectedNode.DisplayName);
                 ModuleBase temp = CloneObject.DeepCopy(Solution.Ins.CurrentProject.ModuleList[startIndex]);
-                string type = temp.ModuleParam.ModuleName;
-                Match match = Regex.Match(type, pattern);
-                if (match.Success)
-                {
-                    type = match.Groups[1].Value;
-                }
-                //if (type == "如果" || type == "循环开始" || type == "并行处理开始" || type == "点云补正开始"
-                //    || type == "结束" || type == "循环结束" || type == "并行处理结束" || type == "点云补正结束")
-                //    return;
-                //    int no = 0;
-                //string moduleName = "";
-                //while (true)
-                //{
-                //    moduleName = type + ((no != 0) ? no.ToString() : "");
-
-                //    if (!modulenameList.Contains(moduleName))
-                //    {
-                //        break; //没有重名就跳出循环
-                //    }
-                //    no++;
-                //}
-                //temp.ModuleParam.ModuleName = moduleName;
                 modules.Add(temp);
             }
         }
@@ -1956,96 +1784,38 @@ namespace HV.Views.Dock
             string insertAfterModule = SelectedNode?.Name ?? 
                 Solution.Ins.CurrentProject.ModuleList.Last()?.ModuleParam.ModuleName;
             
-            // 遍历所有要粘贴的模块
             foreach (var module in modules)
             {
-                // // 生成不重复的名称
-                // string moduleName = GenerateUniqueName(module.ModuleParam.ModuleName, modulenameList);
                 string type = module.ModuleParam.ModuleName;
-                int no = 0;
+                Match m = Regex.Match(type, @"^(.*?)(\d+)?$");
+                string baseName = m.Groups[1].Value;
+                int no = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) + 1 : 1;
                 string moduleName;
                 while (true)
                 {
-                    moduleName = type + ((no != 0) ? no.ToString() : "");
+                    moduleName = baseName + no;
                     if (!modulenameList.Contains(moduleName))
                         break;
                     no++;
                 }
-                
-                // 更新模块信息
+
                 module.ModuleParam.ModuleName = moduleName;
                 module.Prj = Solution.Ins.CurrentProject;
                 module.ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
-                // ⚠️ 重要：生成新的 GUID，避免与原模块冲突
                 module.ModuleGuid = Guid.NewGuid();
                 module.ModuleParam.ModuleEncode = Math.Abs(module.ModuleGuid.GetHashCode());
-                
-                // 插入模块
+
                 int insertIndex = Solution.Ins.CurrentProject.ModuleList.FindIndex(
                     c => c.ModuleParam.ModuleName == insertAfterModule) + 1;
                 Solution.Ins.CurrentProject.ModuleList.Insert(insertIndex, module);
-                
-                // 更新插入位置
+
                 insertAfterModule = moduleName;
                 modulenameList.Add(moduleName);
             }
-            
+
             Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
             UpdateTree(modules[0].ModuleParam.ModuleName);
             modules.Clear();
-            // if (modules.Count == 0)
-            //     return;
-            // string moduleName = "";
-            // string type = modules[0].ModuleParam.ModuleName;
-            // int no = 0;
-            // List<string> modulenameList = Solution.Ins.CurrentProject.ModuleList
-            // .Select(c => c.ModuleParam.ModuleName)
-            // .ToList();
-            // while (true)
-            // {
-            //     moduleName = type + ((no != 0) ? no.ToString() : "");
-
-            //     if (!modulenameList.Contains(moduleName))
-            //     {
-            //         break; //没有重名就跳出循环
-            //     }
-            //     no++;
-            // }
-            // modules[0].ModuleParam.ModuleName = moduleName;
-            // modules[0].Prj = Solution.Ins.CurrentProject;
-            // modules[0].ModuleParam.ProjectID = Solution.Ins.CurrentProject.ProjectInfo.ProjectID;
-            // if (SelectedNode != null && Solution.Ins.CurrentProject.ModuleList.Count != 0)
-            // {
-
-            //         Solution.Ins.CurrentProject.ModuleList.Insert(
-            //             Solution.Ins.CurrentProject.ModuleList.FindIndex(
-            //                 c => c.ModuleParam.ModuleName == SelectedNode.Name
-            //             ) + 1,
-            //             modules[0]
-            //         );
-            //         Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-
-            // }
-            // else if (Solution.Ins.CurrentProject.ModuleList.Count == 0)
-            // {
-            //     Solution.Ins.CurrentProject.ModuleList.Add(modules[0]);
-            //     Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-            // }
-            // else //没有选择 则默认选择最后一个
-            // {
-            //     Solution.Ins.CurrentProject.ModuleList.Insert(
-            //             Solution.Ins.CurrentProject.ModuleList.FindIndex(
-            //                 c => c.ModuleParam.ModuleName == Solution.Ins.CurrentProject.ModuleList.Last().ModuleParam.ModuleName
-            //             ) + 1,
-            //             modules[0]
-            //         );
-            //     Solution.Ins.CurrentProject.ModuleList_CollectionChanged(null, null);
-
-            // }
-            // string addModuleName = modules[0].ModuleParam.ModuleName;
-            // UpdateTree(addModuleName);
-            // modules.Clear();
-
         }
 
         private void miCut_Click(object sender, RoutedEventArgs e) { }

@@ -144,6 +144,7 @@
             x:Name="processTree"
             Grid.Row="1"
             Grid.Column="1"
+            Focusable="False"
             Margin="5"
             AllowDrop="True"
             DragLeave="processTree_DragLeave"
