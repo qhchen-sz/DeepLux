@@ -135,7 +135,7 @@ namespace Plugin.MeasureCircle.ViewModels
                     #endregion
                     HRegion region = new HRegion();
                     region.GenCircle(TranCircle.CenterY, TranCircle.CenterX, TranCircle.Radius);
-                    Find_Circle(temp, region, out HObject Circle, out HObject Cross, out HObject ScopeRegion, MeasInfo.Threshold, MeasInfo.Length1, MeasInfo.Length2, REnum.EnumToStr(MeasInfo.MeasSelect), MeasInfo.MeasNum, REnum.EnumToStr(MeasInfo.MeasMode), (int)MeasInfo.MeasMode2, MeasInfo.ExclusionPoint, out HTuple Row, out HTuple Column, out HTuple Radius);
+                    Find_Circle(temp, region, out HObject Circle, out HObject Cross, out HObject ScopeRegion, MeasInfo.Threshold, MeasInfo.Length1, MeasInfo.Length2, REnum.EnumToStr(MeasInfo.MeasSelect), MeasInfo.MeasNum, REnum.EnumToStr(MeasInfo.MeasMode), (int)MeasInfo.MeasMode2, MeasInfo.ExclusionPoint, out HTuple Row, out HTuple Column, out HTuple Radius, out HTuple htRoundness);
                     //Meas.MeasCircle(DispImage, TranCircle, MeasInfo, null, OutCircle, out HTuple RowList, out HTuple ColList, out HXLDCont m_MeasXLD);
                     // 增加没查到圆判断输出NG
                     if (Row == 0.0)
@@ -143,6 +143,7 @@ namespace Plugin.MeasureCircle.ViewModels
                         OutCircle.CenterX = 0;
                         OutCircle.CenterY = 0;
                         OutCircle.Radius = 0;
+                        Roundness = -1;
                         ShowHRoi(new HRoi(ModuleParam.ModuleEncode, ModuleParam.ModuleName, ModuleParam.Remarks, HRoiType.检测范围, "blue", new HObject(ScopeRegion)));
                         ShowHRoi();
                         ChangeModuleRunStatus(eRunStatus.NG);
@@ -151,8 +152,12 @@ namespace Plugin.MeasureCircle.ViewModels
                     else
                     {
                         OutCircle.CenterX = Math.Round( (double)Column,2);
-                        OutCircle.CenterY = Math.Round((double)Row, 2); 
+                        OutCircle.CenterY = Math.Round((double)Row, 2);
                         OutCircle.Radius = Math.Round((double)Radius, 2);
+                        double roundness = htRoundness.D;
+                        if (OutPutRealCoordFlag)
+                            roundness *= Scale;
+                        Roundness = Math.Round(roundness, 4);
                     }
                     if (ShowResultPoint)
                     {
@@ -201,6 +206,7 @@ namespace Plugin.MeasureCircle.ViewModels
                 AddOutputParam("直径", "double", OutCircle.Radius * 2);
             }
            
+            AddOutputParam("圆度", "double", Roundness);
             AddOutputParam("状态", "bool", ModuleParam.Status == eRunStatus.OK ? true : false);
             AddOutputParam("时间", "int", ModuleParam.ElapsedTime);
         }
@@ -227,6 +233,12 @@ namespace Plugin.MeasureCircle.ViewModels
         {
             get { return _ShowResultCircle; }
             set { Set(ref _ShowResultCircle, value); }
+        }
+        private double _Roundness;
+        public double Roundness
+        {
+            get { return _Roundness; }
+            set { Set(ref _Roundness, value); }
         }
         private double _Scale=1;
         public double Scale
@@ -585,7 +597,7 @@ namespace Plugin.MeasureCircle.ViewModels
 out HObject ho_Cross, out HObject ho_ScopeRegion, HTuple hv_Gray, HTuple hv_MeasureWidth,
 HTuple hv_MeasureHeight, HTuple hv_Select, HTuple hv_NumMeasure, HTuple hv_Transition,
 HTuple hv_Direction, HTuple hv_Distance, out HTuple hv_Row, out HTuple hv_Column,
-out HTuple hv_Radius)
+out HTuple hv_Radius, out HTuple hv_Roundness)
         {
 
 
@@ -622,6 +634,7 @@ out HTuple hv_Radius)
             hv_Row = new HTuple();
             hv_Cloumn = new HTuple();
             hv_Radius = new HTuple();
+            hv_Roundness = new HTuple();
             try
             {
                 try
@@ -802,6 +815,20 @@ out HTuple hv_Radius)
                                     (new HTuple(360)).TupleRad(), (new HTuple(0)).TupleRad(), "negative",
                                     1);
                             }
+                            // 计算圆度：所有测量边缘点到拟合圆心的最大半径差
+                            double maxDist = 0;
+                            double minDist = double.MaxValue;
+                            int totalPointCount = (int)hv_hRow.TupleLength();
+                            for (hv_i = 0; hv_i < totalPointCount; hv_i = hv_i + 1)
+                            {
+                                hv_Distance1.Dispose();
+                                HOperatorSet.DistancePp(hv_hRow.TupleSelect(hv_i), hv_hCol.TupleSelect(hv_i), hv_Row, hv_Column, out hv_Distance1);
+                                double dist = (double)hv_Distance1;
+                                if (dist > maxDist) maxDist = dist;
+                                if (dist < minDist) minDist = dist;
+                            }
+                            hv_Roundness.Dispose();
+                            hv_Roundness = (totalPointCount > 0) ? (maxDist - minDist) : -1;
                         }
                         else
                         {
@@ -811,6 +838,8 @@ out HTuple hv_Radius)
                             hv_Column = 0;
                             hv_Radius.Dispose();
                             hv_Radius = 0;
+                            hv_Roundness.Dispose();
+                            hv_Roundness = -1;
                             ho_Circle.Dispose();
 
                         }
@@ -825,6 +854,8 @@ out HTuple hv_Radius)
                         hv_Column = 0;
                         hv_Radius.Dispose();
                         hv_Radius = 0;
+                        hv_Roundness.Dispose();
+                        hv_Roundness = -1;
                         ho_Circle.Dispose();
 
                     }
@@ -877,6 +908,7 @@ out HTuple hv_Radius)
                 hv_RealRow.Dispose();
                 hv_RealColumn.Dispose();
                 hv_i.Dispose();
+                hv_Roundness.Dispose();
                 hv_Exception.Dispose();
 
                 return;
@@ -916,6 +948,7 @@ out HTuple hv_Radius)
                 hv_RealRow.Dispose();
                 hv_RealColumn.Dispose();
                 hv_i.Dispose();
+                hv_Roundness.Dispose();
                 hv_Exception.Dispose();
 
                 throw HDevExpDefaultException;
@@ -951,6 +984,7 @@ out HTuple hv_Radius)
             obj["InitCircle"] = SerializeCircle(InitCircle);
             obj["TempCircle"] = SerializeCircle(TempCircle);
             obj["TranCircle"] = SerializeCircle(TranCircle);
+            obj["Roundness"] = Roundness;
             JArray roiArray = new JArray();
             foreach (var kvp in RoiList)
             {
@@ -999,6 +1033,7 @@ out HTuple hv_Radius)
                 if (obj["InitCircle"] != null) DeserializeCircle((JObject)obj["InitCircle"], InitCircle);
                 if (obj["TempCircle"] != null) DeserializeCircle((JObject)obj["TempCircle"], TempCircle);
                 if (obj["TranCircle"] != null) DeserializeCircle((JObject)obj["TranCircle"], TranCircle);
+                if (obj["Roundness"] != null) Roundness = obj["Roundness"].Value<double>();
                 if (obj["RoiList"] != null)
                 {
                     RoiList.Clear();

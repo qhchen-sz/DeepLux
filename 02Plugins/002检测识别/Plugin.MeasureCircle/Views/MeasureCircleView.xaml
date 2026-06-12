@@ -169,7 +169,7 @@
                                 <CheckBox Content="限定最小分数" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="使用阈值连接" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
                                 <CheckBox Content="限定sigma" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
-                                <CheckBox Content="启用剔除点" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0"/>
+                                <CheckBox Content="启用剔除点" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10 10 0 0" IsChecked="{Binding UseExclusionPoint}"/>
                                 <StackPanel Orientation="Horizontal" Margin="5">
                                     <TextBlock Text="剔除距离:" VerticalAlignment="Center" Width="60"/>
                                     <TextBox Width="150" Margin="5 0" BorderThickness="0 0 0 1" Text="{Binding MeasInfo.ExclusionPoint}"/>
